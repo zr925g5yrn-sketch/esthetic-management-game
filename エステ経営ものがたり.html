@@ -471,6 +471,15 @@
       r[6] = setCh(setCh(setCh(setCh(r[6], 3, 's'), 4, 'n'), 5, 'n'), 6, 's');
       r[7] = setCh(setCh(r[7], 3, 'n'), 6, 'n');
     }
+    if (f === 'anxious') {
+      r[6] = setCh(setCh(setCh(setCh(r[6], 3, 'n'), 4, 's'), 5, 'n'), 6, 's');
+      r[7] = setCh(setCh(r[7], 4, 'n'), 6, 'n');
+      r[3] = setCh(setCh(r[3], 3, 'h'), 6, 'h');
+    }
+    if (f === 'surprise') {
+      r[6] = setCh(setCh(r[6], 4, 'n'), 5, 'n'); r[7] = setCh(setCh(r[7], 4, 'n'), 5, 'n');
+      r[3] = setCh(setCh(r[3], 3, 'h'), 6, 'h');
+    }
     return r;
   }
   function sprite(look, x, y, o) {
@@ -521,10 +530,15 @@
   var OWNER_LOOK = { hair: '#3A2A26', skin: '#F8D9BE', top: UNI[0][0], bottom: UNI[0][1], style: 'bob', uniform: true };
   var scene = { mode: 'idle', t0: 0, cust: null, st: null, talkAt: -1e9, talker: null, parts: [], fxAt: 0, sat: 0 };
   function setScene(mode, extra) {
+    var prevC = scene.cust, prevM = scene.mode;
+    if (mode === 'enter' && prevC && prevC !== C && !reduce && /talk|sold|lost|treat|enter/.test(prevM)) scene.leaver = { look: prevC.look, sat: prevC.sat, t0: performance.now() };
     scene.mode = mode; scene.t0 = performance.now(); scene.cust = C; scene.st = C ? C.st : null; scene.fxAt = 0;
     if (extra) Object.keys(extra).forEach(function (k) { scene[k] = extra[k]; });
     if (mode === 'enter') { SFX.bell(); scene.reactAt = -1e9; }
     if (mode === 'treat') SFX.sparkle();
+    // 施術のあと席にもどったとき：満足度に合わせて反応する
+    scene.postAt = mode === 'talk' && C && C.phase === 'close' && C.sat ? scene.t0 : 0;
+    if (scene.postAt && C.sat >= 75) burst('heart', 37, 36, 3);
     // 施術がうまくいったとき（満足度75以上）：ふわっと光の輪と、小さな星
     scene.okAt = mode === 'treat' && scene.sat >= 75 ? scene.t0 : 0;
     if (scene.okAt && !reduce) for (var si = 0; si < 5; si++) {
@@ -703,7 +717,7 @@
     }
     g.fillStyle = TP.beam; g.beginPath(); g.moveTo(TP.bs[0], 54); g.lineTo(TP.bs[1], 54); g.lineTo(TP.bs[2], 84); g.lineTo(TP.bs[3], 84); g.fill();
     // ドア
-    var open = (scene.mode === 'enter' && now - scene.t0 < 500) || (scene.mode === 'leave' && now - scene.t0 > 800 && now - scene.t0 < 1500);
+    var open = (scene.mode === 'enter' && now - scene.t0 < 500) || (scene.mode === 'leave' && now - scene.t0 > 1500 && now - scene.t0 < 1950) || (scene.leaver && now - scene.leaver.t0 > 1500);
     R(2, 18, 15, 36, T ? T.door[0] : '#7A5A44'); R(4, 20, 11, 34, open ? '#4A3528' : (T ? T.door[1] : '#A8774D'));
     if (!open) { R(6, 22, 7, 12, '#CDE9F5'); R(13, 38, 1, 2, '#F2C230'); }
     R(8, 15, 3, 3, '#F2C230');
@@ -1335,6 +1349,7 @@
   function drawTable(now) {
     R(30, 49, 33, 1, '#C49065'); R(30, 50, 33, 3, '#A8774D'); R(31, 53, 31, 9, '#8E6440'); R(33, 55, 27, 5, '#9C7049');
     if (scene.shop !== 'ph') {
+      R(31, 47, 3, 2, '#E8C15A'); R(32, 46, 1, 1, '#C9A227'); R(30, 48, 5, 1, '#A8774D');
       R(58, 46, 3, 3, '#F4EDE4'); R(58, 48, 3, 1, '#D8CCBA');
       if (scene.tod === 'evening' || scene.tod === 'night') { R(59, 44 + (reduce ? 0 : Math.floor(now / 260) % 2 ? 0 : 1), 1, 2, '#FFD86A'); R(59, 45, 1, 1, '#FFF4C0'); }
     }
@@ -1344,6 +1359,46 @@
   // お辞儀の深さ（start から dur ミリ秒。1→2→1 と下げて戻す）
   function bowAt(t, start, dur) { if (reduce) return 0; var p = (t - start) / dur; return p < 0 || p > 1 ? 0 : (p < 0.25 || p > 0.8 ? 1 : 2); }
   function miniBubble(x, y) { R(x, y, 6, 4, '#2B2238'); R(x + 1, y + 1, 4, 2, '#FFFFFF'); R(x + 1, y + 2, 1, 1, '#9A93A8'); R(x + 3, y + 2, 1, 1, '#9A93A8'); R(x + 1, y + 4, 1, 1, '#2B2238'); }
+  // お客様の表情。会話の反応・施術の満足度・興味と警戒心・常連の信頼から決める（読むだけ）
+  function custFace(c, m, now) {
+    var pt = now - (scene.postAt || -1e9), rt = now - (scene.reactAt || -1e9), fresh = (scene.reactAt || -1e9) >= (scene.postAt || -1e9);
+    if (scene.postAt && pt < 2200 && !(fresh && rt < 1400)) return c.sat >= 50 ? 'smile' : null;
+    if (rt < 1400) { if (scene.react === 'good') return 'smile'; if (rt < 500 && c.pushed) return 'surprise'; return c.grd >= 45 ? 'anxious' : 'trouble'; }
+    if (m === 'sold') return 'smile';
+    if (m === 'lost') return 'trouble';
+    if (m === 'leave') return c.sat >= 70 ? 'smile' : null;
+    if (c.phase === 'close' && !c.isNew) return c.sat >= 70 || c.loy >= 60 ? 'smile' : (c.sat && c.sat < 45 ? 'trouble' : null);
+    if (c.phase === 'close') { var cm = c.int - c.grd; return cm > 25 ? 'smile' : (cm < -5 ? (c.grd >= 50 ? 'anxious' : 'trouble') : null); }
+    if (c.isNew && c.grd >= 55) return 'anxious';
+    if (!c.isNew && c.loy >= 60) return 'smile';
+    return null;
+  }
+  // 待合ソファ（本店の手前）と、順番を待つお客様（今月のこれからのお客様を2人まで）
+  function waitingList() {
+    if (!S || scene.shop || !(scene.tod === 'day' || scene.tod === 'evening') || !S.queue) return [];
+    return S.queue.slice(S.idx + 1).filter(function (x) { return x !== scene.cust; }).slice(0, 2);
+  }
+  function drawWaiting(now, list, chatStaff) {
+    var T = themeOf(), sc = T ? T.rug[0] : '#D98BA0', i;
+    R(28, 64, 29, 11, sc); R(28, 64, 29, 1, 'rgba(255,255,255,.35)'); R(28, 72, 29, 3, 'rgba(43,34,56,.15)');
+    var pair = list.length === 2 && (now % 10000) < 2600, staffTalk = !pair && chatStaff && list.length && (now + 4500) % 11000 < 2400;
+    list.forEach(function (w, k) {
+      var x = 30 + k * 15, y = 63, ph = reduce ? (w.id % 2 ? 2 : 5) : ((now / 1000) + w.id * 2.3) % 12, o = { blink: (now + w.id * 900) % 3700 < 130, face: null };
+      o.face = w.isNew ? (w.grd >= 55 ? 'anxious' : null) : (w.loy >= 60 ? 'smile' : null);
+      var phone = ph >= 4 && ph < 8 && !(pair || (staffTalk && k === list.length - 1));
+      if (pair) o.eye = k === 0 ? 1 : -1;
+      else if (staffTalk && k === list.length - 1) o.eye = 1;
+      else if (ph < 2) o.eye = ph < 1 ? -1 : 1;
+      sprite(w.look, x, y, o);
+      if (phone) { R(x + 4, y + 9, 3, 3, '#2B2238'); R(x + 5, y + 10, 1, 1, '#9FD8F0'); R(x + 3, y + 10, 1, 2, w.look.skin); R(x + 7, y + 10, 1, 2, w.look.skin); }
+      if (pair && (reduce ? k === 0 : Math.floor(now / 900) % 2 === k)) miniBubble(k === 0 ? x + 6 : x - 2, 58);
+      if (staffTalk && k === list.length - 1 && (reduce || Math.floor(now / 900) % 2 === 0)) miniBubble(x + 6, 58);
+    });
+    R(28, 74, 29, 5, sc); R(28, 74, 29, 1, 'rgba(255,255,255,.4)'); R(28, 79, 29, 3, 'rgba(43,34,56,.28)'); R(28, 79, 29, 3, sc); R(28, 79, 29, 3, 'rgba(43,34,56,.25)');
+    R(26, 66, 3, 15, sc); R(56, 66, 3, 15, sc); R(26, 66, 3, 1, 'rgba(255,255,255,.4)'); R(56, 66, 3, 1, 'rgba(255,255,255,.4)');
+    R(29, 82, 2, 2, '#6E4A2E'); R(54, 82, 2, 2, '#6E4A2E');
+    return staffTalk;
+  }
   function shade(x, y, w) { g.fillStyle = 'rgba(43,34,56,.16)'; g.fillRect(Math.round(x) + 1, y, w - 2, 1); g.fillRect(Math.round(x), y + 1, w, 1); }
   function drawScene(now) {
     var VS = scene.shop;
@@ -1357,7 +1412,7 @@
     var serverLook = staffLook(server);
     var blink = function (seed) { return (now + seed * 700) % 3300 < 130; };
     var crew0 = S ? (VS ? (VS === 'ph' ? [] : VS.staff) : S.staff) : [];
-    var prepper = c && c.phase === 'meet' && (m === 'talk' || (m === 'enter' && el > 1500)) ? crew0.filter(function (x) { return x !== server && capOf(x) > 0; })[0] || null : null;
+    var prepper = c && c.phase === 'meet' && (m === 'talk' || (m === 'enter' && el > 1700)) ? crew0.filter(function (x) { return x !== server && capOf(x) > 0; })[0] || null : null;
     if (prepper && !scene.prepAt) scene.prepAt = now; if (!prepper) scene.prepAt = 0;
     // 月末（夜）になった瞬間を覚えて、みんなで喜ぶ
     if (S && scene.tod === 'night' && scene.lastTod && scene.lastTod !== 'night') scene.cheerAt = now;
@@ -1374,7 +1429,7 @@
       R(108 + ho, 51, 2, 1, prepper.look.skin); R(113 - ho, 51, 2, 1, prepper.look.skin);
     }
     if (m === 'treat' && c) {
-      sprite(c.look, 90, 46, { lie: true, rows: 12, eyes: '#8A6A5A', face: scene.sat >= 70 ? 'bliss' : (scene.sat && scene.sat < 45 ? 'trouble' : null) });
+      sprite(c.look, 90, 46, { lie: true, rows: 12, eyes: '#8A6A5A', face: scene.sat >= 85 && el < 800 && !reduce ? 'surprise' : (scene.sat >= 70 ? 'bliss' : (scene.sat && scene.sat < 45 ? 'trouble' : null)) });
       R(100, 47, 16, 8, '#F6B3C8'); R(100, 50, 16, 1, '#FFFFFF'); R(116, 48, 3, 6, c.look.skin);
       var off = reduce ? 0 : Math.round(Math.sin(now / 170) * 4);
       R(103 + off, 47, 2, 2, serverLook.skin); R(108 - off, 48, 2, 2, serverLook.skin);
@@ -1389,37 +1444,53 @@
     // お客様（テーブル、入店、退店）
     if (c && m !== 'treat' && m !== 'idle') {
       var cxp = 33, cyp = 39, walk = false, alpha = 1;
+      var cbow = 0, carms = false;
       if (m === 'enter') {
-        var p = reduce ? 1 : clamp(el / 1500, 0, 1);
-        cxp = lerp(2, 33, p); cyp = p < 1 ? 40 : 39; walk = p < 1;
+        var e = reduce ? 1e9 : el;
+        if (e < 900) { cxp = lerp(2, 24, e / 900); cyp = 40; walk = true; }
+        else if (e < 1300) { cxp = 24; cyp = 40; cbow = bowAt(e, 900, 400); }
+        else if (e < 1700) { cxp = lerp(24, 33, (e - 1300) / 400); cyp = 40; walk = true; }
       }
       if (m === 'leave') {
-        var q = reduce ? 1 : clamp(el / 1500, 0, 1);
-        cxp = lerp(33, 2, q); cyp = 40; walk = q < 1; alpha = q > 0.8 ? (1 - q) * 5 : 1;
+        var q = reduce ? 1 : clamp((el - 600) / 1300, 0, 1);
+        if (el < 600 && !reduce) cbow = bowAt(el, 0, 600);
+        else { cxp = lerp(33, 2, q); cyp = 40; walk = q < 1; alpha = q > 0.8 ? (1 - q) * 5 : 1; }
         if (q >= 1) scene.mode = 'idle';
       }
+      // 施術のあと：満足度が高いと手を上げて喜ぶ
+      var pt2 = now - (scene.postAt || -1e9), cy2 = 0;
+      if (m === 'talk' && scene.postAt && pt2 < 1300 && c.sat >= 75 && !reduce) { carms = true; cy2 = -(Math.floor(pt2 / 200) % 2); }
       g.globalAlpha = alpha;
       if (!walk) shade(cxp, cyp + 16, 10);
       // お客様の表情：直前の反応 ＞ 成約・不成約 ＞ クロージング中の気持ち（頭上のアイコンと同じ基準）
-      var cf = null;
-      if (now - (scene.reactAt || -1e9) < 1400) cf = scene.react === 'good' ? 'smile' : 'trouble';
-      else if (m === 'sold') cf = 'smile';
-      else if (m === 'lost') cf = 'trouble';
-      else if (m === 'leave') cf = c.sat >= 70 ? 'smile' : null;
-      else if (c.phase === 'close') { var cm = c.int - c.grd; cf = cm > 25 ? 'smile' : (cm < -5 ? 'trouble' : null); }
-      sprite(c.look, cxp, cyp + (walk && Math.floor(now / 160) % 2 ? -1 : 0), { walkB: walk && Math.floor(now / 160) % 2 === 1, blink: blink(1), face: cf });
+      sprite(c.look, cxp, cyp + cy2 + (walk && Math.floor(now / 160) % 2 ? -1 : 0), { walkB: walk && Math.floor(now / 160) % 2 === 1, blink: blink(1), face: custFace(c, m, now), bow: cbow, arms: carms });
       g.globalAlpha = 1;
+    }
+    // ひとつ前のお客様：スタッフにお辞儀をして、ドアから帰っていく
+    if (scene.leaver) {
+      var lv2 = scene.leaver, le = now - lv2.t0;
+      if (le > 1900) scene.leaver = null;
+      else {
+        var lq = clamp((le - 600) / 1300, 0, 1);
+        g.globalAlpha = lq > 0.8 ? (1 - lq) * 5 : 1;
+        if (le < 600) sprite(lv2.look, 33, 39, { face: lv2.sat >= 70 ? 'smile' : null, bow: bowAt(le, 0, 600) });
+        else sprite(lv2.look, lerp(33, 2, lq), 41 + (Math.floor(now / 160) % 2 ? -1 : 0), { walkB: Math.floor(now / 160) % 2 === 1, face: lv2.sat >= 70 ? 'smile' : null });
+        g.globalAlpha = 1;
+      }
     }
     // テーブルの奥の担当者
     if (m !== 'treat') shade(50, 55, 10);
     if (m !== 'treat') {
-      var sb = m === 'enter' ? bowAt(el, 1500, 800) : (m === 'leave' ? bowAt(el, 0, 900) : 0), sv = {}, sy = 39 + (Math.floor(now / 600) % 2);
+      var sb = m === 'enter' ? bowAt(el, 900, 600) : (m === 'leave' ? bowAt(el, 0, 900) : 0), sv = {}, sy = 39 + (Math.floor(now / 600) % 2);
+      if (scene.leaver) sb = Math.max(sb, bowAt(now - scene.leaver.t0, 0, 700));
       if (m === 'sold' && el < 700 && !reduce) sy -= Math.floor(el / 175) % 2;
       if (m === 'idle' && !reduce) { var lk = (now / 1000) % 9; sv.eye = lk < 1 ? -1 : (lk > 4.5 && lk < 5.5 ? 1 : 0); }
       if (m === 'idle' && cheer) { sv.arms = true; if (!reduce) sy -= Math.floor(now / 180) % 2; }
       sprite(serverLook, 50, sy, { blink: blink(3), face: m === 'sold' || (m === 'idle' && cheer) ? 'smile' : (m === 'lost' ? 'trouble' : null), bow: sb, eye: sv.eye, arms: sv.arms });
     }
     drawTable(now);
+    var wl = waitingList(), staffChat = false;
+    if (VS !== 'ph' && !VS) staffChat = drawWaiting(now, wl, S && S.staff.some(function (x) { return x !== server && !x.owner; }));
     // 手の空いているスタッフは手前に
     if (S) {
       var fx = 64, crew = VS ? (VS === 'ph' ? [] : VS.staff) : S.staff;
@@ -1428,7 +1499,8 @@
         var i = crew.indexOf(st), o = { blink: blink(i + 4), face: st.mot >= 75 ? 'smile' : (st.mot !== undefined && st.mot < 30 ? 'trouble' : null) };
         var y0 = 59 + (Math.floor(now / 520 + i) % 2), pair = j >> 1, mate = shown[j ^ 1], left = j % 2 === 0, talk = false;
         // となり同士で、ときどき向き合っておしゃべり
-        if (mate && !cheer && (now + pair * 2900) % 9000 < 2600) { talk = true; o.eye = left ? 1 : -1; }
+        if (staffChat && j === 0) o.eye = -1;
+        else if (mate && !cheer && (now + pair * 2900) % 9000 < 2600 && !(staffChat && j === 1)) { talk = true; o.eye = left ? 1 : -1; }
         if (m === 'enter' && el < 1400) o.bow = bowAt(el, 300 + j * 80, 800);
         else if (cheer) { o.arms = true; o.face = 'smile'; if (!reduce) y0 -= Math.floor(now / 180 + j) % 2; }
         else if (!talk && !reduce && !(st.mot < 30)) { var ph = (now / 1000 + i * 3.7) % 13; if (ph < 0.7) o.arms = true; else if (ph > 4 && ph < 5) o.eye = j % 2 ? 1 : -1; }
@@ -1445,7 +1517,7 @@
         R(70, 66, 12, 2, '#E8C15A'); R(72, 68, 1, 8, '#C9A227'); R(79, 68, 1, 8, '#C9A227');
         R(73, 60, 2, 6, '#2F5A3A'); R(73, 59, 2, 1, '#E8C15A'); R(77, 62, 2, 4, '#FFF4C0'); R(77, 61, 2, 1, '#FFFFFF');
       }
-      if (!VS && S.cat) { var cy = 76 + (Math.floor(now / 900) % 2); R(40, cy, 7, 4, '#FFFFFF'); R(45, cy - 3, 4, 4, '#FFFFFF'); R(45, cy - 4, 1, 1, '#FFFFFF'); R(48, cy - 4, 1, 1, '#FFFFFF'); R(46, cy - 2, 1, 1, '#2B2238'); R(38, cy - 1 - (Math.floor(now / 500) % 2), 2, 2, '#FFFFFF'); R(47, cy - 1, 1, 1, '#F08DAE'); }
+      if (!VS && S.cat) { g.save(); if (wl.length > 1) g.translate(17, 0); var cy = 76 + (Math.floor(now / 900) % 2); R(40, cy, 7, 4, '#FFFFFF'); R(45, cy - 3, 4, 4, '#FFFFFF'); R(45, cy - 4, 1, 1, '#FFFFFF'); R(48, cy - 4, 1, 1, '#FFFFFF'); R(46, cy - 2, 1, 1, '#2B2238'); R(38, cy - 1 - (Math.floor(now / 500) % 2), 2, 2, '#FFFFFF'); R(47, cy - 1, 1, 1, '#F08DAE'); g.restore(); }
       if (!VS && S.life && S.life.dog) {
         var dx = 18, dy = 74, wag = Math.floor(now / 200) % 2;
         R(dx, dy, 8, 4, '#C98B4E'); R(dx + 7, dy - 3, 4, 4, '#C98B4E'); R(dx + 7, dy - 4, 1, 2, '#8E5A2E'); R(dx + 9, dy - 2, 1, 1, '#2B2238'); R(dx + 10, dy - 1, 1, 1, '#2B2238');
@@ -1481,12 +1553,13 @@
     }
     if (c && (c.press || c.influ) && m !== 'idle' && !reduce && now % 2600 < 80) { g.fillStyle = 'rgba(255,255,255,.6)'; g.fillRect(0, 0, SW, SH); }
     // 吹き出しと気持ちのアイコン
-    if (c && atTable && !(m === 'enter' && el < 1500 && !reduce)) {
+    if (c && atTable && !(m === 'enter' && el < 1700 && !reduce)) {
       if (now - scene.talkAt < 1400) bubble(scene.talker === 'me' ? 50 : 31, 28, now);
       else {
         var by = 30 + (Math.floor(now / 400) % 2);
         if (m === 'lost') icon('cloud', 34, 30);
         else if (m === 'sold') icon('heart', 35, by);
+        else if (c.phase === 'close' && !c.isNew) { if (c.sat >= 70 || c.loy >= 60) icon('heart', 35, by); else if (c.sat && c.sat < 45) icon('sweat', 36, by); else icon('note', 36, by); }
         else if (c.phase === 'close') { var mood = c.int - c.grd; if (mood > 25) icon('heart', 35, by); else if (mood < -5) icon('sweat', 36, by); else icon('note', 36, by); }
         else if (c.isNew && !(c.known.concern && c.known.pref)) icon('q', 36, by);
         else icon('note', 36, by);
