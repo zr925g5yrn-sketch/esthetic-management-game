@@ -3750,7 +3750,7 @@
       } });
     });
     opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。LINEで遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
-    if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: function () { S.closing = true; result(); } });
+    if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
     // メニューを3つにまとめて、月末画面を短くする
     var CAT = { staff: [], shop: [], other: [] };
     opts.forEach(function (o) {
@@ -4015,6 +4015,14 @@
 
   /* --- 結果 --- */
   function stockValue() { return prods().reduce(function (a, p) { return a + S.stock[p.k] * p.cost; }, 0); }
+  // 店じまいの確認。「やめる」はセーブに触れずに月末の画面へ戻る。「店じまいする」は従来どおり
+  function closingConfirm() {
+    var fired = false;
+    bar();
+    view('<h1>本当に店じまいしますか？</h1><p class="lead">店じまいすると、現在のゲームデータが削除されます。この操作は取り消せません。</p>',
+      [{ main: true, label: 'やめる', sub: 'ゲームに戻る', go: investView },
+       { label: '店じまいする', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: function () { if (fired) return; fired = true; S.closing = true; result(); } }]);
+  }
   function result() {
     var over = S.cash < -200000, final = over || S.endless;
     if (final) clearGame();
