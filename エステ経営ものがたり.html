@@ -2445,8 +2445,8 @@
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
     var head = '<h1>' + calOf(S.week) + '</h1>' + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
     if (S.lifePending) return view(head + stepHtml('どうする？'), lifeChoices());
-    if (S.sevPending) return view(head + stepHtml('どうする？'), seasonChoices());
-    if (S.evPending) return view(head + stepHtml('どうする？'), evChoices());
+    if (S.sevPending) return view(head + stepHtml('どうする？'), noDeadEnd(seasonChoices(), function () { S.sevPending = false; S.sevNote = '今はお金の余裕がないので、見送った。'; weekIntro(); }));
+    if (S.evPending) return view(head + stepHtml('どうする？'), noDeadEnd(evChoices(), function () { S.evPending = false; S.evNote = '今はお金の余裕がないので、見送った。'; weekIntro(); }));
     var opts = [{ main: true, label: S.queue.length ? (S.autoMode ? '営業を始める（おまかせ）' : '最初のお客様を迎える') : '今月の営業を終える',
       sub: S.queue.length && S.autoMode ? '特別なお客様だけ、あなたが接客する' : '', go: S.queue.length ? nextCust : night }];
     if (S.queue.length) opts.push({ label: S.autoMode ? 'ひとりずつ自分で迎えるモードにする' : 'スタッフにおまかせにする',
@@ -2904,6 +2904,11 @@
     if (!pool.length) return;
     var e = pool.filter(function (x) { return x.pri; })[0] || pick(pool);
     S.lifeKey = e.k; S.lifePending = true; L.done[e.k] = true;
+  }
+  // できごと・季節イベントで、所持金が足りずに選べる選択肢が1つもないときだけ「見送る」を足す（暮らしのイベントと同じ考え方）
+  function noDeadEnd(opts, skip) {
+    if (opts.some(function (o) { return !o.off; })) return opts;
+    return opts.concat([{ label: '今回は見送る', sub: '変化なし（お金が足りないとき）', go: skip }]);
   }
   function lifeChoices() {
     var e = lifeOf(S.lifeKey);
