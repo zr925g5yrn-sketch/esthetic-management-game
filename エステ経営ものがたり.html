@@ -64,7 +64,7 @@
   .scene { display: flex; justify-content: center; }
   .scene canvas {
     display: block; height: min(31vh, 230px); width: auto; aspect-ratio: 128 / 84; max-width: 100%;
-    image-rendering: pixelated; image-rendering: crisp-edges;
+    image-rendering: crisp-edges; image-rendering: pixelated;
     border: 3px solid var(--ink); background: #F6D9D6;
   }
 
@@ -148,7 +148,8 @@
   .cutin.on .cut-box { animation: cutpop .55s cubic-bezier(.2, 1.4, .4, 1) both; }
   @keyframes cutpop { from { transform: scale(.3) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
   .cut-k { margin: 0; padding: 2px 14px; background: #2B2238; color: #FFFFFF; font-size: .9rem; }
-  #cutcv { width: 168px; height: 168px; image-rendering: pixelated; background: rgba(255, 255, 255, .92); border: 4px solid #2B2238; box-shadow: 6px 6px 0 #2B2238; }
+  /* 枠線4px×2を足して、中身をちょうど24ドット×7倍の168pxにする */
+  #cutcv { width: 176px; height: 176px; image-rendering: crisp-edges; image-rendering: pixelated; background: rgba(255, 255, 255, .92); border: 4px solid #2B2238; box-shadow: 6px 6px 0 #2B2238; }
   .cut-t { margin: 8px 0 0; font-weight: 400; font-size: clamp(1.6rem, 8vw, 2.3rem); line-height: 1.25; color: #FFFFFF;
     text-shadow: 3px 3px 0 #2B2238, -2px -2px 0 #2B2238, 2px -2px 0 #2B2238, -2px 2px 0 #2B2238; }
   .cut-s { margin: 0; font-size: .95rem; color: #FFFFFF; text-shadow: 2px 2px 0 #2B2238, -1px -1px 0 #2B2238; }
@@ -426,6 +427,18 @@
      ========================================================= */
   var SW = 128, SH = 84;
   var cv = $('scene'), g = cv.getContext('2d');
+  // 1ドットが画面の整数ピクセルになる大きさに合わせる（ドットの太さが不ぞろいにならないように）
+  function fitScene() {
+    var dpr = window.devicePixelRatio || 1, box = (cv.parentNode && cv.parentNode.clientWidth) || 300;
+    var want = Math.min(window.innerHeight * 0.31, 230) - 6;
+    var k = Math.round(want * dpr / SH);
+    if (k * SH / dpr > want * 1.15) k = Math.floor(want * dpr / SH);
+    k = Math.max(1, Math.min(k, Math.floor((box - 6) * dpr / SW)));
+    cv.style.width = (SW * k / dpr + 6) + 'px'; cv.style.height = (SH * k / dpr + 6) + 'px';
+  }
+  var fitReq = 0;
+  window.addEventListener('resize', function () { if (!fitReq) fitReq = requestAnimationFrame(function () { fitReq = 0; fitScene(); }); });
+  fitScene();
   function R(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); }
   function setCh(s, i, ch) { return s.substr(0, i) + ch + s.substr(i + 1); }
   var BASE = [
@@ -445,10 +458,26 @@
     if (walkB) Object.keys(WALKB).forEach(function (k) { r[k] = WALKB[k]; });
     return r;
   }
+  // 表情：smile（笑顔）、bliss（うっとり満足）、trouble（困惑）。なしなら、いつもの顔
+  function faceRows(r, f) {
+    r = r.slice();
+    if (f === 'smile' || f === 'bliss') {
+      r[6] = setCh(setCh(setCh(setCh(r[6], 3, 'm'), 4, 's'), 5, 's'), 6, 'm');
+      r[7] = setCh(setCh(r[7], 4, 'm'), 5, 'm');
+      r[5] = setCh(setCh(r[5], 2, 'k'), 7, 'k');
+    }
+    if (f === 'bliss') r[4] = setCh(setCh(r[4], 3, 'c'), 6, 'c');
+    if (f === 'trouble') {
+      r[6] = setCh(setCh(setCh(setCh(r[6], 3, 's'), 4, 'n'), 5, 'n'), 6, 's');
+      r[7] = setCh(setCh(r[7], 3, 'n'), 6, 'n');
+    }
+    return r;
+  }
   function sprite(look, x, y, o) {
     o = o || {};
     var rows = rowsOf(look, o.walkB), n = o.rows || 17;
-    var col = { h: look.hair, s: look.skin, e: o.eyes || '#2B2238', m: '#C25B6B', t: look.top, p: look.bottom, b: '#4A3A30', w: '#FFFFFF' };
+    if (o.face) rows = faceRows(rows, o.face);
+    var col = { h: look.hair, s: look.skin, e: o.eyes || '#2B2238', m: '#C25B6B', t: look.top, p: look.bottom, b: '#4A3A30', w: '#FFFFFF', k: '#F4A6AE', c: '#9A6A5A', n: '#8A4A5A' };
     if (o.blink) col.e = look.skin;
     for (var r = 0; r < n; r++) for (var c = 0; c < 10; c++) {
       var ch = rows[r][c]; if (ch === '.') continue;
@@ -468,9 +497,10 @@
     coin:  ['0011100', '0111110', '1101011', '1110111', '1101011', '0111110', '0011100'],
     spark: ['010', '111', '010'],
     cloud: ['00110000', '01111110', '11111111', '11111111', '01111110'],
-    note:  ['0011', '0101', '0100', '1100', '1100']
+    note:  ['0011', '0101', '0100', '1100', '1100'],
+    star:  ['00100', '01110', '11111', '01110', '00100']
   };
-  var ICOL = { heart: '#E0567A', sweat: '#5AA9E6', q: '#2B2238', anger: '#E0567A', zz: '#6A5F78', coin: '#F2C230', spark: '#FFFFFF', cloud: '#9A93A8', note: '#8E6CD8' };
+  var ICOL = { heart: '#E0567A', sweat: '#5AA9E6', q: '#2B2238', anger: '#E0567A', zz: '#6A5F78', coin: '#F2C230', spark: '#FFFFFF', cloud: '#9A93A8', note: '#8E6CD8', star: '#FFE08A' };
   function icon(name, x, y, col) {
     var a = ICON[name];
     for (var r = 0; r < a.length; r++) for (var c = 0; c < a[r].length; c++) if (a[r][c] === '1') R(x + c, y + r, 1, 1, col || ICOL[name]);
@@ -486,8 +516,14 @@
   function setScene(mode, extra) {
     scene.mode = mode; scene.t0 = performance.now(); scene.cust = C; scene.st = C ? C.st : null; scene.fxAt = 0;
     if (extra) Object.keys(extra).forEach(function (k) { scene[k] = extra[k]; });
-    if (mode === 'enter') SFX.bell();
+    if (mode === 'enter') { SFX.bell(); scene.reactAt = -1e9; }
     if (mode === 'treat') SFX.sparkle();
+    // 施術がうまくいったとき（満足度75以上）：ふわっと光の輪と、小さな星
+    scene.okAt = mode === 'treat' && scene.sat >= 75 ? scene.t0 : 0;
+    if (scene.okAt && !reduce) for (var si = 0; si < 5; si++) {
+      scene.parts.push({ t: si % 2 ? 'spark' : 'star', x: 96 + rnd() * 18, y: 42 + rnd() * 5, vx: (rnd() - 0.5) * 6, vy: -7 - rnd() * 6, life: 1 + rnd() * 0.5,
+        col: ['#FFE08A', '#FFFFFF', '#F7B8C8'][si % 3] });
+    }
     if (mode === 'sold') { burst('coin', 37, 32, 6); burst('heart', 37, 34, 3); SFX.coin(); }
   }
   function burst(type, x, y, n) {
@@ -1165,10 +1201,10 @@
     var blink = function (seed) { return (now + seed * 700) % 3300 < 130; };
     var atTable = m === 'talk' || m === 'sold' || m === 'lost' || m === 'enter';
     // ベッドの奥に立つ担当者（施術中）
-    if (m === 'treat') sprite(serverLook, 101, 37, { rows: 14, blink: blink(2) });
+    if (m === 'treat') sprite(serverLook, 101, 37, { rows: 14, blink: blink(2), face: scene.sat >= 70 ? 'smile' : null });
     drawBed();
     if (m === 'treat' && c) {
-      sprite(c.look, 90, 46, { lie: true, rows: 12, eyes: '#8A6A5A' });
+      sprite(c.look, 90, 46, { lie: true, rows: 12, eyes: '#8A6A5A', face: scene.sat >= 70 ? 'bliss' : (scene.sat && scene.sat < 45 ? 'trouble' : null) });
       R(100, 47, 16, 8, '#F6B3C8'); R(100, 50, 16, 1, '#FFFFFF'); R(116, 48, 3, 6, c.look.skin);
       var off = reduce ? 0 : Math.round(Math.sin(now / 170) * 4);
       R(103 + off, 47, 2, 2, serverLook.skin); R(108 - off, 48, 2, 2, serverLook.skin);
@@ -1176,6 +1212,16 @@
         scene.fxAt = now + 420;
         scene.parts.push({ t: 'spark', x: 96 + rnd() * 20, y: 44 + rnd() * 4, vx: 0, vy: -8, life: 0.9 });
         if (scene.sat >= 70) scene.parts.push({ t: 'heart', x: 94 + rnd() * 4, y: 40, vx: rnd() * 4 - 2, vy: -10, life: 1.3 });
+      }
+      if (scene.okAt) {
+        var ok = now - scene.okAt;
+        if (reduce) { if (ok < 1500) icon('star', 102, 38); }
+        else if (ok < 900) {
+          var gp = ok / 900, gr = 3 + gp * 12;
+          g.globalAlpha = (1 - gp) * 0.85;
+          for (var ga = 0; ga < 16; ga++) R(104 + Math.cos(ga / 16 * 6.283) * gr, 50 + Math.sin(ga / 16 * 6.283) * gr * 0.55, 1, 1, ga % 2 ? '#FFF4C0' : '#FFFFFF');
+          g.globalAlpha = 1;
+        }
       }
       if (scene.sat && scene.sat < 45) icon('anger', 93, 37 + (Math.floor(now / 300) % 2));
       else if (scene.sat < 70) icon('zz', 94, 38 - (Math.floor(now / 500) % 3));
@@ -1193,18 +1239,25 @@
         if (q >= 1) scene.mode = 'idle';
       }
       g.globalAlpha = alpha;
-      sprite(c.look, cxp, cyp + (walk && Math.floor(now / 160) % 2 ? -1 : 0), { walkB: walk && Math.floor(now / 160) % 2 === 1, blink: blink(1) });
+      // お客様の表情：直前の反応 ＞ 成約・不成約 ＞ クロージング中の気持ち（頭上のアイコンと同じ基準）
+      var cf = null;
+      if (now - (scene.reactAt || -1e9) < 1400) cf = scene.react === 'good' ? 'smile' : 'trouble';
+      else if (m === 'sold') cf = 'smile';
+      else if (m === 'lost') cf = 'trouble';
+      else if (m === 'leave') cf = c.sat >= 70 ? 'smile' : null;
+      else if (c.phase === 'close') { var cm = c.int - c.grd; cf = cm > 25 ? 'smile' : (cm < -5 ? 'trouble' : null); }
+      sprite(c.look, cxp, cyp + (walk && Math.floor(now / 160) % 2 ? -1 : 0), { walkB: walk && Math.floor(now / 160) % 2 === 1, blink: blink(1), face: cf });
       g.globalAlpha = 1;
     }
     // テーブルの奥の担当者
-    if (m !== 'treat') sprite(serverLook, 50, 39 + (Math.floor(now / 600) % 2), { blink: blink(3) });
+    if (m !== 'treat') sprite(serverLook, 50, 39 + (Math.floor(now / 600) % 2), { blink: blink(3), face: m === 'sold' ? 'smile' : (m === 'lost' ? 'trouble' : null) });
     drawTable();
     // 手の空いているスタッフは手前に
     if (S) {
       var fx = 64, crew = VS ? (VS === 'ph' ? [] : VS.staff) : S.staff;
       crew.forEach(function (st, i) {
         if (st === server) return;
-        sprite(st.look, fx, 59 + (Math.floor(now / 520 + i) % 2), { blink: blink(i + 4) });
+        sprite(st.look, fx, 59 + (Math.floor(now / 520 + i) % 2), { blink: blink(i + 4), face: st.mot >= 75 ? 'smile' : (st.mot !== undefined && st.mot < 30 ? 'trouble' : null) });
         if (st.mot >= 75) icon('note', fx + 3, 52 - (Math.floor(now / 400 + i) % 2)); else if (st.mot !== undefined && st.mot < 30) icon('sweat', fx + 3, 52);
         fx += crew.length > 5 ? 11 : 13;
       });
@@ -1356,6 +1409,7 @@
   function say(who, text, tone2) {
     C.log.push([who, text, tone2]);
     if (who !== 'note') { scene.talkAt = performance.now(); scene.talker = who; }
+    if (who === 'you' && (tone2 === 'good' || tone2 === 'bad')) { scene.react = tone2; scene.reactAt = performance.now(); }
     if (tone2 === 'good') SFX.good(); else if (tone2 === 'bad') SFX.bad();
   }
   function stepHtml(title, sub) { return '<p class="step">' + title + (sub ? '<small>' + sub + '</small>' : '') + '</p>'; }
