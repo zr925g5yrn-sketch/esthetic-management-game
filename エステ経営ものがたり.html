@@ -136,6 +136,13 @@
   .form label { display: grid; gap: 3px; font-size: .82rem; color: var(--sub); }
   .form input, .form select { font: inherit; font-size: 16px; padding: 8px 10px; border: 3px solid var(--ink); border-radius: 0;
     background: var(--panel); color: var(--ink); -webkit-user-select: text; user-select: text; }
+  .savewarn { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 60; max-width: 416px; margin: 0 auto;
+    padding: 10px 12px; background: var(--panel); color: var(--ink); border: 3px solid var(--accent); box-shadow: 4px 4px 0 var(--ink); font-size: .88rem; }
+  .savewarn[hidden] { display: none; }
+  .savewarn p { margin: 0 0 8px; }
+  .savewarn .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .savewarn button { min-height: 44px; text-align: center; }
+  .savewarn textarea { width: 100%; font-size: 11px; word-break: break-all; border: 2px solid var(--line); background: var(--bg); color: inherit; padding: 6px; margin: 0 0 8px; }
   .cutin { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; cursor: pointer;
     background: repeating-linear-gradient(135deg, var(--c1, #F2C230) 0 22px, var(--c2, #E8A93A) 22px 44px); background-size: 62px 62px; }
   .cutin[hidden] { display: none; }
@@ -200,6 +207,7 @@
     <div class="scene"><canvas id="scene" width="128" height="84" role="img" aria-label="店内のようす"></canvas></div>
   </div>
   <main id="app"></main>
+  <div class="savewarn" id="savewarn" hidden role="alert"></div>
   <div class="cutin" id="cutin" hidden role="dialog" aria-live="assertive">
     <div class="cut-box"><p class="cut-k" id="cutK"></p><canvas id="cutcv" width="24" height="24" aria-hidden="true"></canvas>
       <h2 class="cut-t" id="cutT"></h2><p class="cut-s" id="cutS"></p><p class="cut-tap">タップで続ける</p></div>
@@ -4059,6 +4067,35 @@
   /* =========================================================
      途中から再開（この端末に保存）
      ========================================================= */
+  var saveWarned = false, localNg = {};
+  function saveOk() { saveWarned = false; }
+  function warnPad() { var el = $('savewarn'), w = document.querySelector('.wrap'); w.style.paddingBottom = el.hidden ? '' : (el.offsetHeight + 28) + 'px'; }
+  function saveFail() {
+    if (saveWarned) return;
+    saveWarned = true;
+    var el = $('savewarn');
+    el.innerHTML = '<p><b>保存できませんでした。</b>ゲームデータが最新の状態で保存されていない可能性があります。念のため、セーブコードを残してください。</p>' +
+      '<p style="font-size:.78rem;color:var(--sub)">セーブコードは、月末の画面の「発信・記録・そのほか」からも書き出せます。</p>' +
+      '<div class="row"><button type="button" class="main" id="swCode">セーブコードを表示する</button><button type="button" id="swClose">閉じる</button></div>';
+    el.hidden = false; warnPad();
+    $('swClose').onclick = function () { el.hidden = true; warnPad(); };
+    $('swCode').onclick = function () {
+      var raw = slotRaw(SLOT);
+      if (!raw) return;
+      encodeSave(raw).then(function (code) {
+        el.innerHTML = '<p>下の文字列をまるごとコピーして、メモ帳などに残してください。別の端末やブラウザで「セーブコードを読み込む」に貼りつけると、つづきから遊べます。</p>' +
+          '<textarea id="swText" readonly rows="4"></textarea><div class="row"><button type="button" class="main" id="swCopy">コピーする</button><button type="button" id="swClose2">閉じる</button></div>';
+        var t = $('swText'); t.value = code;
+        $('swClose2').onclick = function () { el.hidden = true; warnPad(); };
+        warnPad();
+        $('swCopy').onclick = function () {
+          var ok = function () { $('swCopy').textContent = 'コピーした'; };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(ok, function () { t.select(); try { document.execCommand('copy'); ok(); } catch (e) {} });
+          else { t.select(); try { document.execCommand('copy'); ok(); } catch (e) {} }
+        };
+      });
+    };
+  }
   function saveGame(where) {
     if (!S) return;
     try {
@@ -4072,9 +4109,13 @@
         evStaff: S.evStaff ? S.evStaff.id : null, quitRisk: S.quitRisk ? S.quitRisk.id : null
       });
       var str = JSON.stringify({ v: 1, where: where, S: s2, cust: cust, ts: Date.now() });
-      try { localStorage.setItem(slotKey(SLOT), str); } catch (e1) {}
+      var ok = false;
+      try { localStorage.setItem(slotKey(SLOT), str); ok = true; } catch (e1) {}
+      localNg[SLOT] = !ok;
       cloudPut(SLOT, str, where === 'night' || where === 'week');
-    } catch (err) {}
+      // この端末に保存できなかったとき：アカウント保存がなければ、すぐに知らせる（アカウント保存の結果は cloudFlush で判断）
+      if (ok) saveOk(); else if (!cloud) saveFail();
+    } catch (err) { saveFail(); }
   }
   function clearGame() {
     try { localStorage.removeItem(slotKey(SLOT)); } catch (err) {}
@@ -4119,7 +4160,7 @@
     var str = cloudPend[n]; delete cloudPend[n]; cloudBusy[n] = true;
     var done = function () { cloudBusy[n] = false; if (cloudPend[n] !== undefined) cloudFlush(n); };
     var data = { json: str, ts: tsOf(str) };
-    cloud.doc('slot' + n).set(data).then(done, done);
+    cloud.doc('slot' + n).set(data).then(function () { done(); if (localNg[n]) saveOk(); }, function () { done(); if (localNg[n]) saveFail(); });
   }
   function cloudDel(n) {
     delete cloudCache[n];
@@ -4209,7 +4250,7 @@
           var d = JSON.parse(raw);
           if (!d || !d.S || !d.cust) throw new Error('bad');
           d.ts = Date.now(); raw = JSON.stringify(d);
-          try { localStorage.setItem(slotKey(n), raw); } catch (e) {}
+          try { localStorage.setItem(slotKey(n), raw); if (n === SLOT) saveOk(); } catch (e) { if (!cloud) saveFail(); }
           cloudPut(n, raw, true);
           slotView(n, { t: '読み込んだ。' + calOf(d.S.week) + 'のデータ。' });
         }).catch(function () { slotView(n, { bad: true, t: 'コードを読み込めなかった。最初から最後まで、欠けずに貼りつけられているか確かめてほしい。' }); });
