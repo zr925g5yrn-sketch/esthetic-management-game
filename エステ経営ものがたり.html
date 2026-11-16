@@ -530,6 +530,73 @@
     if (reduce) return;
     for (var i = 0; i < n; i++) scene.parts.push({ t: type, x: x + rnd() * 6 - 3, y: y, vx: (rnd() - 0.5) * 18, vy: -14 - rnd() * 16, life: 1.2 + rnd() * 0.6 });
   }
+  /* --- 時間帯（朝・昼・夕方・夜）。月の流れから決めるだけで、データには残さない --- */
+  var TOD = {
+    morning: { amb: '#F2EEF8', lamp: 0, win: 0.22, beam: 'rgba(255,240,215,.20)', bs: [31, 57, 58, 26], sky: ['#BFE3F4', '#D9EDF2', '#FBE4CC'], cloud: '#FFF4F0' },
+    day:     { amb: null, lamp: 0, win: 0, beam: 'rgba(255,255,255,.13)', bs: [31, 57, 66, 38], sky: ['#9FD8F0', '#9FD8F0', '#9FD8F0'], cloud: '#FFFFFF' },
+    evening: { amb: '#F6D8C2', lamp: 0.3, win: 0.2, beam: 'rgba(255,170,110,.17)', bs: [31, 57, 86, 56], sky: ['#E89A7A', '#F3B07E', '#F9D49A'], cloud: '#FFD2B8' },
+    night:   { amb: '#6F6C9A', lamp: 0.62, win: 0, beam: 'rgba(170,185,255,.06)', bs: [31, 57, 62, 40], sky: ['#1E2246', '#252A55', '#2E3462'], cloud: null }
+  };
+  function todNow() {
+    if (!S) { var h = new Date().getHours(); return h < 5 || h >= 19 ? 'night' : h < 10 ? 'morning' : h < 16 ? 'day' : 'evening'; }
+    if (S.wk && S.wk.closed) return 'night';
+    if (!S.queue || !S.queue.length || (S.idx === 0 && !C)) return 'morning';
+    return S.queue.length >= 2 && S.idx / S.queue.length >= 0.6 ? 'evening' : 'day';
+  }
+  // 光源の位置 [x, y, 強さの半径]。天井の照明・壁の灯り・テーブルの灯り
+  function lightsOf(T, lv, V) {
+    var L = [];
+    if (V === 'ph' || !T) { L.push([104, 9, 30]); if (lv >= 2 || V === 'ph') L.push([63, 13, 18], [125, 29, 18]); }
+    else {
+      var k = T.lamp;
+      if (k === 'bar') L.push([90, 5, 26], [110, 5, 26]);
+      else if (k === 'globe') L.push([92, 6, 18], [102, 8, 18], [112, 10, 18]);
+      else if (k === 'neon') L.push([95, 9, 26]);
+      else if (k === 'lantern') L.push([96, 7, 18], [106, 10, 18], [116, 7, 18]);
+      else if (k !== 'fan') L.push([104, 9, 30]);
+      if (!V && lv >= 1) L.push([63, 13, 18], [125, 29, 18]);
+    }
+    if (V !== 'ph') L.push([59, 45, 24]);
+    return L;
+  }
+  var LIGHT = { cache: {}, n: 0, cur: '', prev: '', t0: 0, tmp: null };
+  function lightMap(key, tod, L) {
+    var hit = LIGHT.cache[key]; if (hit) return hit;
+    if (++LIGHT.n > 40) { LIGHT.cache = {}; LIGHT.n = 1; }
+    var P = TOD[tod], mk = function () { var c = document.createElement('canvas'); c.width = SW; c.height = SH; return c; };
+    var mc = mk(), x = mc.getContext('2d'), bc = mk(), y = bc.getContext('2d'), gr;
+    x.fillStyle = P.amb || '#FFFFFF'; x.fillRect(0, 0, SW, SH);
+    x.globalCompositeOperation = 'lighter';
+    if (P.win) { gr = x.createRadialGradient(44, 24, 2, 44, 30, 50); gr.addColorStop(0, 'rgba(255,236,210,' + P.win + ')'); gr.addColorStop(1, 'rgba(255,236,210,0)'); x.fillStyle = gr; x.fillRect(0, 0, SW, SH); }
+    if (P.lamp) L.forEach(function (l) {
+      var cy = l[1] + l[2] * 0.5, r = l[2] * 1.7;
+      gr = x.createRadialGradient(l[0], cy, 1, l[0], cy, r); gr.addColorStop(0, 'rgba(255,214,150,' + P.lamp + ')'); gr.addColorStop(1, 'rgba(255,214,150,0)');
+      x.fillStyle = gr; x.fillRect(0, 0, SW, SH);
+      gr = y.createRadialGradient(l[0], l[1] + 1, 0, l[0], l[1] + 1, 8); gr.addColorStop(0, 'rgba(255,236,180,' + (P.lamp * 0.4).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(255,236,180,0)');
+      y.fillStyle = gr; y.fillRect(0, 0, SW, SH);
+    });
+    return (LIGHT.cache[key] = { m: P.amb || P.lamp || P.win ? mc : null, b: P.lamp ? bc : null });
+  }
+  // 部屋と人を描いたあとに、時間帯の光をのせる（地図は作り置きして1回で重ねる）
+  function applyLight(now, tod, T, lv, V) {
+    var L = lightsOf(T, lv, V), key = tod + '|' + (V === 'ph' ? 'ph' : '') + L.join(';');
+    if (key !== LIGHT.cur) { LIGHT.prev = LIGHT.cur; LIGHT.cur = key; LIGHT.t0 = now; LIGHT.ptod = LIGHT.tod; LIGHT.pL = LIGHT.L; LIGHT.tod = tod; LIGHT.L = L; }
+    var cur = lightMap(key, tod, L), p = reduce || !LIGHT.prev ? 1 : clamp((now - LIGHT.t0) / 1200, 0, 1);
+    var prv = p < 1 ? lightMap(LIGHT.prev, LIGHT.ptod, LIGHT.pL) : null, mapImg = cur.m;
+    if (prv && (prv.m || cur.m)) {
+      if (!LIGHT.tmp) { LIGHT.tmp = document.createElement('canvas'); LIGHT.tmp.width = SW; LIGHT.tmp.height = SH; }
+      var t = LIGHT.tmp.getContext('2d');
+      t.globalAlpha = 1; t.fillStyle = '#FFFFFF'; t.fillRect(0, 0, SW, SH);
+      if (prv.m) t.drawImage(prv.m, 0, 0);
+      t.globalAlpha = p; t.fillRect(0, 0, SW, SH); if (cur.m) t.drawImage(cur.m, 0, 0); t.globalAlpha = 1;
+      mapImg = LIGHT.tmp;
+    }
+    if (mapImg) { g.globalCompositeOperation = 'multiply'; g.drawImage(mapImg, 0, 0); }
+    g.globalCompositeOperation = 'lighter';
+    if (cur.b) { g.globalAlpha = p; g.drawImage(cur.b, 0, 0); }
+    if (prv && prv.b) { g.globalAlpha = 1 - p; g.drawImage(prv.b, 0, 0); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  }
   function bunting() {
     R(0, 1, SW, 1, '#8E6440');
     for (var fb = 2, fi = 0; fb < SW - 4; fb += 7, fi++) { var fc = ['#E0567A', '#F2C230', '#5AA9E6', '#7FC49A'][fi % 4]; R(fb, 2, 5, 1, fc); R(fb + 1, 3, 3, 1, fc); R(fb + 2, 4, 1, 1, fc); }
@@ -598,11 +665,25 @@
     // 窓と、流れる雲
     var wf = T ? T.win : '#FFFFFF';
     R(29, 5, 30, 24, wf);
-    if (V) drawView(V === 'ph' ? 'ph' : V.area, now);
-    else {
-      R(31, 7, 26, 20, S && S.storm ? '#5C6B82' : '#9FD8F0');
-      var cx = 31 + ((now / 300) % 40) - 8;
-      for (var k = 0; k < 8; k++) { var px = cx + k; if (px >= 31 && px < 57) { R(px, 11, 1, 2, '#FFFFFF'); if (k > 1 && k < 6) R(px, 10, 1, 1, '#FFFFFF'); } }
+    var TP = TOD[scene.tod || 'day'];
+    if (V) {
+      drawView(V === 'ph' ? 'ph' : V.area, now);
+      if (V !== 'ph' && V.area !== 'roppongi' && scene.tod !== 'day') {
+        R(31, 7, 26, 20, { morning: 'rgba(255,230,210,.14)', evening: 'rgba(240,130,80,.30)', night: 'rgba(16,20,56,.62)' }[scene.tod]);
+        if (scene.tod === 'night') [[34, 9], [41, 12], [48, 8], [54, 11]].forEach(function (p, i) { if (reduce || (now / 600 + i) % 4 > 0.7) R(p[0], p[1], 1, 1, '#FFF4C0'); });
+      }
+    } else {
+      if (S && S.storm) R(31, 7, 26, 20, scene.tod === 'night' ? '#2A3048' : '#5C6B82');
+      else { R(31, 7, 26, 7, TP.sky[0]); R(31, 14, 26, 7, TP.sky[1]); R(31, 21, 26, 6, TP.sky[2]); }
+      if (scene.tod === 'night') {
+        [[33, 9], [38, 12], [47, 8], [53, 13], [35, 18], [50, 19]].forEach(function (p, i) { if (reduce || (now / 500 + i) % 4 > 0.6) R(p[0], p[1], 1, 1, '#FFF4C0'); });
+        R(50, 9, 4, 4, '#F4F0D8'); R(51, 9, 3, 2, '#252A55'); R(50, 10, 1, 2, '#F4F0D8');
+        R(31, 23, 26, 4, '#1A1E3E'); for (var lw = 32; lw < 57; lw += 4) if ((lw * 7) % 3) R(lw, 24, 1, 1, '#FFE08A');
+      } else {
+        if (scene.tod === 'evening') { R(47, 20, 5, 3, '#FFE6A8'); R(48, 19, 3, 1, '#FFE6A8'); }
+        var cx = 31 + ((now / 300) % 40) - 8;
+        for (var k = 0; k < 8; k++) { var px = cx + k; if (px >= 31 && px < 57) { R(px, 11, 1, 2, TP.cloud); if (k > 1 && k < 6) R(px, 10, 1, 1, TP.cloud); } }
+      }
     }
     if (!V && S && S.storm) for (var rr = 0; rr < 8; rr++) { R(31 + ((rr * 7 + now / 30) % 25), 7 + ((rr * 5 + now / 18) % 18), 1, 2, '#C9D6E8'); }
     R(43, 7, 2, 20, wf); R(31, 16, 26, 2, wf);
@@ -613,7 +694,7 @@
       R(26, 6, 5, 26, cc[0]); R(28, 6, 1, 26, cc[1]); R(57, 6, 5, 26, cc[0]); R(59, 6, 1, 26, cc[1]);
       R(26, 20, 5, 2, '#E8C15A'); R(57, 20, 5, 2, '#E8C15A');
     }
-    g.fillStyle = 'rgba(255,255,255,.13)'; g.beginPath(); g.moveTo(31, 54); g.lineTo(57, 54); g.lineTo(66, 84); g.lineTo(38, 84); g.fill();
+    g.fillStyle = TP.beam; g.beginPath(); g.moveTo(TP.bs[0], 54); g.lineTo(TP.bs[1], 54); g.lineTo(TP.bs[2], 84); g.lineTo(TP.bs[3], 84); g.fill();
     // ドア
     var open = (scene.mode === 'enter' && now - scene.t0 < 500) || (scene.mode === 'leave' && now - scene.t0 > 800 && now - scene.t0 < 1500);
     R(2, 18, 15, 36, T ? T.door[0] : '#7A5A44'); R(4, 20, 11, 34, open ? '#4A3528' : (T ? T.door[1] : '#A8774D'));
@@ -1244,14 +1325,19 @@
     R(89, 51, 9, 3, lv >= 2 ? '#FFFFFF' : '#F4EDE4');
     if (lv >= 2) { R(108, 54, 14, 4, T ? tw2 : (lv === 3 ? '#F7EBD8' : '#F7D6DF')); R(108, 56, 14, 1, lv === 3 ? '#E8C15A' : (T ? '#FFFFFF' : '#E58BA3')); R(89, 53, 9, 1, T ? tw2 : '#F2C3CF'); }
   }
-  function drawTable() {
+  function drawTable(now) {
     R(30, 49, 33, 1, '#C49065'); R(30, 50, 33, 3, '#A8774D'); R(31, 53, 31, 9, '#8E6440'); R(33, 55, 27, 5, '#9C7049');
+    if (scene.shop !== 'ph') {
+      R(58, 46, 3, 3, '#F4EDE4'); R(58, 48, 3, 1, '#D8CCBA');
+      if (scene.tod === 'evening' || scene.tod === 'night') { R(59, 44 + (reduce ? 0 : Math.floor(now / 260) % 2 ? 0 : 1), 1, 2, '#FFD86A'); R(59, 45, 1, 1, '#FFF4C0'); }
+    }
     if (S && S.interior) { R(45, 45, 3, 4, '#FFFFFF'); R(44, 43, 2, 2, '#F08DAE'); R(47, 42, 2, 2, '#F2C230'); }
   }
   function staffLook(st) { return st ? st.look : OWNER_LOOK; }
   function shade(x, y, w) { g.fillStyle = 'rgba(43,34,56,.16)'; g.fillRect(Math.round(x) + 1, y, w - 2, 1); g.fillRect(Math.round(x), y + 1, w, 1); }
   function drawScene(now) {
     var VS = scene.shop;
+    scene.tod = todNow();
     g.clearRect(0, 0, SW, SH);
     drawRoom(now);
     g.fillStyle = 'rgba(43,34,56,.10)'; g.fillRect(0, 0, SW, 2); g.fillRect(0, 54, SW, 2);
@@ -1314,7 +1400,7 @@
     // テーブルの奥の担当者
     if (m !== 'treat') shade(50, 55, 10);
     if (m !== 'treat') sprite(serverLook, 50, 39 + (Math.floor(now / 600) % 2), { blink: blink(3), face: m === 'sold' ? 'smile' : (m === 'lost' ? 'trouble' : null) });
-    drawTable();
+    drawTable(now);
     // 手の空いているスタッフは手前に
     if (S) {
       var fx = 64, crew = VS ? (VS === 'ph' ? [] : VS.staff) : S.staff;
@@ -1348,6 +1434,7 @@
       }
     }
     drawSeason(now);
+    applyLight(now, scene.tod, themeOf(), viewLv(), VS);
     // 大富豪のきらめきと、取材のフラッシュ
     if (c && c.vip && m !== 'idle' && !reduce && now > (scene.gAt || 0)) {
       scene.gAt = now + 240;
