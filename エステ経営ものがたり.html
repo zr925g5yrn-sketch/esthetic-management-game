@@ -374,7 +374,7 @@
   var COURSES = [
     { k: 'c10', n: '10回コース', price: 118000, need: 80, tier: 2, sessions: 10, big: true },
     { k: 'c5',  n: '5回券',      price: 64000, need: 62, tier: 1, sessions: 5, big: true },
-    { k: 'mem', n: '月額会員',   price: FEE,   need: 53, tier: 1, member: true, note: '2か月ごとに来店し、4か月ごとに会費が入る' },
+    { k: 'mem', n: '会員（会費は4か月ごと）',   price: FEE,   need: 53, tier: 1, member: true, note: '2か月ごとに来店し、4か月ごとに会費が入る（月あたり換算 ' + yen(FEE / 4) + '）' },
     { k: 'one', n: '次回の予約（都度払い）', price: 9000, need: 30, tier: 0, booking: true, note: '来月また来店する' }
   ];
   var PRODUCTS = [
@@ -1655,7 +1655,7 @@
   function karte() {
     var c = C, k = c.known;
     var tag = (c.vip ? '大富豪　' : (c.press ? '雑誌の記者　' : (c.influ ? 'インフルエンサー　' : ''))) + (c.isNew ? (c.ref ? '紹介で来店' : '初めての来店') :
-      ('常連・' + (c.visits + 1) + '回目' + (c.plan ? '　' + courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回' : (c.member ? '　月額会員' : (c.royal ? '　ロイヤル会員' : '')))));
+      ('常連・' + (c.visits + 1) + '回目' + (c.plan ? '　' + courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回' : (c.member ? '　会員' : (c.royal ? '　ロイヤル会員' : '')))));
     var h = '<section class="karte box"><div class="kh"><b>' + c.name + (c.vip ? ' さま' : ' さん') + '</b><span>' + c.age + '代 ' + (c.male ? '男性' : '女性') + '</span></div>' +
       '<div class="ag">' + tag + (c.st ? '　担当 ' + stName(c.st) : '') + '</div><div class="chips">';
     var today = !c.isNew && c.today && c.phase !== 'meet0';
@@ -2375,7 +2375,7 @@
       });
       if (mem.length) {
         S.cash += stay * FEE; S.wk.fee += stay * FEE;
-        S.news.push({ good: true, t: '月額会費 ' + yen(stay * FEE) + ' が入った（' + stay + '人）。' + (left ? left + '人が退会した。' : '') });
+        S.news.push({ good: true, t: '会費（4か月ごと） ' + yen(stay * FEE) + ' が入った（' + stay + '人）。' + (left ? left + '人が退会した。' : '') });
       }
     }
     autoRestock();
@@ -2437,7 +2437,7 @@
     if (c.sns && c.isNew) return 'SNSを見て来店・新規';
     if (c.isNew) return c.ref ? '紹介・新規' : '新規';
     if (c.plan) return courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回';
-    if (c.member) return '月額会員';
+    if (c.member) return '会員';
     return '予約の来店';
   }
   function weekIntro() {
@@ -3667,7 +3667,7 @@
       (w.base ? '<dt>通常営業（' + w.base.n + '名）</dt><dd>' + yen(w.base.sales) + '</dd>' : '') +
       '<dt>体験コース</dt><dd>' + yen(w.trial) + '</dd><dt>コース・会員</dt><dd>' + yen(w.course) + '</dd>' +
       '<dt>物販</dt><dd>' + yen(w.prod) + '</dd><dt>オプション</dt><dd>' + yen(w.opt) + '</dd>' +
-      (w.fee ? '<dt>月額会費</dt><dd>' + yen(w.fee) + '</dd>' : '') +
+      (w.fee ? '<dt>会費（4か月ごと）</dt><dd>' + yen(w.fee) + '</dd>' : '') +
       (w.roy ? '<dt>のれん分けの売上の一部</dt><dd>' + yen(w.roy) + '</dd>' : '') +
       (w.extra ? '<dt>賞金など</dt><dd>' + yen(w.extra) + '</dd>' : '') +
       (w.refund ? '<dt>解約の返金</dt><dd class="minus">' + yen(-w.refund) + '</dd>' : '') +
