@@ -477,15 +477,22 @@
     o = o || {};
     var rows = rowsOf(look, o.walkB), n = o.rows || 17;
     if (o.face) rows = faceRows(rows, o.face);
+    if (o.eye) rows[4] = rows[4].replace(/e/g, 's').split('').map(function (ch, i) { return (i === 3 + o.eye || i === 6 + o.eye) && ch === 's' ? 'e' : ch; }).join('');
+    if (o.arms) {
+      [10, 11].forEach(function (r) { rows[r] = setCh(setCh(rows[r], 1, '.'), 8, '.'); });
+      rows[8] = setCh(setCh(rows[8], 1, 't'), 8, 't'); rows[7] = setCh(setCh(rows[7], 1, 's'), 8, 's'); rows[6] = setCh(setCh(rows[6], 1, 's'), 8, 's');
+    }
+    var bw = o.bow || 0;
     var col = { h: look.hair, s: look.skin, e: o.eyes || '#2B2238', m: '#C25B6B', t: look.top, p: look.bottom, b: '#4A3A30', w: '#FFFFFF', k: '#F4A6AE', c: '#9A6A5A', n: '#8A4A5A' };
     if (o.blink) col.e = look.skin;
-    for (var r = 0; r < n; r++) for (var c = 0; c < 10; c++) {
+    // お辞儀のときは体から先に描き、下げた頭を上に重ねる
+    for (var r = bw ? n - 1 : 0; bw ? r >= 0 : r < n; r += bw ? -1 : 1) for (var c = 0; c < 10; c++) {
       var ch = rows[r][c]; if (ch === '.') continue;
-      if (o.lie) R(x + r, y + c, 1, 1, col[ch]); else R(x + c, y + r, 1, 1, col[ch]);
+      if (o.lie) R(x + r, y + c, 1, 1, col[ch]); else R(x + c, y + r + (r < 8 ? bw : 0), 1, 1, col[ch]);
     }
-    if (look.style === 'bun') { if (o.lie) R(x - 2, y + 4, 2, 2, look.hair); else R(x + 4, y - 2, 2, 2, look.hair); }
-    if (!o.lie && look.vip) { R(x + 3, y + 8, 4, 1, '#FFFFFF'); R(x + 3, y - 3, 4, 1, '#E8C15A'); R(x + 4, y - 4, 1, 1, '#E0567A'); }
-    if (!o.lie && look.glasses) { R(x + 2, y + 3, 3, 1, '#2B2238'); R(x + 5, y + 3, 3, 1, '#2B2238'); }
+    if (look.style === 'bun') { if (o.lie) R(x - 2, y + 4, 2, 2, look.hair); else R(x + 4, y - 2 + bw, 2, 2, look.hair); }
+    if (!o.lie && look.vip) { R(x + 3, y + 8, 4, 1, '#FFFFFF'); R(x + 3, y - 3 + bw, 4, 1, '#E8C15A'); R(x + 4, y - 4 + bw, 1, 1, '#E0567A'); }
+    if (!o.lie && look.glasses) { R(x + 2, y + 3 + bw, 3, 1, '#2B2238'); R(x + 5, y + 3 + bw, 3, 1, '#2B2238'); }
     if (!o.lie && look.phone) { R(x + 8, y + 9, 2, 3, '#2B2238'); R(x + 8, y + 9, 2, 1, '#9FD8F0'); }
   }
   var ICON = {
@@ -1334,6 +1341,9 @@
     if (S && S.interior) { R(45, 45, 3, 4, '#FFFFFF'); R(44, 43, 2, 2, '#F08DAE'); R(47, 42, 2, 2, '#F2C230'); }
   }
   function staffLook(st) { return st ? st.look : OWNER_LOOK; }
+  // お辞儀の深さ（start から dur ミリ秒。1→2→1 と下げて戻す）
+  function bowAt(t, start, dur) { if (reduce) return 0; var p = (t - start) / dur; return p < 0 || p > 1 ? 0 : (p < 0.25 || p > 0.8 ? 1 : 2); }
+  function miniBubble(x, y) { R(x, y, 6, 4, '#2B2238'); R(x + 1, y + 1, 4, 2, '#FFFFFF'); R(x + 1, y + 2, 1, 1, '#9A93A8'); R(x + 3, y + 2, 1, 1, '#9A93A8'); R(x + 1, y + 4, 1, 1, '#2B2238'); }
   function shade(x, y, w) { g.fillStyle = 'rgba(43,34,56,.16)'; g.fillRect(Math.round(x) + 1, y, w - 2, 1); g.fillRect(Math.round(x), y + 1, w, 1); }
   function drawScene(now) {
     var VS = scene.shop;
@@ -1346,10 +1356,23 @@
     var server = scene.st || (S ? (VS && VS !== 'ph' ? VS.staff[0] : S.staff[0]) : null);
     var serverLook = staffLook(server);
     var blink = function (seed) { return (now + seed * 700) % 3300 < 130; };
+    var crew0 = S ? (VS ? (VS === 'ph' ? [] : VS.staff) : S.staff) : [];
+    var prepper = c && c.phase === 'meet' && (m === 'talk' || (m === 'enter' && el > 1500)) ? crew0.filter(function (x) { return x !== server && capOf(x) > 0; })[0] || null : null;
+    if (prepper && !scene.prepAt) scene.prepAt = now; if (!prepper) scene.prepAt = 0;
+    // 月末（夜）になった瞬間を覚えて、みんなで喜ぶ
+    if (S && scene.tod === 'night' && scene.lastTod && scene.lastTod !== 'night') scene.cheerAt = now;
+    scene.lastTod = scene.tod;
+    var cheer = S && scene.tod === 'night' && now - (scene.cheerAt || -1e9) < 2000;
     var atTable = m === 'talk' || m === 'sold' || m === 'lost' || m === 'enter';
     // ベッドの奥に立つ担当者（施術中）
     if (m === 'treat') sprite(serverLook, 101, 37, { rows: 14, blink: blink(2), face: scene.sat >= 70 ? 'smile' : null });
+    if (prepper) sprite(prepper.look, 106, 37, { rows: 14, blink: blink(5), eye: -1 });
     drawBed();
+    if (prepper) {
+      var pe = now - scene.prepAt, ho = reduce ? 0 : Math.round(Math.sin(now / 220) * 2);
+      if (pe > 1200 || reduce) { var tw3 = themeOf() ? themeOf().towel : '#F4C3D0'; R(110, 52, 8, 2, tw3); R(110, 51, 8, 1, '#FFFFFF'); R(111, 50, 6, 1, tw3); }
+      R(108 + ho, 51, 2, 1, prepper.look.skin); R(113 - ho, 51, 2, 1, prepper.look.skin);
+    }
     if (m === 'treat' && c) {
       sprite(c.look, 90, 46, { lie: true, rows: 12, eyes: '#8A6A5A', face: scene.sat >= 70 ? 'bliss' : (scene.sat && scene.sat < 45 ? 'trouble' : null) });
       R(100, 47, 16, 8, '#F6B3C8'); R(100, 50, 16, 1, '#FFFFFF'); R(116, 48, 3, 6, c.look.skin);
@@ -1359,16 +1382,6 @@
         scene.fxAt = now + 420;
         scene.parts.push({ t: 'spark', x: 96 + rnd() * 20, y: 44 + rnd() * 4, vx: 0, vy: -8, life: 0.9 });
         if (scene.sat >= 70) scene.parts.push({ t: 'heart', x: 94 + rnd() * 4, y: 40, vx: rnd() * 4 - 2, vy: -10, life: 1.3 });
-      }
-      if (scene.okAt) {
-        var ok = now - scene.okAt;
-        if (reduce) { if (ok < 1500) icon('star', 102, 38); }
-        else if (ok < 900) {
-          var gp = ok / 900, gr = 3 + gp * 12;
-          g.globalAlpha = (1 - gp) * 0.85;
-          for (var ga = 0; ga < 16; ga++) R(104 + Math.cos(ga / 16 * 6.283) * gr, 50 + Math.sin(ga / 16 * 6.283) * gr * 0.55, 1, 1, ga % 2 ? '#FFF4C0' : '#FFFFFF');
-          g.globalAlpha = 1;
-        }
       }
       if (scene.sat && scene.sat < 45) icon('anger', 93, 37 + (Math.floor(now / 300) % 2));
       else if (scene.sat < 70) icon('zz', 94, 38 - (Math.floor(now / 500) % 3));
@@ -1399,17 +1412,32 @@
     }
     // テーブルの奥の担当者
     if (m !== 'treat') shade(50, 55, 10);
-    if (m !== 'treat') sprite(serverLook, 50, 39 + (Math.floor(now / 600) % 2), { blink: blink(3), face: m === 'sold' ? 'smile' : (m === 'lost' ? 'trouble' : null) });
+    if (m !== 'treat') {
+      var sb = m === 'enter' ? bowAt(el, 1500, 800) : (m === 'leave' ? bowAt(el, 0, 900) : 0), sv = {}, sy = 39 + (Math.floor(now / 600) % 2);
+      if (m === 'sold' && el < 700 && !reduce) sy -= Math.floor(el / 175) % 2;
+      if (m === 'idle' && !reduce) { var lk = (now / 1000) % 9; sv.eye = lk < 1 ? -1 : (lk > 4.5 && lk < 5.5 ? 1 : 0); }
+      if (m === 'idle' && cheer) { sv.arms = true; if (!reduce) sy -= Math.floor(now / 180) % 2; }
+      sprite(serverLook, 50, sy, { blink: blink(3), face: m === 'sold' || (m === 'idle' && cheer) ? 'smile' : (m === 'lost' ? 'trouble' : null), bow: sb, eye: sv.eye, arms: sv.arms });
+    }
     drawTable(now);
     // 手の空いているスタッフは手前に
     if (S) {
       var fx = 64, crew = VS ? (VS === 'ph' ? [] : VS.staff) : S.staff;
-      crew.forEach(function (st, i) {
-        if (st === server) return;
+      var shown = crew.filter(function (st) { return st !== server && st !== prepper; }), step = crew.length > 5 ? 11 : 13;
+      shown.forEach(function (st, j) {
+        var i = crew.indexOf(st), o = { blink: blink(i + 4), face: st.mot >= 75 ? 'smile' : (st.mot !== undefined && st.mot < 30 ? 'trouble' : null) };
+        var y0 = 59 + (Math.floor(now / 520 + i) % 2), pair = j >> 1, mate = shown[j ^ 1], left = j % 2 === 0, talk = false;
+        // となり同士で、ときどき向き合っておしゃべり
+        if (mate && !cheer && (now + pair * 2900) % 9000 < 2600) { talk = true; o.eye = left ? 1 : -1; }
+        if (m === 'enter' && el < 1400) o.bow = bowAt(el, 300 + j * 80, 800);
+        else if (cheer) { o.arms = true; o.face = 'smile'; if (!reduce) y0 -= Math.floor(now / 180 + j) % 2; }
+        else if (!talk && !reduce && !(st.mot < 30)) { var ph = (now / 1000 + i * 3.7) % 13; if (ph < 0.7) o.arms = true; else if (ph > 4 && ph < 5) o.eye = j % 2 ? 1 : -1; }
         shade(fx, 75, 10);
-        sprite(st.look, fx, 59 + (Math.floor(now / 520 + i) % 2), { blink: blink(i + 4), face: st.mot >= 75 ? 'smile' : (st.mot !== undefined && st.mot < 30 ? 'trouble' : null) });
-        if (st.mot >= 75) icon('note', fx + 3, 52 - (Math.floor(now / 400 + i) % 2)); else if (st.mot !== undefined && st.mot < 30) icon('sweat', fx + 3, 52);
-        fx += crew.length > 5 ? 11 : 13;
+        sprite(st.look, fx, y0, o);
+        if (talk) { var spk = reduce ? left : (Math.floor(now / 900) % 2 === 0) === left; if (spk) miniBubble(left ? fx + 6 : fx - 2, 53); }
+        else if (cheer) icon('note', fx + 3, 52 - (reduce ? 0 : Math.floor(now / 300 + j) % 2));
+        else if (st.mot >= 75) icon('note', fx + 3, 52 - (Math.floor(now / 400 + i) % 2)); else if (st.mot !== undefined && st.mot < 30) icon('sweat', fx + 3, 52);
+        fx += step;
       });
       if (VS === 'ph') {
         // シャンパンとソファ
@@ -1435,6 +1463,17 @@
     }
     drawSeason(now);
     applyLight(now, scene.tod, themeOf(), viewLv(), VS);
+    // 施術がうまくいったときの光は、時間帯の色に染めずに見せる
+    if (m === 'treat' && scene.okAt) {
+      var ok = now - scene.okAt;
+      if (reduce) { if (ok < 1500) icon('star', 102, 38); }
+      else if (ok < 900) {
+        var gp = ok / 900, gr = 3 + gp * 12;
+        g.globalAlpha = (1 - gp) * 0.85;
+        for (var ga = 0; ga < 16; ga++) R(104 + Math.cos(ga / 16 * 6.283) * gr, 50 + Math.sin(ga / 16 * 6.283) * gr * 0.55, 1, 1, ga % 2 ? '#FFF4C0' : '#FFFFFF');
+        g.globalAlpha = 1;
+      }
+    }
     // 大富豪のきらめきと、取材のフラッシュ
     if (c && c.vip && m !== 'idle' && !reduce && now > (scene.gAt || 0)) {
       scene.gAt = now + 240;
