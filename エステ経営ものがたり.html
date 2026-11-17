@@ -4775,7 +4775,7 @@
     if (keep) window.scrollTo(0, y);
   }
   /* --- 研修と、6つの力。神技・神対応 --- */
-  var TCOST = [0, 2000, 3000, 4000, 5000], GODNEED = 15, GODPRE = 3;
+  var TCOST = [0, 15000, 25000, 35000, 50000], TCOST5 = 10000, GODNEED = 15, GODPRE = 3;
   var SKILLS = [['tech', '技術', 'tech'], ['know', '知識', 'tech'], ['word', '言葉遣い', 'talk'], ['emp', '共感力', 'talk'], ['listen', '傾聴力', 'talk'], ['care', '気遣い', 'talk']];
   var SKS = { tech: '技', know: '知', word: '言', emp: '共', listen: '聴', care: '気' };
   function grpKeys(g) { return SKILLS.filter(function (x) { return x[2] === g; }).map(function (x) { return x[0]; }); }
@@ -4934,7 +4934,7 @@
   function tMark(v) { return v >= 40 ? '◎' : v >= 30 ? '○' : v >= 20 ? '△' : '×'; }
   // 研修で伸ばす余地がある人（神技・神対応の両方に届いた人は対象外）
   function trainable(st) { skFix(st); return !onLeave(st) && (st.sk.tech < 6 || st.sk.word < 6); }
-  function tCost1(st) { skFix(st); var low = Math.min.apply(null, SKILLS.map(function (x) { return st.sk[x[0]]; })); return 2 * TCOST[clamp(low, 1, 4)] + (low >= 5 ? 2 * 1000 : 0); }
+  function tCost1(st) { skFix(st); var low = Math.min.apply(null, SKILLS.map(function (x) { return st.sk[x[0]]; })); return 2 * TCOST[clamp(low, 1, 4)] + (low >= 5 ? 2 * TCOST5 : 0); }
   function tGain(st, meth) { var base = meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth]; return Math.round(base * (st.trait === 'rookie' ? 1.2 : st.trait === 'vet' ? 0.8 : 1) * (has(st, 'sense') ? 2 : 1) * GIFTMUL[talentOf(st).gift]); }
   function tGroups() {
     var gs = [{ key: 'main', sh: null, name: S.shops.length ? '本店' : 'お店', mem: S.staff }];
@@ -4986,7 +4986,7 @@
     var allCost = todo.reduce(function (a, g2) { return a + tPlan(g2, tBest(g2)).cost; }, 0);
     view('<h1>研修（店舗ごと）</h1><p class="lead">スタッフには<b>気質</b>があり、教え方との相性で得られる経験値が変わる（◎40 ○30 △20 ×10）。経験値がたまると<b>自動で力が1上がる</b>。上のレベルほど多く要る（' + [1, 2, 3, 4].map(function (v) { return v + '→' + (v + 1) + 'は' + TLV[v]; }).join('、') + '）。' +
       'スタッフごとに<b>伸びしろ</b>（経験値の入り方）と<b>得意・苦手な力</b>がある。得意な力は早く、苦手な力はゆっくり伸びる。' +
-      '研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。費用は1人' + yen(2 * TCOST[1]) + '〜' + yen(2 * TCOST[4] + 2000) + '（いちばん低い力のレベルで決まる）。経験値は新人1.2倍、ベテラン0.8倍、センス◯の人は2倍。' +
+      '研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。費用は1人' + yen(2 * TCOST[1]) + '〜' + yen(2 * TCOST[4] + 2 * TCOST5) + '（いちばん低い力のレベルで決まる）。経験値は新人1.2倍、ベテラン0.8倍、センス◯の人は2倍。' +
       '6つの力がすべて5になったら、研修（経験値' + TGOD + 'で1）と自主練習で神技・神対応へ近づく（' + GODNEED + 'ポイント）。自主練習は、得意な系統か伸びしろ★4以上なら毎月、ほかは3か月に1回。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       (gs.length > 1 ? [{ label: '全店舗で研修する（店ごとにいちばん合う教え方）　' + (allCost ? yen(allCost) : ''), sub: todo.length ? todo.length + '店舗。' + (S.cash < allCost ? 'お金が足りない' : '店舗ごとの教え方は、気質に合う人がいちばん多いもの') : '今月はすべての店舗で研修ずみ',
         off: !todo.length || S.cash < allCost, go: function () {
