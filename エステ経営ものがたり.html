@@ -3151,7 +3151,7 @@
     var list = shop ? shop.staff : S.staff;
     var u = UNI[(list.length + (shop ? 1 : 0)) % UNI.length];
     cd.look.top = u[0]; cd.look.bottom = u[1];
-    list.push({ id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: cd.cap, used: 0, look: cd.look, mot: 65, trust: 30 + ((S && S.heroTrust) || 0) });
+    list.push({ id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: cd.cap, used: 0, look: cd.look, mot: 65, trust: 30 + ((S && S.heroTrust) || 0) });
   }
   function openBranch(k, free) {
     var A = AREAS[k];
@@ -3160,11 +3160,11 @@
     allStaff().forEach(function (st) { taken[st.name] = true; });
     var b = { id: 'b' + (S.uid++), area: k, name: A.n, staff: [], rep: Math.max(30, S.rep - 10), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free };
     S.shops.push(b);
-    var cd = genCand(taken, A.names);
+    var cd = genCand(taken, A.names, k);
     if (A.tier !== 'local') { Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = Math.max(cd.sk[k], 3); }); skFix(cd); cd.wage += 6000; }
     hireTo(b, cd);
     // 都心と海外は、開店時にスタッフを2人連れていく
-    if (A.tier !== 'local') for (var e2 = 0; e2 < 2; e2++) hireTo(b, genCand(taken, A.names));
+    if (A.tier !== 'local') for (var e2 = 0; e2 < 2; e2++) hireTo(b, genCand(taken, A.names, k));
     burst('coin', 60, 30, 8); burst('heart', 60, 34, 4);
     return b;
   }
@@ -3840,7 +3840,7 @@
       '<ul class="plain"><li>' + (w.sold.length ? w.sold.join('</li><li>') : '成約なし') + '</li></ul></div>';
   }
   function staffRow(st) {
-    return '<li><span>' + (st.owner ? (S.ownerName ? S.ownerName : 'あなた') + '（店長' + (S.persona && PERSONA[S.persona] ? '・' + PERSONA[S.persona].n : '') + '）' + (hearer(st) ? '　聞き上手' : '') : st.name + (st.leader ? '（リーダー）' : '') + '　' + TRAITS[st.trait].n + (onLeave(st) ? '　育休中（' + calOf(st.leaveUntil) + '復帰）' : '')) + (st.sp && st.sp.length ? '<br><small>◆' + spList(st) + '</small>' : '') + '</span><span>' + statText(st) +
+    return '<li><span>' + (st.owner ? (S.ownerName ? S.ownerName : 'あなた') + '（店長' + (S.persona && PERSONA[S.persona] ? '・' + PERSONA[S.persona].n : '') + '）' + (hearer(st) ? '　聞き上手' : '') : st.name + (st.leader ? '（リーダー）' : '') + '　' + TRAITS[st.trait].n + '・' + TEMPER[temperOf(st)].n + (onLeave(st) ? '　育休中（' + calOf(st.leaveUntil) + '復帰）' : '')) + (st.sp && st.sp.length ? '<br><small>◆' + spList(st) + '</small>' : '') + '</span><span>' + statText(st) +
       (st.owner ? '　人間力' + S.hum : '　月給' + yen(st.wage) + '<br>やる気' + Math.round(st.mot === undefined ? 60 : st.mot) + face(st.mot === undefined ? 60 : st.mot) + ' 信頼' + Math.round(st.trust === undefined ? 40 : st.trust)) + '</span></li>';
   }
   // スタッフ一覧は店ごとにたたんでおき、見たいときだけ開く
@@ -3892,7 +3892,7 @@
     h += staffHtml();
     var opts = [
       { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
-      { label: '研修と自主練習', sub: '6つの力を伸ばす。研修は' + yen(TCOST[1]) + '〜' + yen(TCOST[4]) + '。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
+      { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
       { label: 'スタッフを採用する　' + yen(HIRE), sub: !roomAny() ? 'どの店舗もこれ以上は雇えない' : '受け入れられるお客様が増える。給与がかかる',
         off: !roomAny() || S.cash < HIRE, go: hireView }
     ];
@@ -4066,40 +4066,109 @@
           off: !ok, go: function () { st.spPick = k; st.spGoal = k; spView(st, '目標を「' + t.n + '」にした。'); } };
       }).concat([{ main: true, label: 'もどる', go: function () { personTrain(st); } }]));
   }
+  /* --- 研修：スタッフの気質 × 教え方 → 経験値 → いちばん低い力から自動で伸びる。店舗ごとに月1回 --- */
+  var TEMPER = {
+    sunao:    { n: '素直',       d: '褒めると伸びる',             m: { strict: 20, praise: 40, model: 30, self: 20 } },
+    makezu:   { n: '負けず嫌い', d: '厳しくされると燃える',       m: { strict: 40, praise: 20, model: 20, self: 30 } },
+    sensai:   { n: '繊細',       d: '厳しくされると萎縮する',     m: { strict: 10, praise: 40, model: 30, self: 20 } },
+    mypace:   { n: 'マイペース', d: '任せると自分で伸びる',       m: { strict: 10, praise: 20, model: 30, self: 40 } },
+    shokunin: { n: '職人気質',   d: '手本を見て覚える',           m: { strict: 30, praise: 10, model: 40, self: 20 } }
+  };
+  var TMETH = {
+    strict: { n: '厳しく教える',     d: 'やる気が少し下がる（繊細な人は大きく）' },
+    praise: { n: '褒めて伸ばす',     d: 'やる気が少し上がる' },
+    model:  { n: '手本を見せる',     d: '信頼が少し上がる' },
+    self:   { n: '任せて考えさせる', d: '' }
+  };
+  var TNEED = 40, TFIT = 1.5;
+  // 気質：店長は性格から、スタッフはIDから決まる（古いデータにも同じ気質がつく）
+  function temperOf(st) {
+    if (!st.temper) {
+      if (st.owner) st.temper = { hot: 'makezu', kind: 'sensai', roman: 'sensai', logic: 'shokunin', mypace: 'mypace', steady: 'shokunin' }[S && S.persona] || 'sunao';
+      else { var h = 0, s = String(st.id); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973; st.temper = Object.keys(TEMPER)[h % 5]; }
+    }
+    return st.temper;
+  }
+  function tMark(v) { return v >= 40 ? '◎' : v >= 30 ? '○' : v >= 20 ? '△' : '×'; }
+  // 研修で伸ばす余地がある人（神技・神対応の両方に届いた人は対象外）
+  function trainable(st) { skFix(st); return !onLeave(st) && (st.sk.tech < 6 || st.sk.word < 6); }
+  function tCost1(st) { skFix(st); var low = Math.min.apply(null, SKILLS.map(function (x) { return st.sk[x[0]]; })); return 2 * TCOST[clamp(low, 1, 4)] + (low >= 5 ? 2 * 1000 : 0); }
+  function tGain(st, meth) { var base = meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth]; return base * (st.trait === 'rookie' ? 2 : 1) * (has(st, 'sense') ? 2 : 1); }
+  function tGroups() {
+    var gs = [{ key: 'main', sh: null, name: S.shops.length ? '本店' : 'お店', mem: S.staff }];
+    S.shops.forEach(function (b) { gs.push({ key: b.id, sh: b, name: b.name, mem: b.staff }); });
+    return gs.map(function (g2) { g2.mem = g2.mem.filter(trainable); return g2; });
+  }
+  function tDone(key) { if (!S.trainDone || S.trainDone.w !== S.week) S.trainDone = { w: S.week, k: {} }; return !!S.trainDone.k[key]; }
+  function tPlan(g2, meth) {
+    var cost = 0, ex = 0, cnt = { '◎': 0, '○': 0, '△': 0, '×': 0 };
+    g2.mem.forEach(function (st) { cost += tCost1(st); ex += tGain(st, meth); cnt[tMark(meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth])]++; });
+    if (meth === 'fit') cost = Math.round(cost * TFIT / 100) * 100;
+    return { cost: cost, ex: ex, cnt: cnt };
+  }
+  function tBest(g2) { return Object.keys(TMETH).sort(function (a, b) { return tPlan(g2, b).ex - tPlan(g2, a).ex; })[0]; }
+  // 経験値をためて、いちばん低い力から自動で1ずつ上げる。全部5の人は神技・神対応への道が進む
+  var TPREF = { god: 'tech', talk: 'word', heal: 'emp', shop: 'know', listen: 'listen', vet: 'tech', push: 'word', mood: 'care', tough: 'tech', rookie: 'tech' };
+  function tApply(st, ex) {
+    var ups = []; st.tx = (st.tx || 0) + ex;
+    for (var guard = 0; guard < 30 && st.tx >= TNEED; guard++) {
+      skFix(st);
+      var low = SKILLS.map(function (x) { return x[0]; }).filter(function (k) { return st.sk[k] < 5; })
+        .sort(function (a, b) { return (st.sk[a] - st.sk[b]) || ((b === TPREF[st.trait]) - (a === TPREF[st.trait])); })[0];
+      if (low) { st.tx -= TNEED; st.sk[low]++; skFix(st); ups.push(skName(low) + st.sk[low]); continue; }
+      var gs = ['tech', 'talk'].filter(function (g) { return sk(st, grpKeys(g)[0]) < 6; });
+      if (!gs.length) { st.tx = 0; break; }
+      var g = gs.sort(function (a, b) { return godOf(st, b) - godOf(st, a); })[0];
+      st.tx -= TNEED; godPt(st, g, 2); ups.push((g === 'tech' ? '神技' : '神対応') + 'への道');
+    }
+    return ups;
+  }
+  function tRun(g2, meth) {
+    var lines = [];
+    g2.mem.forEach(function (st) {
+      if (!st.owner) {
+        if (meth === 'strict') moodUp(st, temperOf(st) === 'sensai' ? -12 : -5, 0);
+        if (meth === 'praise') moodUp(st, 4, 0);
+        if (meth === 'model') moodUp(st, 0, 3);
+      }
+      var ex = tGain(st, meth), ups = tApply(st, ex);
+      lines.push(whoName(st) + '（' + TEMPER[temperOf(st)].n + '・' + (meth === 'fit' ? '◎' : tMark(TEMPER[temperOf(st)].m[meth])) + '）経験値+' + ex + (ups.length ? '　→ ' + ups.join('、') + 'に上がった' : '　（あと' + (TNEED - st.tx) + '）'));
+    });
+    S.trainDone.k[g2.key] = true;
+    return lines;
+  }
   function trainView(note) {
     bar();
-    view('<h1>研修と自主練習</h1><p class="lead">6つの力を伸ばす。研修代はレベルで変わる（' + [1, 2, 3, 4].map(function (v) { return v + '→' + (v + 1) + ' ' + yen(TCOST[v]); }).join('、') + '）。' +
-      '技術・知識がすべて5になると<b>神技</b>、言葉遣い・共感力・傾聴力・気遣いがすべて5になると<b>神対応</b>への道がひらく。そこから先は毎月<b>自動で自主練習</b>して近づく。できごとでの良い行いでも早まる。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
-      [3, 4, 5].map(function (t) {
-        var st2 = bulkSteps(t), c = st2.reduce(function (a, x) { return a + x.cost; }, 0);
-        return { label: '全員の力を' + t + 'まで上げる　' + (c ? yen(c) : 'すでに達成'), sub: c ? st2.length + '回分の研修をまとめて受ける' + (S.cash < c ? '。来月の家賃と給与は残して、低いところから順にできるだけ' : '') : '全員の6つの力が' + t + '以上',
-          off: !c || S.cash < TCOST[1], go: function () { bulkTrain(t); } };
-      }).concat(allStaff().map(function (st) {
-        var sh = shopOf(st);
-        return { grp: regionOf(sh) + ' のスタッフ', label: whoName(st) + (sh ? '（' + sh.name + '）' : '') + (st.trait ? '　' + TRAITS[st.trait].n : ''), sub: statText(st) + godLine(st) + '　経験点' + (st.exp || 0) + (st.sp && st.sp.length ? '　◆' + spList(st) : ''), go: function () { personTrain(st); } };
+    var gs = tGroups(), todo = gs.filter(function (g2) { return g2.mem.length && !tDone(g2.key); });
+    var allCost = todo.reduce(function (a, g2) { return a + tPlan(g2, tBest(g2)).cost; }, 0);
+    view('<h1>研修（店舗ごと）</h1><p class="lead">スタッフには<b>気質</b>があり、教え方との相性で得られる経験値が変わる（◎40 ○30 △20 ×10）。経験値' + TNEED + 'ごとに、いちばん低い力から<b>自動で1上がる</b>。' +
+      '研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。費用は1人' + yen(2 * TCOST[1]) + '〜' + yen(2 * TCOST[4] + 2000) + '（いちばん低い力のレベルで決まる）。新人とセンス◯の人は経験値2倍。' +
+      '6つの力がすべて5になったら、研修と毎月の自主練習で神技・神対応へ近づく。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
+      (gs.length > 1 ? [{ label: '全店舗で研修する（店ごとにいちばん合う教え方）　' + (allCost ? yen(allCost) : ''), sub: todo.length ? todo.length + '店舗。' + (S.cash < allCost ? 'お金が足りない' : '店舗ごとの教え方は、気質に合う人がいちばん多いもの') : '今月はすべての店舗で研修ずみ',
+        off: !todo.length || S.cash < allCost, go: function () {
+          var lines = []; todo.forEach(function (g2) { var m = tBest(g2), pl = tPlan(g2, m); pay(pl.cost); lines.push('<b>' + g2.name + '</b>（' + TMETH[m].n + '）'); lines = lines.concat(tRun(g2, m)); });
+          SFX.hire(); if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), function () { trainView(lines.join('<br>')); }); trainView(lines.join('<br>')); } }] : [])
+      .concat(gs.map(function (g2) {
+        var d = tDone(g2.key), m = g2.mem.length ? tBest(g2) : null, pl = m ? tPlan(g2, m) : null;
+        return { grp: regionOf(g2.sh), label: g2.name + 'の研修　' + g2.mem.length + '人', sub: !g2.mem.length ? '研修できるスタッフがいない' : d ? '今月は研修ずみ' : 'おすすめ：' + TMETH[m].n + '（◎' + pl.cnt['◎'] + '人）　' + yen(pl.cost),
+          off: !g2.mem.length, go: function () { shopTrain(g2.key); } };
       })).concat([{ main: true, label: 'もどる', go: investView }]));
   }
-  // 一括研修：全員の6つの力を目標レベルまで。お金が足りなければ、低いところから順にできるだけ
-  function bulkSteps(target) {
-    var steps = [];
-    allStaff().forEach(function (st) {
-      skFix(st); var gain = (st.trait === 'rookie' ? 2 : 1) * (has(st, 'sense') ? 2 : 1);
-      SKILLS.forEach(function (x) { var v = st.sk[x[0]]; while (v < target && v < 5) { steps.push({ st: st, k: x[0], from: v, cost: TCOST[v] }); v = Math.min(5, v + gain); } });
-    });
-    return steps.sort(function (a, b) { return a.from - b.from; });
-  }
-  function bulkTrain(target) {
-    var steps = bulkSteps(target), done = 0, spent = 0, keep = RENT + wages();
-    steps.forEach(function (t) {
-      if (S.cash - t.cost < keep || t.st.sk[t.k] !== t.from) return;
-      var gain = (t.st.trait === 'rookie' ? 2 : 1) * (has(t.st, 'sense') ? 2 : 1);
-      pay(t.cost); spent += t.cost; done++; t.st.sk[t.k] = Math.min(5, t.from + gain); skFix(t.st);
-    });
-    allStaff().forEach(function (st) { godCheck(st, 'tech'); godCheck(st, 'talk'); });
-    SFX.hire();
-    var msg = done ? 'まとめて研修した（' + done + '回、' + yen(spent) + '）。' + (done < steps.length ? '来月の家賃と給与（' + yen(keep) + '）は残して、残り' + (steps.length - done) + '回分は見送った。' : '全員が' + target + 'に届いた。') : '来月の家賃と給与を残すと、研修するお金がなかった。';
-    if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), function () { trainView(msg); });
-    trainView(msg);
+  function shopTrain(key, note) {
+    bar();
+    var g2 = tGroups().filter(function (x) { return x.key === key; })[0], d = tDone(key);
+    var list = '<ul class="who-list">' + g2.mem.map(function (st) { var t = TEMPER[temperOf(st)];
+      return '<li><span>' + whoName(st) + '<br><small>' + t.n + '：' + t.d + '</small></span><span>' + statText(st) + '<br>経験値 ' + (st.tx || 0) + '／' + TNEED + godLine(st) + '</span></li>'; }).join('') + '</ul>';
+    view('<h1>' + g2.name + 'の研修</h1><p class="lead">全員に同じ教え方で研修する。気質に合うほど経験値が多い。' + (d ? '<br><b>今月はもう研修した。</b>' : '') + '</p>' + (note ? '<div class="news good">' + note + '</div>' : '') + list,
+      Object.keys(TMETH).map(function (m) { var pl = tPlan(g2, m);
+        return { label: TMETH[m].n + '　' + yen(pl.cost), sub: '◎' + pl.cnt['◎'] + ' ○' + pl.cnt['○'] + ' △' + pl.cnt['△'] + ' ×' + pl.cnt['×'] + '　経験値 計' + pl.ex + (TMETH[m].d ? '　' + TMETH[m].d : ''), off: d || S.cash < pl.cost,
+          go: function () { pay(pl.cost); var lines = tRun(g2, m); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
+            if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), fin); fin(); } };
+      }).concat([(function () { var pl = tPlan(g2, 'fit');
+        return { label: '一人ひとりに合わせて教える　' + yen(pl.cost), sub: '全員◎（経験値 計' + pl.ex + '）。手間がかかるぶん費用' + TFIT + '倍', off: d || S.cash < pl.cost,
+          go: function () { pay(pl.cost); var lines = tRun(g2, 'fit'); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
+            if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), fin); fin(); } }; })(),
+        { main: true, label: 'もどる', go: function () { trainView(); } }]));
   }
   // 神技・神対応への自主練習は自動。条件を満たした人は毎月こつこつ練習する
   function godAuto() {
@@ -4117,22 +4186,39 @@
   var SKD = { tech: '施術の満足度', know: 'メニューと商品の見立て', word: 'クロージングで警戒心をほぐす', emp: 'お客様の気持ちに寄りそい、満足度と興味が上がる', listen: '悩みと好みを聞き取る。5で聞き上手', care: '常連の信頼が育ち、解約が減る' };
   function personTrain(st, note) {
     bar(); skFix(st);
-    var who = whoName(st), gain = (st.trait === 'rookie' ? 2 : 1) * (has(st, 'sense') ? 2 : 1), opts = [];
-    SKILLS.forEach(function (x) {
-      var k = x[0], v = st.sk[k];
-      if (v >= 5) { opts.push({ label: x[1] + '　' + (v >= 6 ? (x[2] === 'tech' ? '神技' : '神対応') : '5（最大）'), sub: SKD[k], off: true, go: function () {} }); return; }
-      var cost = TCOST[v], to = Math.min(5, v + gain);
-      opts.push({ label: x[1] + '　' + v + ' → ' + to + '　' + yen(cost), sub: SKD[k], off: S.cash < cost, go: function () {
-        pay(cost); st.sk[k] = to; skFix(st); SFX.hire(); var y = window.scrollY;
-        var g = x[2]; godCheck(st, g);
-        if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), function () { personTrain(st, who + 'が' + (g === 'tech' ? '神技' : '神対応') + 'を身につけた！'); });
-        personTrain(st, who + 'の' + x[1] + 'が' + st.sk[k] + 'に上がった。'); window.scrollTo(0, y); } });
-    });
-    view('<h1>' + who + 'の研修</h1><p class="lead">' + (st.trait ? TRAITS[st.trait].n + '　' : '') + statText(st) + godLine(st) + (hearer(st) && st.trait !== 'listen' ? '　聞き上手' : '') + '</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
-      opts.concat([{ label: '特殊スキル（自動で覚える）', sub: '経験点 ' + (st.exp || 0) + (spGoal(st) ? '　目標：' + SPECIAL[spGoal(st)].n : '') + (st.sp && st.sp.length ? '　習得ずみ：' + spList(st) : ''), go: function () { spView(st); } },
-        { main: true, label: 'ほかの人を選ぶ', go: function () { trainView(); } }, { label: '月末の画面にもどる', go: investView }]));
+    var t = TEMPER[temperOf(st)];
+    view('<h1>' + whoName(st) + '</h1><p class="lead">' + (st.trait ? TRAITS[st.trait].n + '　' : '') + '気質：' + t.n + '（' + t.d + '）<br>' + statText(st) + godLine(st) + (hearer(st) && st.trait !== 'listen' ? '　聞き上手' : '') +
+      '<br>研修の経験値 ' + (st.tx || 0) + '／' + TNEED + '</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
+      [{ label: '特殊スキル（自動で覚える）', sub: '経験点 ' + (st.exp || 0) + (spGoal(st) ? '　目標：' + SPECIAL[spGoal(st)].n : '') + (st.sp && st.sp.length ? '　習得ずみ：' + spList(st) : ''), go: function () { spView(st); } },
+       { main: true, label: '研修の画面にもどる', go: function () { trainView(); } }]);
   }
-  function genCand(taken, pool) {
+  // 名字（日本の店）と、海外の店の名字・並び順
+  var JPSUR = ['佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '山本', '中村', '小林', '加藤', '吉田', '山田', '佐々木', '山口', '松本', '井上', '木村', '林', '清水', '山崎',
+    '森', '池田', '橋本', '阿部', '石川', '山下', '中島', '石井', '小川', '前田', '岡田', '長谷川', '藤田', '後藤', '近藤', '村上', '遠藤', '青木', '坂本', '福田',
+    '太田', '西村', '藤井', '金子', '岡本', '藤原', '三宅', '中野', '原田', '松田', '竹内', '中川', '小野', '田村', '和田', '石田', '上田', '森田', '柴田', '酒井',
+    '工藤', '横山', '宮崎', '宮本', '内田', '高木', '安藤', '谷口', '大野', '丸山', '今井', '河野', '藤本', '村田', '武田', '上野', '杉山', '増田', '小山', '大塚',
+    '平野', '久保', '松井', '千葉', '岩崎', '桜井', '木下', '野口', '松尾', '菊地', '野村', '新井', '佐野', '大西', '浜田', '高田', '市川', '飯田', '小島', '水野'];
+  var WSUR = {
+    seoul: ['キム', 'イ', 'パク', 'チェ', 'チョン', 'カン', 'チョ', 'ユン'], shanghai: ['ワン', 'リー', 'チャン', 'リウ', 'チェン', 'ヤン', 'ジャオ', 'ホアン'],
+    taipei: ['チェン', 'リン', 'ホアン', 'チャン', 'リー', 'ワン', 'ウー', 'ツァイ'], singapore: ['タン', 'リム', 'リー', 'ン', 'オン', 'ウォン', 'ゴー', 'チュア'],
+    hawaii: ['カハナ', 'ケアロハ', 'アカナ', 'マカニ', 'ナカモト', 'ヒガ', 'カマカ', 'パレカ'], paris: ['マルタン', 'ベルナール', 'デュボワ', 'トマ', 'ロベール', 'リシャール', 'プティ', 'デュラン'],
+    london: ['スミス', 'ジョーンズ', 'テイラー', 'ブラウン', 'ウィリアムズ', 'ウィルソン', 'エヴァンス', 'ウォーカー'], newyork: ['スミス', 'ジョンソン', 'ウィリアムズ', 'ブラウン', 'ジョーンズ', 'ミラー', 'デイビス', 'ガルシア'],
+    la: ['ジョンソン', 'ミラー', 'デイビス', 'ロドリゲス', 'マルティネス', 'アンダーソン', 'トーマス', 'ムーア'], dubai: ['アル・マンスーリ', 'アル・ハシミ', 'アル・ファラシ', 'アル・マズルーイ', 'アル・ケトビ'],
+    bangkok: ['スリウォン', 'チャイヤポン', 'ウォンサワット', 'シーサワット', 'ブンナーク', 'ラッタナ'], phuket: ['スリウォン', 'ジャイディー', 'サクンタラ', 'ポンパイ', 'ラッタナ', 'カムラー'],
+    bali: ['ウィジャヤ', 'サプトラ', 'プラタマ', 'ウタミ', 'ダルマ', 'スアルディ'], maldives: ['イブラヒム', 'モハメド', 'ハッサン', 'アリ', 'アブドゥラ', 'シャリーフ'],
+    cebu: ['サントス', 'レイエス', 'クルス', 'バウティスタ', 'ガルシア', 'メンドーサ'], guam: ['クルス', 'サントス', 'サブラン', 'タイタノ', 'メサ', 'レオン・ゲレロ'],
+    cancun: ['ガルシア', 'ロペス', 'エルナンデス', 'マルティネス', 'ゴンサレス', 'ロドリゲス'], santorini: ['パパドプロス', 'ヴラホス', 'ニコラウ', 'ゲオルギウ', 'カラリス', 'アレクシウ'],
+    goldcoast: ['スミス', 'ウィリアムズ', 'ブラウン', 'ウィルソン', 'テイラー', 'ジョーンズ']
+  };
+  var SURFIRST = { seoul: 1, shanghai: 1, taipei: 1 };
+  function fullName(given, area, seed) {
+    var list = area && WSUR[area], sur;
+    if (seed !== undefined) { var h = 0, s = String(seed) + given; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 99991; sur = (list || JPSUR)[h % (list || JPSUR).length]; }
+    else sur = pick(list || JPSUR);
+    if (!list) return sur + ' ' + given;
+    return SURFIRST[area] ? sur + '・' + given : given + '・' + sur;
+  }
+  function genCand(taken, pool, area) {
     var tr = pick(Object.keys(TRAITS)), r3 = function () { return 1 + Math.floor(rnd() * 3); };
     var sk2 = { tech: r3(), know: r3(), word: r3(), emp: r3(), listen: r3(), care: r3() };
     if (tr === 'god') sk2.tech = Math.min(5, sk2.tech + 2);
@@ -4150,9 +4236,10 @@
     if (!WORLDNAMES.length) Object.keys(AREAS).forEach(function (k) { (AREAS[k].names || []).forEach(function (n) { WORLDNAMES.push(n); }); });
     var tryPools = pool === STAFFNAMES ? [STAFFNAMES, WORLDNAMES] : [pool, WORLDNAMES, STAFFNAMES], free = [], name;
     for (var pi = 0; pi < tryPools.length && !free.length; pi++) free = tryPools[pi].filter(function (n) { return !taken[n]; });
-    name = free.length ? pick(free) : pick(pool);
-    taken[name] = true;
-    return { name: name, trait: tr, sk: sk2, tech: tech, talk: talk, cap: tr === 'tough' ? 4 : 3,
+    var given = free.length ? pick(free) : pick(pool), area2 = area && WSUR[area] && pool && pool.indexOf(given) >= 0 ? area : null;
+    for (var nt = 0; nt < 30; nt++) { name = fullName(given, area2); if (!taken[name]) break; }
+    taken[name] = true; taken[given] = true;
+    return { name: name, temper: pick(Object.keys(TEMPER)), trait: tr, sk: sk2, tech: tech, talk: talk, cap: tr === 'tough' ? 4 : 3,
       wage: 9000 + (tech + talk) * 2500 + (tr === 'vet' ? 6000 : 0) - (tr === 'rookie' ? 3000 : 0),
       look: { hair: pick(HAIRS), skin: pick(SKINS), style: pick(['long', 'bob', 'bun', 'pony']), uniform: true } };
   }
@@ -4170,12 +4257,12 @@
       var taken = {};
       allStaff().forEach(function (st) { taken[st.name] = true; });
       Object.keys(S.cands).forEach(function (k) { S.cands[k].forEach(function (c) { taken[c.name] = true; }); });
-      S.cands[ck] = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function () { return genCand(taken, pool); });
+      S.cands[ck] = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function () { return genCand(taken, pool, dest ? dest.area : null); });
     }
     var room = maxOf(dest || null) - (dest ? dest.staff : S.staff).length;
     view('<h1>採用' + (dest ? '（' + dest.name + '）' : '') + '</h1><p class="lead">今月の応募者' + S.cands[ck].length + '人。' + (pool ? '現地で募集した。' : '') + '何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用費' + yen(HIRE) + 'と、毎月の給与がかかる。</p>' + (hireNote ? '<div class="news good">' + hireNote + '</div>' : ''),
       S.cands[ck].map(function (cd) {
-        return { label: cd.name + '　' + TRAITS[cd.trait].n, sub: TRAITS[cd.trait].d + '　' + statText(cd) + '　月給' + yen(cd.wage),
+        return { label: cd.name + '　' + TRAITS[cd.trait].n, sub: TRAITS[cd.trait].d + '　気質：' + TEMPER[cd.temper || 'sunao'].n + '　' + statText(cd) + '　月給' + yen(cd.wage),
           off: S.cash < HIRE || room <= 0, go: function () { pay(HIRE); hireTo(dest || null, cd); S.cands[ck].splice(S.cands[ck].indexOf(cd), 1); SFX.hire(); var y = window.scrollY; hireView(dest || null, cd.name + 'を採用した。'); window.scrollTo(0, y); } };
       }).concat(S.shops.length ? [{ label: 'ほかの店舗に採用する', go: function () { hireView(); } }] : []).concat([{ main: true, label: 'もどる', go: investView }]));
   }
@@ -4430,6 +4517,13 @@
     S.shops.forEach(function (b) { if (b.interiorLv === undefined) b.interiorLv = b.interior ? 1 : 0; });
     allStaff().forEach(function (st) { if (!st.owner) moodFix(st); });
     allStaff().forEach(function (st) { skFix(st); });
+    S.shops.forEach(function (b) { b.staff.forEach(function (st) { st.area0 = b.area; }); });
+    allStaff().forEach(function (st) {
+      temperOf(st);
+      if (!st.owner && st.name.indexOf(' ') < 0 && st.name.indexOf('・') < 0) { var ar = st.area0 && WSUR[st.area0] && AREAS[st.area0].names && AREAS[st.area0].names.indexOf(st.name) >= 0 ? st.area0 : null; st.name = fullName(st.name, ar, st.id); }
+      delete st.area0;
+    });
+    if (S.cands && !Array.isArray(S.cands) && Object.keys(S.cands).some(function (k) { return S.cands[k].some(function (c) { return !c.temper; }); })) S.cands = null;
     if (!S.autoStock) S.autoStock = {};
     if (!S.myProds) S.myProds = [];
     if (d.where === 'batch') { bar(); if (S.idx >= S.queue.length) return night(); return view('<h1>' + calOf(S.week) + 'のつづき</h1><p class="lead">あと' + (S.queue.length - S.idx) + '人のお客様が待っている。</p>', [{ main: true, label: '営業を再開する', go: nextCust }]); }
