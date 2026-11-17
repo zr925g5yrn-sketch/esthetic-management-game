@@ -1832,7 +1832,7 @@
         g.globalAlpha = 1;
       }
     }
-    // 大富豪のきらめきと、取材のフラッシュ
+    // セレブのきらめきと、取材のフラッシュ
     if (c && c.vip && m !== 'idle' && !reduce && now > (scene.gAt || 0)) {
       scene.gAt = now + 240;
       scene.parts.push({ t: 'spark', x: m === 'treat' ? 92 + rnd() * 22 : 30 + rnd() * 14, y: m === 'treat' ? 42 + rnd() * 8 : 34 + rnd() * 14, vx: 0, vy: -5, life: 0.7, col: '#F2C230' });
@@ -1932,7 +1932,7 @@
   function stName(st) { return st.owner ? (S && S.ownerName ? S.ownerName + '店長' : 'あなた') : st.name; }
   function karte() {
     var c = C, k = c.known;
-    var tag = (c.vip ? '大富豪　' : (c.press ? '雑誌の記者　' : (c.influ ? 'インフルエンサー　' : ''))) + (c.isNew ? (c.ref ? '紹介で来店' : '初めての来店') :
+    var tag = (c.vip ? 'セレブ　' : (c.press ? '雑誌の記者　' : (c.influ ? 'インフルエンサー　' : ''))) + (c.isNew ? (c.ref ? '紹介で来店' : '初めての来店') :
       ('常連・' + (c.visits + 1) + '回目' + (c.plan ? '　' + courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回' : (c.member ? '　会員' : (c.royal ? '　ロイヤル会員' : '')))));
     var h = '<section class="karte box"><div class="kh"><b>' + c.name + (c.vip ? ' さま' : ' さん') + '</b><span>' + c.age + '代 ' + (c.male ? '男性' : '女性') + '</span></div>' +
       '<div class="ag">' + tag + (c.st ? '　担当 ' + stName(c.st) : '') + '</div><div class="chips">';
@@ -1993,7 +1993,7 @@
   ];
   var VIPNAMES = ['白金院', '綾小路', '九重院', '鳳'];
   var EV = {
-    vip:        { n: '大富豪の予約', w: 3, d: '資産家のお客様が、評判を聞いて予約を入れた。目が肥えていて施術の出来にとても厳しい。満足度70以上で施術できれば、桁違いの契約も夢ではない。' },
+    vip:        { n: 'セレブの予約', w: 3, d: '資産家のお客様が、評判を聞いて予約を入れた。目が肥えていて施術の出来にとても厳しい。満足度70以上で施術できれば、桁違いの契約も夢ではない。' },
     reporter:   { n: '雑誌の取材', w: 2, d: '美容雑誌の記者が、お客として来店する。何も買わないが、満足させれば記事になり、しばらく新規が増える。' },
     influencer: { n: 'インフルエンサーの来店', w: 2, d: 'フォロワーの多い人が予約した。気に入れば宣伝してくれるが、押し売りは一瞬で広まる。' },
     storm:      { n: '大型台風', w: 2, d: '今月は台風。新規の予約が減るが、来てくれた人は気がゆるんでいて、警戒心が低い。' },
@@ -2086,7 +2086,7 @@
       S.evText = spc.name + 'さまから「あなたの人柄が気に入ったわ。新しいお店を出すなら、出店費は私が出すわ」と申し出があった。';
       return;
     }
-    if (S.vipNext === S.week) { setEvent('vip'); S.evText = '先日のお客様のご友人が、紹介で予約を入れた。また大富豪だ。'; return; }
+    if (S.vipNext === S.week) { setEvent('vip'); S.evText = '先日のお客様のご友人が、紹介で予約を入れた。またセレブだ。'; return; }
     if (!S.vipSeen && S.week >= 9) return setEvent('vip');
     if (!roll(0.85)) return;
     var low = allStaff().filter(function (st) { return !st.owner && st.mot !== undefined && st.mot < 25; })[0];
@@ -2977,7 +2977,7 @@
     showCuts(cuts, weekIntro);
   }
   function tagOf(c) {
-    if (c.vip) return c.royal ? '大富豪・ロイヤル会員' : '大富豪';
+    if (c.vip) return c.royal ? 'セレブ・ロイヤル会員' : 'セレブ';
     if (c.press) return '雑誌の記者（取材）';
     if (c.influ) return 'インフルエンサー';
     if (c.inbound) return c.from + 'からの観光客';
@@ -3008,7 +3008,7 @@
     var opts = [{ main: true, label: S.queue.length ? (S.autoMode ? '営業を始める（おまかせ）' : '最初のお客様を迎える') : '今月の営業を終える',
       sub: S.queue.length && S.autoMode ? '特別なお客様だけ、あなたが接客する' : '', go: S.queue.length ? nextCust : night }];
     if (S.queue.length) opts.push({ label: S.autoMode ? 'ひとりずつ自分で迎えるモードにする' : 'スタッフにおまかせにする',
-      sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : '大富豪や取材など特別なお客様だけ自分で対応し、あとは自動で進む',
+      sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : 'セレブや取材など特別なお客様だけ自分で対応し、あとは自動で進む',
       go: function () { S.autoMode = !S.autoMode; weekIntro(); } });
     view(head + list, opts);
   }
@@ -4189,7 +4189,7 @@
      ========================================================= */
   var PMODE = {
     std:     { n: '標準',         d: 'いまの料金のまま', mult: 1, need: 0, newAdj: 0 },
-    premium: { n: '高級路線',     d: 'コースとオプションが2割高い。新規は減り、決まりにくくなるが、大富豪が来やすい', mult: 1.2, need: 6, newAdj: -1 },
+    premium: { n: '高級路線',     d: 'コースとオプションが2割高い。新規は減り、決まりにくくなるが、セレブが来やすい', mult: 1.2, need: 6, newAdj: -1 },
     value:   { n: 'お手ごろ路線', d: 'コースとオプションが15%安い。新規が増え、決まりやすくなる', mult: 0.85, need: -6, newAdj: 2 }
   };
   function pm() { return PMODE[(S && S.priceMode) || 'std']; }
