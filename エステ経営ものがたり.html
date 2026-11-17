@@ -4638,18 +4638,22 @@
   var curCat = null;
   function pay(n) { S.cash -= n; S.total.cost += n; }
   function roomAny() { return S.staff.length < maxOf(null) || S.shops.some(function (b) { return b.staff.length < maxOf(b); }); }
-  function stockView() {
+  // keep が true のときは、続けて押せるように画面の位置を保つ
+  function stockView(keep) {
     bar();
-    var opts = [];
+    var opts = [], y = window.scrollY;
     prods().forEach(function (p) {
       opts.push({ grp: p.mine ? 'オリジナル商品' : '定番の商品', label: p.n + '　5個 ' + yen(costOf(p) * 5) + (S.sale ? '（半額）' : ''), sub: '売値' + yen(p.price) + '　いま' + S.stock[p.k] + '個' + (p.mine ? '　オリジナル・品質' + p.q : ''),
-        off: S.cash < costOf(p) * 5, go: function () { pay(costOf(p) * 5); S.stock[p.k] += 5; SFX.coin(); stockView(); } });
+        off: S.cash < costOf(p) * 5, go: function () { pay(costOf(p) * 5); S.stock[p.k] += 5; SFX.coin(); stockView(true); } });
+      opts.push({ grp: p.mine ? 'オリジナル商品' : '定番の商品', label: p.n + '　20個まとめて ' + yen(costOf(p) * 20) + (S.sale ? '（半額）' : ''), sub: 'いま' + S.stock[p.k] + '個',
+        off: S.cash < costOf(p) * 20, go: function () { pay(costOf(p) * 20); S.stock[p.k] += 20; SFX.coin(); stockView(true); } });
       var t = S.autoStock[p.k] || 0;
       opts.push({ grp: p.mine ? 'オリジナル商品' : '定番の商品', label: '自動補充（' + p.n + '）：' + (t ? t + '個を保つ' : 'しない'), sub: '毎月はじめに足りない分を仕入れ値で買い足す。押すたびに切り替わる', picked: !!t,
-        go: function () { S.autoStock[p.k] = AUTOSTEP[(AUTOSTEP.indexOf(t) + 1) % AUTOSTEP.length]; stockView(); } });
+        go: function () { S.autoStock[p.k] = AUTOSTEP[(AUTOSTEP.indexOf(t) + 1) % AUTOSTEP.length]; stockView(true); } });
     });
-    view('<h1>仕入れ</h1><p class="lead">5個ずつ仕入れるか、自動補充にする。売れ残っても、最後に仕入れ値で資産に数える。' + (S.sale ? '<br>今月は卸の特売で半額。' : '') + '</p>',
+    view('<h1>仕入れ</h1><p class="lead">5個ずつか20個まとめて仕入れるか、自動補充にする。売れ残っても、最後に仕入れ値で資産に数える。' + (S.sale ? '<br>今月は卸の特売で半額。' : '') + '</p>',
       opts.concat([{ main: true, label: 'もどる', go: investView }]));
+    if (keep) window.scrollTo(0, y);
   }
   /* --- 研修と、6つの力。神技・神対応 --- */
   var TCOST = [0, 2000, 3000, 4000, 5000], GODNEED = 15, GODPRE = 3;
