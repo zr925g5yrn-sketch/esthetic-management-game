@@ -4500,6 +4500,16 @@
       missionCheck();
       S.lastWk = { prod: S.wk.prod, course: S.wk.course, all: allNet };
       S.wk.achGot = achCheck();
+      S.yrNet = (S.yrNet || 0) + allNet;
+      if (S.taxPlan) { var tp = Math.min(S.taxPlan.amt, S.taxPlan.rest); S.cash -= tp; S.total.cost += tp; S.taxPlan.rest -= tp; S.taxPlan.left--;
+        S.wk.taxNote = { bad: true, t: '税金の分割払い ' + yen(tp) + 'を納めた。' + (S.taxPlan.left > 0 && S.taxPlan.rest > 0 ? 'あと' + S.taxPlan.left + '回。' : '分割払いが終わった。') };
+        if (S.taxPlan.left <= 0 || S.taxPlan.rest <= 0) S.taxPlan = null; }
+      if (monthOf() === 3) {
+        var tprof = Math.max(0, Math.round(S.yrNet));
+        if (tprof > 0) S.taxDue = { y: yearOf(), profit: tprof };
+        else S.wk.taxNote = { t: yearOf() + '年目は赤字だったので、税金はかからなかった。' };
+        S.yrNet = 0;
+      }
       S.wk.yearCut = monthOf() === 3 ? yearEnd() : null;
       if (S.wk.yearCut) S.wk.achGot = S.wk.achGot.concat(achCheck());
       S.wk.quit = null;
@@ -4559,6 +4569,28 @@
     });
     return h;
   }
+  /* --- 年度末（3月）の決算と納税 --- */
+  // 1年の利益にかかる税金。800万円までは25%、こえた分は35%
+  function taxOf(p) { p = Math.max(0, p); return Math.round((Math.min(p, 8e6) * 0.25 + Math.max(0, p - 8e6) * 0.35) / 1000) * 1000; }
+  function taxView() {
+    var D = S.taxDue, p = D.profit, tax = taxOf(p), crew = allStaff().filter(function (st) { return !st.owner; });
+    var bonus = crew.length ? Math.min(Math.round(p * 0.2 / 1000) * 1000, 100000 * crew.length) : 0, taxB = taxOf(p - bonus);
+    var fee = Math.max(50000, Math.round(tax * 0.08 / 1000) * 1000), taxP = Math.round(taxOf(p - fee) * 0.85 / 1000) * 1000;
+    var finish = function (paid, note) { S.taxDue = null; S.taxPaid = (S.taxPaid || 0) + paid; S.wk.taxNote = { bad: true, t: note }; SFX.coin(); investView(); };
+    bar(); setScene('idle');
+    view('<h1>' + D.y + '年目の決算</h1><p class="lead">1年間（4月〜3月）の利益に、税金がかかる。利益800万円までは25%、こえた分は35%。</p>' +
+      '<div class="slip box"><dl><dt>今年度の利益</dt><dd>' + yen(p) + '</dd><dt>税金</dt><dd class="minus">' + yen(-tax) + '</dd><dt>所持金</dt><dd>' + yen(S.cash) + '</dd></dl></div>',
+      [{ main: true, label: '税金を納める　' + yen(tax), sub: 'そのまま一括で納める', off: S.cash < tax, go: function () {
+          pay(tax); finish(tax, D.y + '年目の税金 ' + yen(tax) + 'を納めた。'); } },
+       { label: '決算賞与を出してから納める　' + yen(bonus + taxB), sub: crew.length ? 'スタッフに賞与' + yen(bonus) + 'を配ると、その分の利益に税金がかからない（税金' + yen(taxB) + '）。全員のやる気+20、信頼+8' : 'スタッフがいないので出せない',
+         off: !crew.length || S.cash < bonus + taxB, go: function () {
+          pay(bonus + taxB); crew.forEach(function (st) { moodUp(st, 20, 8); }); finish(taxB, '決算賞与' + yen(bonus) + 'を配り、税金' + yen(taxB) + 'を納めた。スタッフが大喜びしている。'); } },
+       { label: '税理士に相談して節税する　' + yen(fee + taxP), sub: '相談料' + yen(fee) + '。経費の見直しで、税金が' + yen(taxP) + 'になる', off: S.cash < fee + taxP, go: function () {
+          pay(fee + taxP); finish(taxP, '税理士と経費を見直して、税金' + yen(taxP) + 'を納めた（相談料' + yen(fee) + '）。'); } },
+       { label: '3か月の分割で納める　毎月' + yen(Math.ceil(tax * 1.1 / 3 / 1000) * 1000), sub: '延滞税で合計' + yen(Math.ceil(tax * 1.1 / 3 / 1000) * 3000) + '（1割増し）。来月の月末から引かれる', go: function () {
+          var amt = Math.ceil(tax * 1.1 / 3 / 1000) * 1000; S.taxPlan = { left: 3, amt: amt, rest: amt * 3 };
+          finish(0, '税金を3か月の分割で納めることにした（毎月' + yen(amt) + '）。'); } }]);
+  }
   function investView() {
     if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), investView);
     if (S.wk && (S.wk.yearCut || (S.wk.achGot && S.wk.achGot.length))) {
@@ -4567,6 +4599,7 @@
       S.wk.yearCut = null; S.wk.achGot = [];
       return showCuts(cs, investView);
     }
+    if (S.taxDue) return taxView();
     if (scene.shop) { scene.shop = null; setScene('idle'); }
     saveGame('night');
     bar();
@@ -4575,6 +4608,7 @@
       '<details class="fold"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
     if (S.wk.quit) h += '<div class="news bad">' + S.wk.quit + 'が「辞めさせてください」と言って、店を去った。</div>';
     (S.wk.left || []).forEach(function (n) { h += '<div class="news bad">' + n + 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。</div>'; });
+    if (S.wk.taxNote) h += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
     if (S.wk.lv) h += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
       (S.wk.lv.areas.length ? '<br>新しく出店できる街：' + S.wk.lv.areas.map(function (k) { return AREAS[k].n; }).join('、') : '') + '</div>';
     else { var L1 = mlv(); h += '<p class="lead">経営者レベル ' + L1 + '（' + lvTitle(L1) + '）' + (L1 < MAXLV ? '　次のレベルまで あと' + (xpTo(L1 + 1) - S.mxp) : '') + '</p>'; }
