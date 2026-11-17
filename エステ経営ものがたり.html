@@ -403,7 +403,8 @@
     scalp:  { n: '頭皮のべたつき',     vague: '夕方になると、頭がむずむずして気になって…。' },
     lymph:  { n: '脚のむくみ',         vague: '夕方になると、体がだるくなるんです…。' },
     slim:   { n: 'お腹まわり',         vague: 'このところ体が重たい感じがして…。' },
-    aroma:  { n: 'とにかく癒やされたい', vague: '仕事が立て込んでいて、とにかく疲れていて…。' }
+    aroma:  { n: '疲れとストレス', vague: '仕事が立て込んでいて、とにかく疲れていて…。',
+      say: { ask: '実は、疲れとストレスがたまっていて…。とにかく癒やされたいんです。', pick: '疲れとストレスで、とにかく癒やされたくて。', today: '今日は疲れがたまってて、とにかく癒やされたい気分で。' } }
   };
   // 基本メニューは3つ。選んだあとにもう一段カウンセリングして、細かいケアを決める
   var MENU = {
@@ -430,6 +431,12 @@
   var NEAR = { face: [], head: ['body'], body: ['head'] };
   // 以前のセーブの悩み（肌・頭・癒やし）を、新しい細かい悩みに置きかえる
   var OLDC = { face: ['pore', 'bright', 'aging'], head: ['dry', 'scalp'], hair: ['dry', 'scalp'], relax: ['aroma'] };
+  // お悩みを話すときの言い回し。ask＝質問に答える、pick＝メニューの中で選ぶ、today＝常連のその日の悩み
+  function cLine(k, kind) {
+    var c = CONCERN[k];
+    if (c.say) return c.say[kind];
+    return { ask: '実は「' + c.n + '」がずっと気になっていて。', pick: '「' + c.n + '」がいちばん気になっていて。', today: '今日は' + c.n + 'が気になってて。' }[kind];
+  }
   function fixConcern(c) {
     ['concern', 'today'].forEach(function (f) { if (c[f] && !CONCERN[c[f]]) c[f] = pick(OLDC[c[f]] || ['aroma']); });
     if (c.menu && !MENU[c.menu]) c.menu = 'body';
@@ -3068,7 +3075,7 @@
   }
   function ask(q) {
     C.asked.push(q.k); C.known[q.k] = true;
-    if (q.k === 'concern') { say('me', 'いちばん気になるのは、どのあたりですか。'); say('you', '実は「' + CONCERN[C.concern].n + '」がずっと気になっていて。'); C.int += 5; }
+    if (q.k === 'concern') { say('me', 'いちばん気になるのは、どのあたりですか。'); say('you', cLine(C.concern, 'ask')); C.int += 5; }
     if (q.k === 'pref') { say('me', '圧の強さはどのくらいがお好みですか。'); say('you', '「' + PRESS[C.pref] + '」がいいです。'); }
     if (q.k === 'pers') {
       say('me', 'お仕事帰りですか。今日は冷えますね。');
@@ -3101,7 +3108,7 @@
     if (!C.subAsked[C.menu]) {
       C.subAsked[C.menu] = true;
       say('me', m.ask);
-      if (catOf(need) === C.menu) { say('you', '「' + CONCERN[need].n + '」がいちばん気になっていて。'); C.known.concern = true; }
+      if (catOf(need) === C.menu) { say('you', cLine(need, 'pick')); C.known.concern = true; }
       else say('you', 'うーん、そこは特に気になっていなくて…。', 'bad');
     }
     bar();
@@ -3316,7 +3323,7 @@
   function meetReg() {
     C.known.concern = true; C.known.pref = true;
     var line = C.royal ? 'いつものをお願いね。' : C.plan ? 'いつものコースでお願いします。' : (C.member ? '今月もよろしくお願いします。' : '予約していた' + C.name + 'です。');
-    if (C.today !== C.concern) line += '今日は' + CONCERN[C.today].n + 'が気になってて。';
+    if (C.today !== C.concern) line += cLine(C.today, 'today');
     say('you', line);
     treatMenu();
   }
