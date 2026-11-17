@@ -186,6 +186,15 @@
   .event.life .badge { background: #8E6CD8; color: #FFFFFF; }
   .event.season { border-color: #5FAE80; box-shadow: 4px 4px 0 #5FAE80; }
   .event.mission { border-color: #E8A93A; box-shadow: 4px 4px 0 #E8A93A; }
+  .tasks { margin: 8px 0 10px; padding: 8px 10px 10px; }
+  .tasks h2 { margin: 0 0 6px; font-size: 1rem; }
+  .tasks .task { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin: 4px 0 0; padding: 8px 10px; font: inherit; color: var(--ink);
+    background: var(--panel); border: 2px solid var(--line); border-radius: 0; cursor: pointer; }
+  .tasks .task .mk { flex: none; width: 1.4em; text-align: center; font-weight: bold; }
+  .tasks .task.todo { border-color: var(--ink); }
+  .tasks .task.todo .mk { color: var(--accent, #D9466F); }
+  .tasks .task.done { opacity: .55; cursor: default; }
+  .tasks .task small { display: block; opacity: .75; }
   .sumline { font-size: 1rem; margin: 4px 0 8px; padding: 8px 10px; border: 2px solid var(--line); background: var(--panel); }
   .sumline b { font-size: 1.2rem; }
   .sumline.minus b { color: var(--accent); }
@@ -4662,6 +4671,7 @@
     if (S.cash < -200000) return view(h + '<div class="news bad">資金が尽きた。これ以上は続けられない。</div>', [{ main: true, label: '結果を見る', go: result }]);
     if (S.week >= WEEKS && !S.endless) return view(h, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
     h += staffHtml();
+    var TK = monthTasks(); h = taskBox(TK) + h;
     var opts = [
       { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
       { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
@@ -4709,8 +4719,40 @@
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
       { label: '発信・記録・そのほか', sub: 'SNS（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]);
+    taskBind(TK);
   }
   var curCat = null;
+  // 今月できること。まだのものは ○、すんだものは ✓。押すとその画面へ
+  function monthTasks() {
+    var T = [], P = snsFix(), left = snsLeft();
+    var team = allStaff().filter(function (st) { return !st.owner; });
+    T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
+    if (P.f >= LIVEMIN) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
+    var tg = tGroups().filter(function (g2) { return g2.mem.length; });
+    if (tg.length) { var tl = tg.filter(function (g2) { return !tDone(g2.key); });
+      T.push(tl.length ? { t: 'スタッフの研修', s: 'あと' + tl.length + '店舗（' + tl.map(function (g2) { return g2.name; }).join('・') + '）', go: function () { trainView(); } } : { t: 'スタッフの研修', s: '今月はすべての店舗で研修ずみ', done: true }); }
+    var low = team.filter(function (st) { moodFix(st); return st.mot < 40; });
+    if (low.length) T.push({ t: 'やる気が落ちているスタッフと過ごす', s: low.map(function (st) { return st.name; }).slice(0, 3).join('・') + (low.length > 3 ? 'ほか' : ''), go: careView });
+    var lowStock = prods().filter(function (p) { return S.stock[p.k] <= 1 && !S.autoStock[p.k]; });
+    if (lowStock.length) T.push({ t: '商品を仕入れる', s: '在庫が少ない：' + lowStock.map(function (p) { return p.n; }).join('・'), go: function () { stockView(); } });
+    var wait = S.lastOpen ? Math.max(0, OPENGAP - (S.week - S.lastOpen)) : 0, L = mlv();
+    var canOpen = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L && S.cash >= AREAS[k].cost; });
+    if (!wait && canOpen.length) T.push({ t: '新しい店舗をオープンする', s: '出せる街：' + canOpen.slice(0, 4).map(function (k) { return AREAS[k].n; }).join('・') + (canOpen.length > 4 ? 'ほか' : ''), go: function () { branchView(); } });
+    if (roomAny() && S.cash >= HIRE * 4) T.push({ t: 'スタッフを採用する', s: '受け入れの空きがある', go: function () { hireView(); } });
+    if (!S.dev && S.myProds.length < MAXMINE && S.week >= 3 && S.cash >= 300000) T.push({ t: 'オリジナル商品を開発する', s: '開発中の商品はない', go: devView });
+    return T;
+  }
+  function taskBox(T) {
+    var n = T.filter(function (x) { return !x.done; }).length;
+    return '<div class="tasks box"><h2>今月のタスク' + (n ? '（あと' + n + '）' : '（ぜんぶ終わった）') + '</h2>' + T.map(function (x, i) {
+      return '<button type="button" class="task ' + (x.done ? 'done' : 'todo') + '" data-task="' + i + '"' + (x.done ? ' disabled' : '') + '><span class="mk">' + (x.done ? '✓' : '○') + '</span><span>' + x.t + '<small>' + x.s + '</small></span></button>';
+    }).join('') + '</div>';
+  }
+  function taskBind(T) {
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-task]'), function (b) {
+      var x = T[+b.getAttribute('data-task')]; if (x && !x.done) b.addEventListener('click', function () { SFX.click(); x.go(); });
+    });
+  }
   function pay(n) { S.cash -= n; S.total.cost += n; }
   function roomAny() { return S.staff.length < maxOf(null) || S.shops.some(function (b) { return b.staff.length < maxOf(b); }); }
   // keep が true のときは、続けて押せるように画面の位置を保つ
