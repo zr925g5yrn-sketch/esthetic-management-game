@@ -1954,6 +1954,8 @@
     allStaff().forEach(function (st) { st.sick = st.restWeek === S.week; st.tired = false; });
     if (S.away === S.week || (S.awayUntil && S.week <= S.awayUntil)) S.staff[0].sick = true;
     if (S.tiredWeek === S.week) S.staff[0].tired = true;
+    if (S.week > 1 && S.fatigue >= 90) { S.staff[0].sick = true; S.fatigue = clamp(S.fatigue - 30, 0, 100); S.news.push({ bad: true, t: '疲れが限界をこえて、あなたは寝こんでしまった。今月は店に立てない。' }); }
+    else if (S.week > 1 && S.fatigue >= 70) { S.staff[0].tired = true; S.news.push({ bad: true, t: '疲れがたまっていて、今月は施術に身が入りにくい。お休みの日に体を休めよう。' }); }
     // 季節のイベントは、ふつうのできごととは別に毎月起こる
     S.sevKey = seasonEvent(); S.sevPending = !!S.sevKey; S.sevNote = '';
     if (S.sevKey) { S.seasonDone = S.seasonDone || {}; S.seasonDone[S.sevKey] = yearOf(); }
@@ -2420,7 +2422,7 @@
       clients: [], stock: { set: 3, serum: 0, bath: 4 }, refunds: [], queue: [], idx: 0, wk: null, cands: null,
       total: { sales: 0, cost: 0, served: 0, sold: 0 }, news: [], uid: 1,
       autoMode: false, priceMode: 'std', autoStock: {}, myProds: [], dev: null,
-      hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0,
+      hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
       lifeKey: null, lifePending: false, lifeNote: '', evClientId: null,
       ev: null, evLast: {}, vipCount: 0, vipSeen: false, vipNext: 0, rivalUntil: 0, buzz: { until: 0, n: 0 }, special: null, quitRisk: null };
     if (hero) applyHero(hero);
@@ -2541,6 +2543,8 @@
     var launched = devTick();
     rollEvent();
     rollLife();
+    // 2か月目から毎月、お休みの日。ときどき、ちょっと怪しいお誘いが届く
+    S.holPending = S.week > 1; S.holInv = S.holPending && S.week >= 3 && roll(0.3) ? pick(['oldfriend', 'oldfriend', 'invest', 'seminar']) : null;
     if (S.staff[0].sick) S.news.push({ t: '今月、あなたは店に立たない。お客様はスタッフに任せる。' });
     // 来店する常連
     var ret = shuffle(S.clients.filter(function (c) {
@@ -2580,6 +2584,7 @@
     newMission();
     C = null; setScene('idle');
     var cuts = [];
+    if (S.holPending) cuts.push({ kicker: 'あなたの休日', title: '今日は何する？', c1: '#F7B8C8', c2: '#E58BA3', icon: 'heart' });
     if (launched) cuts.push(launchCut(launched));
     if (S.lifeKey) cuts.push(lifeCut());
     if (S.sevKey) cuts.push(seasonCut());
@@ -2611,6 +2616,7 @@
     var life = lf ? '<div class="event life box"><span class="badge">あなたの暮らし</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
     var head = '<h1>' + calOf(S.week) + '</h1>' + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
+    if (S.holPending) return holidayView();
     if (S.lifePending) return view(head + stepHtml('どうする？'), lifeChoices());
     if (S.sevPending) return view(head + stepHtml('どうする？'), noDeadEnd(seasonChoices(), function () { S.sevPending = false; S.sevNote = '今はお金の余裕がないので、見送った。'; weekIntro(); }));
     if (S.evPending) return view(head + stepHtml('どうする？'), noDeadEnd(evChoices(), function () { S.evPending = false; S.evNote = '今はお金の余裕がないので、見送った。'; weekIntro(); }));
@@ -3076,6 +3082,64 @@
   function noDeadEnd(opts, skip) {
     if (opts.some(function (o) { return !o.off; })) return opts;
     return opts.concat([{ label: '今回は見送る', sub: '変化なし（お金が足りないとき）', go: skip }]);
+  }
+  // 店長の疲れと体力のバロメーター
+  function fatigueBars() {
+    var f = Math.round(S.fatigue || 0), s = Math.round(S.stamina || 0);
+    return '<div class="gauges"><span>疲れ</span><i><u class="grd" style="width:' + f + '%"></u></i><b>' + f + '</b><span>体力</span><i><u style="width:' + s + '%"></u></i><b>' + s + '</b></div>';
+  }
+  function fat(n) { S.fatigue = clamp((S.fatigue || 0) + n, 0, 100); }
+  function stam(n) { S.stamina = clamp((S.stamina || 0) + n, 0, 100); }
+  // お休みの日の過ごし方。r() は結果の文章を返す。ときどき、思わぬ結果になる
+  function holOpts() {
+    var L = S.life, o = [];
+    var study = function (n) { var ups = tApply(own(), n); return '店長の研修経験値+' + n + (ups.length ? '（' + ups.join('、') + 'に上がった）' : ''); };
+    var inv = { oldfriend: { label: '旧友から「久しぶりに会わない？」と連絡が来た　会いに行く', sub: 'どんな話かは、会ってみないと分からない', cost: 0, r: function () {
+          if (roll(0.55)) { fat(-15); hum(2); return ['なつかしい再会', '学生時代の話で盛り上がった。（疲れ−15、人間力+2）']; }
+          fat(15); hum(-2); return ['マルチの勧誘だった', '「いい話があるの」――と思ったら、マルチの勧誘だった…。断るのに2時間かかった。（疲れ+15、人間力−2）']; } },
+      invest: { label: '知人から「すごくいい投資話がある」と誘われた　話を聞きに行く', sub: '「必ずもうかる」らしい', cost: 0, r: function () {
+          if (roll(0.25)) { hum(2); fat(5); return ['あやしい話', '話の途中で怪しいと気づき、その場で断った。（人間力+2、疲れ+5）']; }
+          pay(50000); fat(10); return ['お金が戻らない', '言われるままに' + yen(50000) + 'を払ったが、それきり連絡が取れなくなった…。（−' + yen(50000) + '、疲れ+10）']; } },
+      seminar: { label: '「成功するサロン経営」セミナーの招待が届いた　参加する', sub: '参加費あり', cost: 20000, r: function () {
+          if (roll(0.5)) return ['役立つセミナー', '経営のヒントがたくさん聞けた。' + study(40) + '。'];
+          fat(10); return ['売り込みのセミナー', '中身は高額教材の売り込みだった…。（疲れ+10）']; } } };
+    if (S.holInv && inv[S.holInv]) o.push(inv[S.holInv]);
+    o.push({ label: '買い物に行く', sub: '疲れ−15、人間力+1', cost: 15000, r: function () {
+      if (roll(0.2)) { pay(15000); fat(-10); return ['衝動買い', 'セールの勢いで、つい買いすぎてしまった…。（さらに' + yen(15000) + '、疲れ−10）']; }
+      fat(-15); hum(1); return ['お買い物', '気になっていた服を買った。気分が晴れた。（疲れ−15、人間力+1）']; } });
+    o.push({ label: 'カフェで勉強する', sub: '店長の研修経験値+30、疲れ+5', cost: 1500, r: function () {
+      fat(5); if (roll(0.15)) return ['集中できない', '隣の席がにぎやかで、あまり集中できなかった。' + study(10) + '。'];
+      return ['カフェで勉強', '美容の本を読みこんだ。' + study(30) + '。']; } });
+    o.push({ label: 'スパでゆっくりする', sub: '疲れ−35', cost: 12000, r: function () {
+      if (roll(0.1)) { fat(-10); return ['予約ミス', '予約が取れておらず、待ち時間が長かった…。（疲れ−10）']; }
+      fat(-35); return ['スパでリフレッシュ', '他のお店の施術を受けて、体も心もほぐれた。（疲れ−35）']; } });
+    o.push({ label: 'ピラティスに行く', sub: '体力+8、疲れ−10', cost: 3000, r: function () {
+      stam(8); if (roll(0.15)) { fat(5); return ['筋肉痛', '張り切りすぎて、翌日は筋肉痛…。（体力+8、疲れ+5）']; }
+      fat(-10); return ['ピラティス', '体の軸が整って、すっきりした。（体力+8、疲れ−10）']; } });
+    o.push({ label: '推し活をする', sub: '疲れ−25、人間力+1', cost: 12000, r: function () {
+      var x = rnd();
+      if (x < 0.15) { fat(-5); return ['チケット落選', 'ライブのチケットが外れてしまった…。配信で応援した。（疲れ−5）']; }
+      if (x < 0.35) { pay(10000); fat(-25); hum(1); return ['グッズを買いすぎた', '推しのライブは最高だった！ でもグッズを買いすぎた…。（さらに' + yen(10000) + '、疲れ−25、人間力+1）']; }
+      fat(-25); hum(1); return ['推し活', '推しのライブで思いきり声を出した。明日からまたがんばれる！（疲れ−25、人間力+1）']; } });
+    if (L.dog) o.push({ label: '犬と散歩する', sub: '疲れ−15、人間力+2', cost: 0, r: function () { fat(-15); hum(2); return ['犬と散歩', '公園をのんびり歩いた。しっぽを振る姿にいやされた。（疲れ−15、人間力+2）']; } });
+    if (L.partner === 'dating' || L.partner === 'married') o.push({ label: (L.partner === 'married' ? '旦那さん' : '彼') + 'とデートする', sub: '疲れ−20、人間力+3', cost: 10000, r: function () {
+      fat(-20); hum(3); return ['デート', (L.partner === 'married' ? '旦那さん' : '彼') + 'と、話題のお店で食事をした。（疲れ−20、人間力+3）']; } });
+    if (L.baby) o.push({ label: '家族でお出かけする', sub: '疲れ−25、人間力+4', cost: 15000, r: function () { fat(-25); hum(4); return ['家族でお出かけ', '家族で動物園へ。子どもの笑顔に元気をもらった。（疲れ−25、人間力+4）']; } });
+    o.push({ label: '家でのんびりする', sub: '疲れ−20', cost: 0, r: function () { fat(-20); return ['おうち時間', '一日パジャマで過ごした。たまにはこんな日もいい。（疲れ−20）']; } });
+    return o;
+  }
+  function holidayView() {
+    bar();
+    view('<h1>今日は何する？</h1><p class="lead">お店のお休みの日。疲れが70をこえると施術の質が落ち、90をこえると寝こんで1か月お店に立てない。体力が高いほど疲れがたまりにくい。</p>' + fatigueBars(),
+      holOpts().map(function (a) {
+        return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: a.sub, off: S.cash < a.cost, go: function () {
+          if (a.cost) pay(a.cost);
+          var res = a.r(); S.holPending = false; S.holInv = null; SFX.good();
+          bar();
+          view('<h1>今日のできごと</h1><div class="event life box"><span class="badge">あなたの休日</span><h2>' + res[0] + '</h2><p>' + res[1] + '</p></div>' + fatigueBars(),
+            [{ main: true, label: 'お店へ', go: weekIntro }]);
+        } };
+      }));
   }
   function lifeChoices() {
     var e = lifeOf(S.lifeKey);
@@ -3722,11 +3786,11 @@
     var list = allStaff().filter(function (st) { return !st.owner; });
     list.forEach(moodFix);
     var n = list.length;
-    view('<h1>スタッフと過ごす</h1><p class="lead">やる気が下がると施術や接客の質が落ち、限界を超えると辞めてしまう。信頼が高い人は、店のために良い提案をしてくれる。ひとりにつき月1回まで。</p>' +
+    view('<h1>スタッフと過ごす</h1><p class="lead">やる気が下がると施術や接客の質が落ち、限界を超えると辞めてしまう。信頼が高い人は、店のために良い提案をしてくれる。食事やボーナスでやる気を、面談で信頼を上げる。それぞれひとりにつき月1回まで。</p>' +
       (S.careNote ? '<div class="news good">' + S.careNote + '</div>' : ''),
       partyOpts(list).concat(list.map(function (st) {
         var sh = shopOf(st);
-        return { grp: regionOf(sh) + ' のスタッフ', label: st.name + (sh ? '（' + sh.name + '）' : '') + '　' + TRAITS[st.trait].n, sub: moodText(st) + (st.careWeek === S.week ? '　今月はもう過ごした' : ''),
+        return { grp: regionOf(sh) + ' のスタッフ', label: st.name + (sh ? '（' + sh.name + '）' : '') + '　' + TRAITS[st.trait].n, sub: moodText(st) + (st.careWeek === S.week ? '　やる気：今月ずみ' : '') + (st.talkWeek === S.week ? '　面談：今月ずみ' : ''),
           go: function () { S.careNote = ''; careStaff(st); } };
       }))
       .concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
@@ -3740,9 +3804,9 @@
     })).filter(function (g2) { return g2.mem.length; });
     var opt = function (label, mem, keys, note) {
       var cost = 6000 * mem.length, used = keys.some(function (k) { return done[k] || done.all; });
-      return { label: label + '　' + yen(cost), sub: mem.map(function (st) { return st.name; }).join('・') + '　やる気+10、信頼+5' + (used ? '　今月はもう開いた' : ''),
+      return { label: label + '　' + yen(cost), sub: mem.map(function (st) { return st.name; }).join('・') + '　やる気+10' + (used ? '　今月はもう開いた' : ''),
         off: used || S.cash < cost,
-        go: function () { pay(cost); mem.forEach(function (st) { moodUp(st, 10, 5); }); keys.forEach(function (k) { done[k] = true; }); SFX.good(); S.careNote = note; careView(); } };
+        go: function () { pay(cost); mem.forEach(function (st) { moodUp(st, 10, 0); }); keys.forEach(function (k) { done[k] = true; }); SFX.good(); S.careNote = note; careView(); } };
     };
     var out = groups.map(function (g2) { var o2 = opt(g2.name + 'で食事会を開く', g2.mem, [g2.key], g2.name + 'の食事会で大いに盛り上がった。チームの距離が縮まった。'); o2.grp = g2.rg + ' の食事会'; return o2; });
     if (groups.length > 1) out.unshift(opt('全店合同の食事会を開く', list, groups.map(function (g2) { return g2.key; }).concat(['all']), '全店合同の食事会で、お店をこえて仲よくなった。みんなの笑顔が増えた。'));
@@ -3750,20 +3814,20 @@
   }
   function careStaff(st, note) {
     bar();
-    var used = st.careWeek === S.week;
+    var used = st.careWeek === S.week, talked = st.talkWeek === S.week;
     var act = function (cost, m, t, msg, extra) {
-      return function () { if (cost) pay(cost); moodUp(st, m, t); if (extra) extra(); st.careWeek = S.week; SFX.good(); careStaff(st, msg); };
+      return function () { if (cost) pay(cost); moodUp(st, m, t); if (extra) extra(); if (m) st.careWeek = S.week; else st.talkWeek = S.week; SFX.good(); careStaff(st, msg); };
     };
-    view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + '</p>' +
+    view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="talk"><div class="say you">' + talkLine(st) + '</div></div>' + (note ? '<div class="news good">' + note + '</div>' : ''),
-      [{ label: 'ご飯に誘う　' + yen(8000), sub: 'やる気+12、信頼+8', off: used || S.cash < 8000,
-         go: act(8000, 12, 8, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。'])) },
-       { label: '面談する', sub: 'じっくり話を聞く。信頼+6、やる気+4', off: used,
-         go: act(0, 4, 6, pick(['悩みを打ち明けてくれた。少し距離が縮まった。', '目標を聞いた。「いつか自分の店を持ちたいんです」', 'お客様への思いを聞いた。頼もしくなってきた。'])) },
-       { label: 'ボーナスを渡す　' + yen(20000), sub: 'やる気+25、信頼+3', off: used || S.cash < 20000,
-         go: act(20000, 25, 3, '「えっ、いいんですか！ がんばります！」') },
-       { label: '来月は休みをあげる', sub: 'やる気+20、信頼+4。来月は接客しない', off: used,
-         go: act(0, 20, 4, '「ありがとうございます、リフレッシュしてきます」', function () { st.restWeek = S.week + 1; }) },
+      [{ label: 'ご飯に誘う　' + yen(8000), sub: 'やる気+15' + (used ? '　（やる気は今月もう上げた）' : ''), off: used || S.cash < 8000,
+         go: act(8000, 15, 0, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。'])) },
+       { label: '面談する', sub: 'じっくり話を聞く。信頼+10' + (talked ? '　（今月はもう面談した）' : ''), off: talked,
+         go: act(0, 0, 10, pick(['悩みを打ち明けてくれた。少し距離が縮まった。', '目標を聞いた。「いつか自分の店を持ちたいんです」', 'お客様への思いを聞いた。頼もしくなってきた。'])) },
+       { label: 'ボーナスを渡す　' + yen(20000), sub: 'やる気+25', off: used || S.cash < 20000,
+         go: act(20000, 25, 0, '「えっ、いいんですか！ がんばります！」') },
+       { label: '来月は休みをあげる', sub: 'やる気+20。来月は接客しない', off: used,
+         go: act(0, 20, 0, '「ありがとうございます、リフレッシュしてきます」', function () { st.restWeek = S.week + 1; }) },
        { main: true, label: 'もどる', go: careView }]);
   }
 
@@ -3799,6 +3863,10 @@
       C = null;
       SFX.fanfare(false);
       if (S.sns && S.sns.f && S.week - (S.sns.last || 0) >= 2) S.sns.f = Math.floor(S.sns.f * 0.97);
+      var ow = S.staff[0];
+      if (ow.sick) S.fatigue = clamp(S.fatigue - 20, 0, 100);
+      else S.fatigue = clamp(Math.round(S.fatigue + (6 + ow.used * 5) * (1.25 - S.stamina / 200)), 0, 100);
+      S.stamina = clamp(S.stamina - 1, 0, 100);
       S.wk.left = staffWeek();
       spAuto();
       godAuto();
@@ -3841,7 +3909,7 @@
   }
   function staffRow(st) {
     return '<li><span>' + (st.owner ? (S.ownerName ? S.ownerName : 'あなた') + '（店長' + (S.persona && PERSONA[S.persona] ? '・' + PERSONA[S.persona].n : '') + '）' + (hearer(st) ? '　聞き上手' : '') : st.name + (st.leader ? '（リーダー）' : '') + '　' + TRAITS[st.trait].n + '・' + TEMPER[temperOf(st)].n + (onLeave(st) ? '　育休中（' + calOf(st.leaveUntil) + '復帰）' : '')) + (st.sp && st.sp.length ? '<br><small>◆' + spList(st) + '</small>' : '') + '</span><span>' + statText(st) +
-      (st.owner ? '　人間力' + S.hum : '　月給' + yen(st.wage) + '<br>やる気' + Math.round(st.mot === undefined ? 60 : st.mot) + face(st.mot === undefined ? 60 : st.mot) + ' 信頼' + Math.round(st.trust === undefined ? 40 : st.trust)) + '</span></li>';
+      (st.owner ? '　人間力' + S.hum + '<br>疲れ' + Math.round(S.fatigue || 0) + ' 体力' + Math.round(S.stamina || 0) : '　月給' + yen(st.wage) + '<br>やる気' + Math.round(st.mot === undefined ? 60 : st.mot) + face(st.mot === undefined ? 60 : st.mot) + ' 信頼' + Math.round(st.trust === undefined ? 40 : st.trust)) + '</span></li>';
   }
   // スタッフ一覧は店ごとにたたんでおき、見たいときだけ開く
   var secOpen = {};
@@ -4539,6 +4607,8 @@
     S.endless = true;
     if (!S.px3) { (S.myProds || []).forEach(function (p) { p.price *= 3; }); S.px3 = true; }
     if (S.hum === undefined) S.hum = 30;
+    if (S.fatigue === undefined) S.fatigue = 20;
+    if (S.stamina === undefined) S.stamina = 40;
     if (!S.life) S.life = { partner: 'none', since: 0, dog: false, baby: false, done: {} };
     if (!S.shops) S.shops = [];
     if (!S.priceMode) S.priceMode = 'std';
