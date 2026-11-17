@@ -1218,7 +1218,7 @@
       { label: 'お客様にホワイトデーのお返し　' + yen(5000), sub: '常連の信頼+4', off: S.cash < 5000, go: function () { pay(5000); S.clients.forEach(function (x) { if (x.active) x.loy = clamp(x.loy + 4, 0, 100); }); done('小さなお菓子に「覚えていてくれたの？」と笑顔がこぼれた。'); } }];
   };
   function seasonChoices() {
-    var done = function (note) { S.sevPending = false; S.sevNote = note; weekIntro(); };
+    var done = function (note) { mxpAdd(10); S.sevPending = false; S.sevNote = note; weekIntro(); };
     return SEASONCH[S.sevKey] ? SEASONCH[S.sevKey](null, done) : [{ label: 'つづける', go: function () { done(''); } }];
   }
   function seasonCut() { return { kicker: '季節のイベント', title: EV[S.sevKey].n, c1: '#7FC49A', c2: '#5FAE80', icon: EVICON[S.sevKey] || 'star' }; }
@@ -1873,7 +1873,7 @@
       b.innerHTML = '<span class="week">エステ経営ものがたり</span><span></span><button class="snd" id="snd" type="button"></button>';
     } else {
       var full = Math.round(S.rep / 20);
-      b.innerHTML = '<span class="week">' + calOf(S.week) + (S.ownerName ? '　' + S.ownerName + '店長' : '') + '</span>' +
+      b.innerHTML = '<span class="week">' + calOf(S.week) + (S.ownerName ? '　' + S.ownerName + '店長' : '') + '　Lv' + mlv() + '</span>' +
         '<span class="money' + (S.cash < 0 ? ' minus' : '') + '">' + yen(S.cash) + '</span>' +
         '<button class="snd" id="snd" type="button"></button>' +
         '<span class="sub"><span>評判 ' + '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5 - full) + '</span>' +
@@ -2410,7 +2410,7 @@
   }
   function evChoices() {
     var k = S.ev, st = S.evStaff;
-    var done = function (note) { S.evPending = false; S.evNote = note; weekIntro(); };
+    var done = function (note) { mxpAdd(TROUBLE.indexOf(k) >= 0 ? 30 : 15); S.evPending = false; S.evNote = note; weekIntro(); };
     if (EVCH[k]) return EVCH[k](st, done);
     if (SEASONCH[k]) return SEASONCH[k](st, done);
     if (EVCH2[k]) return EVCH2[k](st, done);
@@ -2747,7 +2747,7 @@
       clients: [], stock: { set: 3, serum: 0, bath: 4 }, refunds: [], queue: [], idx: 0, wk: null, cands: null,
       total: { sales: 0, cost: 0, served: 0, sold: 0 }, news: [], uid: 1,
       autoMode: false, priceMode: 'std', autoStock: {}, myProds: [], dev: null,
-      hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
+      mxp: 0, hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
       lifeKey: null, lifePending: false, lifeNote: '', evClientId: null,
       ev: null, evLast: {}, vipCount: 0, vipSeen: false, vipNext: 0, rivalUntil: 0, buzz: { until: 0, n: 0 }, special: null, quitRisk: null };
     if (hero) { applyHero(hero); if (hero.origin) applyOrigin(hero.origin); return openConcept(); }
@@ -3312,6 +3312,7 @@
     fin();
   }
   function doneScreen(tone2, msg) {
+    if (C) mxpAdd((C.st && C.st.owner ? 4 : 2) + (C.revenue > (C.isNew ? TRIAL : 0) ? 3 : 0));
     saveGame('next');
     bar();
     var last = S.idx >= S.queue.length - 1;
@@ -3690,10 +3691,47 @@
   };
   function fitOf(area, c) { var F = AREAFIT[area] || {}; return !c ? 0 : (F.g || []).indexOf(c) >= 0 ? 1 : (F.b || []).indexOf(c) >= 0 ? -1 : 0; }
   function fitText(m) { return m > 0 ? 'この街に合う！' : m < 0 ? 'この街には合わない' : 'ふつう'; }
+  /* --- 経営者レベル（1〜100）。日々の仕事・できごと・トラブルの対応で経験値がたまり、出店できる街が増える --- */
+  var MAXLV = 100;
+  // 街ごとに、出店できるようになる経営者レベル
+  var AREALV = {
+    suburb: 3, shotengai: 5, town: 8, station: 10, ekibiru: 13,
+    yokohama: 18, shibuya: 21, omote: 24, shinjuku: 27, ebisu: 30, roppongi: 33, ginza: 36,
+    sapporo: 30, fukuoka: 32, nagoya: 34, osaka: 36, kyoto: 40,
+    taipei: 42, seoul: 45, bangkok: 47, hawaii: 52, shanghai: 50, singapore: 55, london: 62, paris: 66, la: 70, newyork: 75, dubai: 85,
+    cebu: 48, guam: 52, bali: 56, phuket: 58, goldcoast: 64, cancun: 72, santorini: 78, maldives: 90
+  };
+  var LVTITLE = [[1, '駆け出しの店長'], [10, '一人前の店長'], [20, '地域の顔'], [30, '敏腕オーナー'], [45, '人気サロンの経営者'], [60, 'カリスマ経営者'], [75, '業界の重鎮'], [90, '美の帝王'], [100, '伝説の経営者']];
+  var TROUBLE = ['storm', 'rival', 'complaint', 'sick', 'raise', 'quitwarn', 'inspect', 'poach', 'trouble', 'claimer', 'indep', 'couple', 'leak', 'fx'];
+  function xpTo(L) { return 10 * (L - 1) + 2 * L * (L - 1); }  // レベルLになるまでの合計経験値
+  function mxpFix() {
+    if (typeof S.mxp === 'number') return;
+    // 以前のセーブ：これまでの月数と、持っている店舗から見積もる
+    var L0 = Math.max(1, Math.min(70, Math.round(2 + S.week * 0.9)));
+    S.shops.forEach(function (b) { L0 = Math.max(L0, AREALV[b.area] || 1); });
+    S.mxp = xpTo(L0);
+  }
+  function mlv() { mxpFix(); var L = 1; while (L < MAXLV && S.mxp >= xpTo(L + 1)) L++; return L; }
+  function lvTitle(L) { var t = LVTITLE[0][1]; LVTITLE.forEach(function (x) { if (L >= x[0]) t = x[1]; }); return t; }
+  function mxpAdd(n) {
+    if (!S || !n) return;
+    var a = mlv(); S.mxp += n; var b = mlv();
+    if (b > a && S.wk) {
+      var opened = Object.keys(AREALV).filter(function (k) { return AREALV[k] > a && AREALV[k] <= b; });
+      if (!S.wk.lv) S.wk.lv = { from: a, areas: [] };
+      S.wk.lv.to = b; S.wk.lv.areas = S.wk.lv.areas.concat(opened);
+      SFX.fanfare(false);
+    }
+  }
   var TIER = { local: { n: '近所に出す', m: 1 }, city: { n: '都心に出す', m: 2 }, region: { n: '地方都市に出す', m: 2 }, world: { n: '海外に出す', m: 3 }, resort: { n: '海外リゾートに出す', m: 3 } };
   var OPENGAP = 3;
   function hasTier(t) { return S.shops.some(function (b) { return AREAS[b.area].tier === t; }); }
   function tierOpen(t) {
+    var L = mlv(), fa = freeAreas(t);
+    if (!fa.length || fa.some(function (k) { return (AREALV[k] || 1) <= L; })) return '';
+    return '経営者レベル' + Math.min.apply(null, fa.map(function (k) { return AREALV[k] || 1; })) + 'で出せる（いまLv' + L + '）';
+  }
+  function tierOpenOld(t) {
     if (t === 'local') return '';
     if (t === 'city') return hasTier('local') && S.rep >= 55 ? '' : '近所の支店を1つ出し、本店の評判を★3（55）以上にすると出せる';
     if (t === 'region') return hasTier('city') && S.rep >= 60 && S.week >= 13 ? '' : '都心に1店舗出し、本店の評判60以上、2年目からで出せる';
@@ -3785,7 +3823,7 @@
   function branchView(t) {
     bar();
     if (!t) {
-      return view('<h1>新しい店舗を出す</h1><p class="lead">近所の店は店長1人、都心と海外は店長とスタッフ2人で開店する。支店の営業はスタッフが自動でこなし、収支は毎月の帳簿に入る。</p>',
+      return view('<h1>新しい店舗を出す</h1><p class="lead">経営者レベル ' + mlv() + '。レベルが上がるほど、出店できる街が増える。近所の店は店長1人、都心と海外は店長とスタッフ2人で開店する。支店の営業はスタッフが自動でこなし、収支は毎月の帳簿に入る。</p>',
         ['local', 'city', 'region', 'world', 'resort'].map(function (k) {
           var lock = tierOpen(k), left = freeAreas(k).length, wait = S.lastOpen ? Math.max(0, OPENGAP - (S.week - S.lastOpen)) : 0;
           var lo = freeAreas(k).reduce(function (m, a) { return Math.min(m, AREAS[a].cost); }, 1e12);
@@ -3796,7 +3834,8 @@
     view('<h1>' + TIER[t].n + '</h1><p class="lead">' + (t === 'resort' ? '世界のリゾート地へ。観光客が主なお客様なので、ハイシーズンは売上が大きく伸び、オフシーズンは落ちこむ。売上は為替でも上下する。いまの為替は×' + (S.fx || 1).toFixed(2) + '。' : t === 'world' ? '現地で店長を採用する。売上も経費も現地のお金なので、円安なら得、円高なら損。いまの為替は×' + (S.fx || 1).toFixed(2) + '。' : t === 'city' ? '都心の店は家賃が高いぶん、お客様の使う金額も大きい。腕のいい店長を採用する。' : t === 'region' ? '日本各地の大きな街へ。その土地の色を生かしたお店をつくる。' : '地元に根ざした支店。') + '</p>',
       freeAreas(t).map(function (k) {
         var A = AREAS[k];
-        var F = AREAFIT[k] || {};
+        var F = AREAFIT[k] || {}, need = AREALV[k] || 1;
+        if (need > mlv()) return { label: A.n + '　経営者レベル' + need + 'から', sub: A.d, off: true, go: function () {} };
         return { label: A.n + '　出店費' + yen(A.cost), sub: A.d + '　家賃 月' + yen(A.rent) + ((F.g || []).length ? '　合うコンセプト：' + F.g.map(function (c) { return CONCEPTS[c].n; }).join('・') : ''), off: S.cash < A.cost, go: function () { conceptView(k, t); } };
       }).concat([{ main: true, label: 'もどる', go: function () { branchView(); } }]));
   }
@@ -3807,7 +3846,7 @@
       Object.keys(CONCEPTS).map(function (c) {
         var m = fitOf(k, c);
         return { label: CONCEPTS[c].n + '　' + fitText(m), sub: CONCEPTS[c].d, go: function () {
-          var b = openBranch(k, false, c); S.wk.opened = b; S.lastOpen = S.week; showCut(branchCut(b), investView);
+          var b = openBranch(k, false, c); mxpAdd(50); S.wk.opened = b; S.lastOpen = S.week; showCut(branchCut(b), investView);
         } };
       }).concat([{ main: true, label: 'もどる', go: function () { branchView(t); } }]));
   }
@@ -4456,6 +4495,7 @@
       godAuto();
       var allNet = S.wk.sales - S.wk.refund - S.wk.cost + S.wk.branch.reduce(function (a, r) { return a + r.net; }, 0) + (S.wk.ph ? S.wk.ph.net : 0);
       S.wk.all = allNet;
+      mxpAdd(20 + clamp(Math.round(allNet / 20000), 0, 50) + 5 * S.shops.length);
       S.yrSales = (S.yrSales || 0) + S.wk.sales + S.wk.branch.reduce(function (a, r) { return a + r.sales; }, 0) + (S.wk.ph ? S.wk.ph.sales : 0);
       missionCheck();
       S.lastWk = { prod: S.wk.prod, course: S.wk.course, all: allNet };
@@ -4535,6 +4575,9 @@
       '<details class="fold"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
     if (S.wk.quit) h += '<div class="news bad">' + S.wk.quit + 'が「辞めさせてください」と言って、店を去った。</div>';
     (S.wk.left || []).forEach(function (n) { h += '<div class="news bad">' + n + 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。</div>'; });
+    if (S.wk.lv) h += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
+      (S.wk.lv.areas.length ? '<br>新しく出店できる街：' + S.wk.lv.areas.map(function (k) { return AREAS[k].n; }).join('、') : '') + '</div>';
+    else { var L1 = mlv(); h += '<p class="lead">経営者レベル ' + L1 + '（' + lvTitle(L1) + '）' + (L1 < MAXLV ? '　次のレベルまで あと' + (xpTo(L1 + 1) - S.mxp) : '') + '</p>'; }
     if (S.wk.eshop) h += S.wk.eshop.sold ? '<div class="news good">オンラインショップで商品が' + S.wk.eshop.sold + '個売れた（' + S.wk.eshop.txt + '）。売上 ' + yen(S.wk.eshop.money) + '。' + (S.wk.eshop.out ? '在庫が足りず、売り逃しがあった。' : '') + '</div>'
       : (S.wk.eshop.out ? '<div class="news bad">オンラインショップに注文が来たが、在庫がなかった。商品を仕入れておこう。</div>' : '<div class="news">オンラインショップは、今月は注文がなかった。</div>');
     if ((S.wk.spl || []).length) h += '<details class="fold"><summary>スタッフが特殊スキルを覚えた（' + S.wk.spl.length + '）</summary>' + S.wk.spl.map(function (x) { return '<div class="news good">' + x.t + '</div>'; }).join('') + '</details>';
