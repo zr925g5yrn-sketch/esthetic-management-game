@@ -1408,10 +1408,157 @@
     return staffTalk;
   }
   function shade(x, y, w) { g.fillStyle = 'rgba(43,34,56,.16)'; g.fillRect(Math.round(x) + 1, y, w - 2, 1); g.fillRect(Math.round(x), y + 1, w, 1); }
+
+  /* =========================================================
+     アップの場面（施術中・クロージング）。店内の全景から、その場面の大写しに切りかえる
+     ========================================================= */
+  // いまアップにする場面：施術中は 'treat'、施術後の席でのやりとり（成約・不成約も）は 'close'
+  function closeKind() {
+    var c = scene.cust, m = scene.mode;
+    if (!c || scene.shop) return null;
+    if (m === 'treat') return 'treat';
+    if ((m === 'talk' || m === 'sold' || m === 'lost') && c.phase === 'close') return 'close';
+    return null;
+  }
+  // 人物やアイコンを整数倍で大きく描く（ドットの形はそのまま）
+  function big(look, x, y, s, o) { g.save(); g.translate(x, y); g.scale(s, s); sprite(look, 0, 0, o || {}); g.restore(); }
+  function bigIco(name, x, y, s, col) { g.save(); g.translate(x, y); g.scale(s, s); icon(name, 0, 0, col); g.restore(); }
+  function bigBubble(x, y, s, now, inner) {
+    g.save(); g.translate(x, y); g.scale(s, s);
+    R(0, 0, 13, 7, '#2B2238'); R(1, 1, 11, 5, '#FFFFFF'); R(3, 7, 2, 2, '#2B2238'); R(4, 7, 1, 1, '#FFFFFF');
+    if (inner) icon(inner, 4, 1);
+    else { var n = reduce ? 3 : Math.floor(now / 250) % 4; for (var i = 0; i < 3; i++) if (i < n) R(3 + i * 3, 3, 1, 1, '#2B2238'); }
+    g.restore();
+  }
+  // 腕（そでの色の太い線）と手
+  function limb(x0, y0, x1, y1, col) { var n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2)); for (var i = 0; i <= n; i++) R(lerp(x0, x1, i / n) - 2, lerp(y0, y1, i / n) - 2, 4, 4, col); }
+  function hand(x, y, skin) { R(x - 3, y - 2, 7, 5, skin); R(x - 3, y - 2, 7, 1, 'rgba(255,255,255,.3)'); R(x - 2, y + 3, 1, 1, skin); R(x, y + 3, 1, 1, skin); R(x + 2, y + 3, 1, 1, skin); R(x - 3, y + 2, 7, 1, 'rgba(43,34,56,.18)'); }
+  // 背景の色（店の内装スタイルを引き継ぐ）
+  function cuPal() {
+    var T = themeOf(), lv = viewLv();
+    if (T) return { wall: T.wall[0], str: T.wall[1], dado: T.dado[0], trim: T.dado[1], towel: T.towel, plant: T.plant, flower: T.flower, lamp: T.lampc, frame: T.frame };
+    return { wall: ['#F6D9D6', '#D9EFE5', '#F7EBD8', '#3E2F5B'][lv], str: ['#EECBC8', '#C8E4D6', '#EAD7B8', '#4A3A6A'][lv], dado: ['#C99094', '#7FAE9A', '#9C6F47', '#2A1F40'][lv],
+      trim: lv ? '#E8C15A' : '#FFFFFF', towel: lv >= 2 ? '#F7D6DF' : '#F4C3D0', plant: '#4E9E5A', flower: '#F08DAE', lamp: '#F2C230', frame: lv >= 2 ? '#E8C15A' : '#8E6440' };
+  }
+  // 時間帯の色を、アップの画面にも軽くのせる
+  var CUGLOW = {};
+  function cuLight() {
+    var P = TOD[scene.tod || 'day'];
+    if (P.amb) { g.globalCompositeOperation = 'multiply'; g.fillStyle = P.amb; g.fillRect(0, 0, SW, SH); }
+    if (P.lamp) {
+      var gr = CUGLOW[scene.tod];
+      if (!gr) { gr = CUGLOW[scene.tod] = g.createRadialGradient(64, 4, 2, 64, 30, 90); gr.addColorStop(0, 'rgba(255,214,150,' + (P.lamp * 0.55).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(255,214,150,0)'); }
+      g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(0, 0, SW, SH);
+    }
+    g.globalCompositeOperation = 'source-over';
+  }
+  // ふわっと浮かぶもの（状態を持たず、時刻だけで位置が決まる）
+  function floaty(name, x, y, now, k, s) {
+    if (reduce) return;
+    var ph = ((now / 1000) + k * 0.53) % 1.8, a = ph < 1.4 ? 1 : (1.8 - ph) / 0.4;
+    g.globalAlpha = clamp(a, 0, 1); bigIco(name, x + Math.round(Math.sin(now / 400 + k) * 2), y - Math.round(ph * 10), s || 1); g.globalAlpha = 1;
+  }
+  // 施術中のアップ：あおむけのお客様を真上から。担当者の手が上から入ってきて、ほぐす
+  function drawTreatUp(now, el) {
+    var c = scene.cust, P = cuPal(), st = scene.st, sl = staffLook(st), sat = scene.sat || 0, i;
+    // シーツと枕
+    R(0, 0, SW, SH, '#FFFFFF'); for (i = 0; i < 6; i++) R(0, 6 + i * 14, SW, 1, '#F1EAE6');
+    R(22, 4, 84, 44, '#FFFFFF'); R(22, 4, 84, 1, '#EDE5E0'); R(22, 47, 84, 1, '#E3D8D2'); R(22, 4, 1, 44, '#EDE5E0'); R(105, 4, 1, 44, '#E3D8D2');
+    R(24, 6, 80, 1, 'rgba(43,34,56,.05)');
+    // お客様（あおむけ。顔を4倍で）
+    var face = sat >= 85 && el < 800 && !reduce ? 'surprise' : (sat >= 70 ? 'bliss' : (sat && sat < 45 ? 'trouble' : null));
+    big(c.look, 44, 8, 4, { rows: 12, eyes: '#8A6A5A', face: face });
+    // 体にかけたタオル（肩から下）
+    R(0, 50, SW, 34, P.towel); R(0, 50, SW, 2, '#FFFFFF'); R(0, 52, SW, 1, 'rgba(43,34,56,.10)');
+    for (i = 0; i < 4; i++) R(14 + i * 32, 53, 1, 31, 'rgba(255,255,255,.45)');
+    R(40, 48, 48, 3, '#FFFFFF'); R(40, 51, 48, 1, 'rgba(43,34,56,.08)');
+    // アロマディフューザーの湯気（左上）
+    R(6, 10, 10, 9, '#FFFFFF'); R(6, 10, 10, 1, '#E8DCD0'); R(6, 18, 10, 1, '#E3D8D2'); R(9, 12, 4, 4, P.flower);
+    if (!reduce) for (i = 0; i < 3; i++) { var sp = ((now / 1100) + i / 3) % 1; g.globalAlpha = 0.8 - sp * 0.7; R(9 + i * 2 + Math.round(Math.sin(now / 350 + i) * 1.5), 8 - Math.round(sp * 8), 1, 2, '#E8DCD0'); g.globalAlpha = 1; }
+    // 担当者の手：お悩みのメニューに合わせて、顔・頭・肩をほぐす
+    var menu = c.menu || 'relax', t = reduce ? 0 : now / 260, h1, h2;
+    if (menu === 'face') { h1 = [50 + Math.round(Math.sin(t) * 2), 34 + Math.round(Math.cos(t) * 2)]; h2 = [78 - Math.round(Math.sin(t) * 2), 34 + Math.round(Math.cos(t) * 2)]; }
+    else if (menu === 'head') { h1 = [52, 13 + Math.round(Math.sin(t) * 2)]; h2 = [76, 13 - Math.round(Math.sin(t) * 2)]; }
+    else { h1 = [40 + Math.round(Math.sin(t / 1.4) * 6), 56]; h2 = [88 - Math.round(Math.sin(t / 1.4) * 6), 56]; }
+    var sleeve = sl.top || '#3E8E7E';
+    limb(h1[0], -4, h1[0], h1[1] - 4, sleeve); limb(h2[0], -4, h2[0], h2[1] - 4, sleeve);
+    R(h1[0] - 3, h1[1] - 6, 6, 2, '#FFFFFF'); R(h2[0] - 3, h2[1] - 6, 6, 2, '#FFFFFF');
+    hand(h1[0], h1[1], sl.skin); hand(h2[0], h2[1], sl.skin);
+    // 気持ちの表れ：とても良い→ハート、ふつう→ほっこり、合わない→怒り（頭の右上）
+    if (sat >= 70) { floaty('heart', 90, 20, now, 0, 2); floaty('heart', 104, 30, now, 1.1, 1); }
+    else if (sat && sat < 45) bigIco('anger', 92, 10 + (reduce ? 0 : Math.floor(now / 300) % 2), 2);
+    else bigIco('zz', 94, 12 - (reduce ? 0 : Math.floor(now / 500) % 3), 2);
+    for (i = 0; i < 3; i++) floaty('spark', 30 + i * 30, 66, now, i * 0.6 + 0.3, 2);
+    cuLight();
+    // 施術がうまくいったとき（満足度75以上）：顔のまわりに光の輪と星
+    if (scene.okAt) {
+      var ok = now - scene.okAt;
+      if (reduce) { if (ok < 1500) bigIco('star', 86, 6, 2); }
+      else if (ok < 1000) {
+        var gp = ok / 1000, gr = 10 + gp * 30; g.globalAlpha = (1 - gp) * 0.9;
+        for (var ga = 0; ga < 28; ga++) R(64 + Math.cos(ga / 28 * 6.283) * gr, 28 + Math.sin(ga / 28 * 6.283) * gr * 0.7, 2, 2, ga % 2 ? '#FFF4C0' : '#FFFFFF');
+        for (i = 0; i < 5; i++) bigIco('star', 64 + Math.cos(i * 1.26) * (14 + gp * 24) - 5, 28 + Math.sin(i * 1.26) * (10 + gp * 16) - 5 - gp * 6, 2, '#FFE08A');
+        g.globalAlpha = 1;
+      }
+    }
+  }
+  // クロージングのアップ：テーブルをはさんで、お客様と担当者が向き合う
+  function drawCloseUp2(now, el, m) {
+    var c = scene.cust, P = cuPal(), st = scene.st, sl = staffLook(st), i;
+    R(0, 0, SW, 58, P.wall); for (i = 4; i < SW; i += 10) R(i, 0, 2, 44, P.str); R(0, 44, SW, 14, P.dado); R(0, 44, SW, 1, P.trim);
+    R(55, 8, 18, 14, P.frame); R(56, 9, 16, 12, '#FFF4E0'); R(61, 12, 6, 6, P.flower); R(63, 18, 2, 3, P.plant);
+    R(60, 0, 1, 3, '#6A5F78'); R(56, 3, 9, 3, P.lamp);
+    for (i = 0; i < 6; i++) R(116 + (i % 3) * 3, 26 + i * 3, 3, 4, P.plant);
+    // 話しているほうに吹き出し
+    var talking = now - scene.talkAt < 1400, me = scene.talker === 'me';
+    var pt = now - (scene.postAt || -1e9), joy = m === 'talk' && scene.postAt && pt < 1300 && c.sat >= 75 && !reduce;
+    var cface = custFace(c, m, now), hop = joy ? -(Math.floor(pt / 200) % 2) * 3 : (m === 'sold' && el < 900 && !reduce ? -(Math.floor(el / 220) % 2) * 3 : 0);
+    var sface = m === 'sold' ? 'smile' : (m === 'lost' ? 'trouble' : (talking && me && !reduce ? (Math.floor(now / 160) % 2 ? 'surprise' : null) : null));
+    big(c.look, 8, 16 + hop, 3, { rows: 14, eye: 1, blink: (now + 300) % 3700 < 130, face: cface, arms: joy || (m === 'sold' && el < 1200 && !reduce) });
+    big(sl, 90, 16, 3, { rows: 14, eye: -1, blink: (now + 1600) % 3300 < 130, face: sface });
+    // テーブルと、パンフレット・お茶
+    R(0, 58, SW, 8, '#C49065'); R(0, 58, SW, 1, '#E0B48A'); R(0, 66, SW, 18, '#A8774D'); R(0, 66, SW, 1, '#8E6440'); R(0, 74, SW, 1, '#9C7049');
+    R(36, 53, 7, 6, '#FFFFFF'); R(43, 55, 2, 2, '#FFFFFF'); R(37, 54, 5, 1, '#C49065'); R(35, 59, 9, 1, '#E8DCD0');
+    if (!reduce) for (i = 0; i < 2; i++) { var sp = ((now / 1200) + i / 2) % 1; g.globalAlpha = 0.7 - sp * 0.6; R(38 + i * 2, 51 - Math.round(sp * 8), 1, 2, '#FFFFFF'); g.globalAlpha = 1; }
+    var px = m === 'lost' && !reduce ? Math.min(14, Math.round(el / 60)) : 0;
+    R(52 + px, 59, 26, 6, '#FFFFFF'); R(52 + px, 59, 26, 1, '#F2C3CF'); R(54 + px, 61, 10, 1, '#C9B8CF'); R(54 + px, 63, 14, 1, '#C9B8CF'); R(70 + px, 61, 6, 3, '#F08DAE');
+    R(80, 61, 9, 1, '#2B2238'); R(88, 61, 2, 1, '#E8C15A');
+    if (m === 'sold') { R(66, 60, 8, 5, '#E0567A'); R(67, 61, 6, 3, '#FFFFFF'); R(68, 62, 4, 1, '#E0567A'); }
+    cuLight();
+    // 吹き出しと気持ちのアイコン（光の色に染めない）
+    if (talking) {
+      var inner = !me && now - (scene.reactAt || -1e9) < 1400 ? (scene.react === 'good' ? 'heart' : 'sweat') : null;
+      bigBubble(me ? 84 : 14, 4, 2, now, inner);
+    } else {
+      var by = 5 + (reduce ? 0 : Math.floor(now / 400) % 2) * 2;
+      if (m === 'lost') bigIco('cloud', 16, by, 2);
+      else if (m === 'sold' || cface === 'smile') bigIco('heart', 18, by, 2);
+      else if (cface === 'anxious' || cface === 'trouble') bigIco('sweat', 20, by, 2);
+      else bigIco('note', 20, by, 2);
+    }
+    if (m === 'sold') { floaty('heart', 40, 40, now, 0, 2); floaty('heart', 70, 36, now, 0.9, 2); floaty('coin', 58, 48, now, 0.4, 2); }
+    if (joy) { floaty('heart', 40, 24, now, 0.2, 2); floaty('heart', 52, 30, now, 1.1, 1); }
+  }
+  // 映画のような上下の黒帯で「アップ」だと分かるようにする
+  function drawCloseUp(now, kind) {
+    var el = now - scene.t0, ce = now - scene.cuAt;
+    if (kind === 'treat') drawTreatUp(now, el); else drawCloseUp2(now, el, scene.mode);
+    var bh = reduce ? 3 : Math.min(3, Math.round(ce / 80));
+    R(0, 0, SW, bh, '#14101C'); R(0, SH - bh, SW, bh, '#14101C');
+  }
+  // 全景とアップが切りかわった瞬間の、短い光（動きを減らす設定では出さない）
+  function cutFx(now) {
+    var ce = now - (scene.cuAt || -1e9);
+    if (reduce || ce > 260) return;
+    g.fillStyle = 'rgba(255,255,255,' + ((1 - ce / 260) * 0.55).toFixed(2) + ')'; g.fillRect(0, 0, SW, SH);
+  }
   function drawScene(now) {
     var VS = scene.shop;
     scene.tod = todNow();
     g.clearRect(0, 0, SW, SH);
+    var cu = closeKind();
+    if (cu !== (scene.cuKind || null)) { scene.cuKind = cu; scene.cuAt = now; }
+    if (cu) { drawCloseUp(now, cu); return; }
     drawRoom(now);
     g.fillStyle = 'rgba(43,34,56,.10)'; g.fillRect(0, 0, SW, 2); g.fillRect(0, 54, SW, 2);
     if (VS !== 'ph') { shade(87, 69, 38); shade(29, 61, 35); }
@@ -1583,7 +1730,7 @@
       return true;
     });
   }
-  function loop(now) { drawScene(now); requestAnimationFrame(loop); }
+  function loop(now) { drawScene(now); cutFx(now); requestAnimationFrame(loop); }
   requestAnimationFrame(loop);
 
   /* =========================================================
