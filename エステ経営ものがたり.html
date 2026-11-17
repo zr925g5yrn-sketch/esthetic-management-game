@@ -1431,7 +1431,17 @@
     g.restore();
   }
   // 腕（そでの色の太い線）と手
-  function limb(x0, y0, x1, y1, col) { var n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2)); for (var i = 0; i <= n; i++) R(lerp(x0, x1, i / n) - 2, lerp(y0, y1, i / n) - 2, 4, 4, col); }
+  function limb(x0, y0, x1, y1, col, w) { w = w || 4; var n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2)); for (var i = 0; i <= n; i++) R(Math.round(lerp(x0, x1, i / n) - w / 2), Math.round(lerp(y0, y1, i / n) - w / 2), w, w, col); }
+  // 施術の腕：画面の外の肩から、袖の二の腕 → 肘で曲がって → 肌の前腕 → 手。輪郭をつけて太く短く見せる
+  function arm(hx, hy, side, sleeve, skin) {
+    var ex = hx - side * 12, ey = hy - 14, sx = hx - side * 22, sy = -8;
+    limb(sx, sy, ex, ey, 'rgba(43,34,56,.35)', 11); limb(sx, sy, ex, ey, sleeve, 9);
+    limb(ex, ey, hx, hy - 3, 'rgba(43,34,56,.30)', 9); limb(ex, ey, hx, hy - 3, skin, 7);
+    limb(ex, ey, ex + side * 2, ey + 2, sleeve, 9);
+    R(hx - 6, hy - 4, 12, 9, 'rgba(43,34,56,.30)'); R(hx - 5, hy - 3, 10, 7, skin); R(hx - 5, hy - 3, 10, 1, 'rgba(255,255,255,.35)');
+    for (var i = 0; i < 4; i++) { R(hx - 5 + i * 3, hy + 4, 2, 3, skin); R(hx - 5 + i * 3, hy + 6, 2, 1, 'rgba(43,34,56,.20)'); }
+    R(side > 0 ? hx + 4 : hx - 7, hy - 1, 3, 3, skin);
+  }
   function hand(x, y, skin) { R(x - 3, y - 2, 7, 5, skin); R(x - 3, y - 2, 7, 1, 'rgba(255,255,255,.3)'); R(x - 2, y + 3, 1, 1, skin); R(x, y + 3, 1, 1, skin); R(x + 2, y + 3, 1, 1, skin); R(x - 3, y + 2, 7, 1, 'rgba(43,34,56,.18)'); }
   // 背景の色（店の内装スタイルを引き継ぐ）
   function cuPal() {
@@ -1477,13 +1487,11 @@
     if (!reduce) for (i = 0; i < 3; i++) { var sp = ((now / 1100) + i / 3) % 1; g.globalAlpha = 0.8 - sp * 0.7; R(9 + i * 2 + Math.round(Math.sin(now / 350 + i) * 1.5), 8 - Math.round(sp * 8), 1, 2, '#E8DCD0'); g.globalAlpha = 1; }
     // 担当者の手：お悩みのメニューに合わせて、顔・頭・肩をほぐす
     var menu = c.menu || 'relax', t = reduce ? 0 : now / 260, h1, h2;
-    if (menu === 'face') { h1 = [50 + Math.round(Math.sin(t) * 2), 34 + Math.round(Math.cos(t) * 2)]; h2 = [78 - Math.round(Math.sin(t) * 2), 34 + Math.round(Math.cos(t) * 2)]; }
-    else if (menu === 'head') { h1 = [52, 13 + Math.round(Math.sin(t) * 2)]; h2 = [76, 13 - Math.round(Math.sin(t) * 2)]; }
-    else { h1 = [40 + Math.round(Math.sin(t / 1.4) * 6), 56]; h2 = [88 - Math.round(Math.sin(t / 1.4) * 6), 56]; }
+    if (menu === 'face') { h1 = [49 + Math.round(Math.sin(t) * 2), 32 + Math.round(Math.cos(t) * 2)]; h2 = [79 - Math.round(Math.sin(t) * 2), 32 + Math.round(Math.cos(t) * 2)]; }
+    else if (menu === 'head') { h1 = [52, 14 + Math.round(Math.sin(t) * 2)]; h2 = [76, 14 - Math.round(Math.sin(t) * 2)]; }
+    else { h1 = [42 + Math.round(Math.sin(t / 1.4) * 3), 46]; h2 = [86 - Math.round(Math.sin(t / 1.4) * 3), 46]; }
     var sleeve = sl.top || '#3E8E7E';
-    limb(h1[0], -4, h1[0], h1[1] - 4, sleeve); limb(h2[0], -4, h2[0], h2[1] - 4, sleeve);
-    R(h1[0] - 3, h1[1] - 6, 6, 2, '#FFFFFF'); R(h2[0] - 3, h2[1] - 6, 6, 2, '#FFFFFF');
-    hand(h1[0], h1[1], sl.skin); hand(h2[0], h2[1], sl.skin);
+    arm(h1[0], h1[1], 1, sleeve, sl.skin); arm(h2[0], h2[1], -1, sleeve, sl.skin);
     // 気持ちの表れ：とても良い→ハート、ふつう→ほっこり、合わない→怒り（頭の右上）
     if (sat >= 70) { floaty('heart', 90, 20, now, 0, 2); floaty('heart', 104, 30, now, 1.1, 1); }
     else if (sat && sat < 45) bigIco('anger', 92, 10 + (reduce ? 0 : Math.floor(now / 300) % 2), 2);
@@ -1514,8 +1522,8 @@
     var pt = now - (scene.postAt || -1e9), joy = m === 'talk' && scene.postAt && pt < 1300 && c.sat >= 75 && !reduce;
     var cface = custFace(c, m, now), hop = joy ? -(Math.floor(pt / 200) % 2) * 3 : (m === 'sold' && el < 900 && !reduce ? -(Math.floor(el / 220) % 2) * 3 : 0);
     var sface = m === 'sold' ? 'smile' : (m === 'lost' ? 'trouble' : (talking && me && !reduce ? (Math.floor(now / 160) % 2 ? 'surprise' : null) : null));
-    big(c.look, 8, 16 + hop, 3, { rows: 14, eye: 1, blink: (now + 300) % 3700 < 130, face: cface, arms: joy || (m === 'sold' && el < 1200 && !reduce) });
-    big(sl, 90, 16, 3, { rows: 14, eye: -1, blink: (now + 1600) % 3300 < 130, face: sface });
+    big(c.look, 8, 16 + hop, 3, { rows: 14, blink: (now + 300) % 3700 < 130, face: cface, arms: joy || (m === 'sold' && el < 1200 && !reduce) });
+    big(sl, 90, 16, 3, { rows: 14, blink: (now + 1600) % 3300 < 130, face: sface });
     // テーブルと、パンフレット・お茶
     R(0, 58, SW, 8, '#C49065'); R(0, 58, SW, 1, '#E0B48A'); R(0, 66, SW, 18, '#A8774D'); R(0, 66, SW, 1, '#8E6440'); R(0, 74, SW, 1, '#9C7049');
     R(36, 53, 7, 6, '#FFFFFF'); R(43, 55, 2, 2, '#FFFFFF'); R(37, 54, 5, 1, '#C49065'); R(35, 59, 9, 1, '#E8DCD0');
