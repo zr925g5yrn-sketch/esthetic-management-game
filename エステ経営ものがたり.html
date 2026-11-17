@@ -234,15 +234,29 @@
   try { var sm = localStorage.getItem('salon-sound'); if (sm === 'sfx' || sm === 'off') soundMode = sm; } catch (err) {}
   function ac() {
     if (soundMode === 'off') return null;
+    if (AC && AC.state === 'closed') { AC = null; master = null; nbuf = null; bgmReset(); }
     if (!AC) {
       var Ctor = window.AudioContext || window.webkitAudioContext;
       if (!Ctor) return null;
       try { AC = new Ctor(); } catch (err) { return null; }
       master = AC.createGain(); master.gain.value = 0.45; master.connect(AC.destination);
     }
-    if (AC.state === 'suspended') AC.resume();
+    if (AC.state !== 'running') { try { var pr = AC.resume(); if (pr && pr.catch) pr.catch(function () {}); } catch (err) {} }
     return AC;
   }
+  // 画面に戻ったときと、次に画面にさわったときに、音を再開する（iPhoneは操作のときしか再開できないことがある）
+  function audioWake() {
+    if (soundMode === 'off') return;
+    if (AC && AC.state !== 'running') ac();
+    if (AC) bgmSync();
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { if (AC && AC.state === 'running') { try { AC.suspend(); } catch (err) {} } }
+    else audioWake();
+  });
+  window.addEventListener('pageshow', audioWake);
+  window.addEventListener('focus', audioWake);
+  ['pointerdown', 'touchend', 'keydown'].forEach(function (ev) { document.addEventListener(ev, audioWake, { capture: true, passive: true }); });
   function tone(f0, f1, dur, type, vol, when, dest) {
     var a = ac(); if (!a) return;
     var t = a.currentTime + (when || 0), o = a.createOscillator(), gn = a.createGain();
@@ -344,7 +358,7 @@
   }
   var bgm = { on: false, step: 0, next: 0, timer: null, gain: null, key: null };
   function bgmTick() {
-    if (!AC || !bgm.gain) return;
+    if (!AC || !bgm.gain || AC.state !== 'running') return;
     if (bgm.next < AC.currentTime) bgm.next = AC.currentTime + 0.05;
     while (bgm.next < AC.currentTime + 0.4) {
       // 場面が変わったら、小節の頭で次の曲に切りかえる
@@ -359,8 +373,11 @@
       bgm.step++; bgm.next += d;
     }
   }
+  // 音の部品を作り直したときは、BGMも最初からつなぎ直す
+  function bgmReset() { if (bgm.timer) clearInterval(bgm.timer); bgm.timer = null; bgm.gain = null; bgm.on = false; }
   function bgmSync() {
     var want = soundMode === 'all' && !!AC;
+    if (want && bgm.on && (!bgm.gain || !bgm.timer)) bgm.on = false;
     if (want === bgm.on) return;
     bgm.on = want;
     if (bgm.timer) { clearInterval(bgm.timer); bgm.timer = null; }
