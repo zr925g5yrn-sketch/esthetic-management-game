@@ -445,6 +445,7 @@
     { k: 'cavi',    n: 'キャビテーション',         price: 200000, d: '痩身ボディの満足度が上がる' },
     { k: 'lymphM',  n: '吸引リンパマシン',         price: 150000, d: 'リンパドレナージュの満足度が上がる' },
     { k: 'devFace', n: '家庭用美顔器の取り扱い',   price: 100000, d: '物販で家庭用美顔器（¥59,800）を売れるようになる。肌の悩みのお客様に', stock: 'device' },
+    { k: 'eshop',   n: 'オンラインショップを開く',   price: 100000, d: '毎月、フォロワーと評判に応じて、在庫の商品がネットで売れる。Instagramに力を入れるほど売れる（手数料・送料で売上の1割が引かれる）' },
     { k: 'devEms',  n: '家庭用EMSの取り扱い',      price: 80000,  d: '物販で家庭用EMS（¥39,800）を売れるようになる。お腹や脚の悩みのお客様に', stock: 'ems' }
   ];
   var MACHB = { slim: 'cavi', lymph: 'lymphM' };
@@ -2579,9 +2580,11 @@
     do { name = pick(NAMES); } while (used[name] && ++tries < 60);
     used[name] = true;
     var sq = S.sns ? snsQ() : 0, pers = pick(Object.keys(PERS)), r = rnd() + (S.rep - 40) / 400 + sq * 0.3, male = roll(0.15), fromSns = roll(sq * 0.6);
-    return { id: S.uid++, name: name, age: pick([20, 30, 30, 40, 40, 50, 60]), male: male, look: makeLook(male),
+    var pf = fromSns ? pfPick() : null, age = pf ? pick(SNSPF[pf].ages) : pick([20, 30, 30, 40, 40, 50, 60]);
+    if (pf) r += SNSPF[pf].bud;
+    return { id: S.uid++, name: name, age: age, male: male, look: makeLook(male),
       concern: newConcern(), pref: pick(Object.keys(PRESS)), pers: pers, budget: r < 0.33 ? 0 : (r < 0.78 ? 1 : 2),
-      grd: clamp(PERS[pers].guard + (50 - S.rep) * 0.2 + rnd() * 10 - 5 - (ref ? 18 : 0) - (S.storm ? 10 : 0) - (S.hum - 30) * 0.2 - sq * 12 - (fromSns ? 6 : 0), 5, 95), int: (ref ? 8 : 0) + (fromSns ? 6 : 0) + (S.snsTech === S.week ? 6 : 0), sat: 0, sns: fromSns,
+      grd: clamp(PERS[pers].guard + (50 - S.rep) * 0.2 + rnd() * 10 - 5 - (ref ? 18 : 0) - (S.storm ? 10 : 0) - (S.hum - 30) * 0.2 - sq * 12 - (fromSns ? 6 : 0) - (pf ? SNSPF[pf].grd : 0), 5, 95), int: (ref ? 8 : 0) + (fromSns ? 6 : 0) + (S.snsTech === S.week ? 6 : 0), sat: 0, sns: pf || false,
       known: {}, asked: [], used: {}, turns: 0, pushed: false, log: [], revenue: 0, ref: ref, isNew: true,
       loy: ref ? 15 : 0, visits: 0, active: false, plan: null, member: false, booked: 0, last: 0, phase: 'meet' };
   }
@@ -2640,6 +2643,7 @@
     var refs = 0;
     S.clients.forEach(function (c) { if (c.loy >= 60 && S.week - c.last <= 3 && roll(0.12 + S.hum / 500)) refs++; });
     var newN = 2 + Math.floor(S.rep / 20) + S.ad + (roll(0.5) ? 1 : 0) - (S.storm ? 2 : 0) - (S.week <= S.rivalUntil ? 1 : 0) + (S.week <= S.buzz.until ? S.buzz.n : 0);
+    if (S.sns && S.sns.f) newN += Math.round(snsQ() * snsFix().mix.tt * 3);
     newN = Math.max(1, newN + pm().newAdj);
     S.ad = 0;
     var cap = totalCap(), keep = Math.max(0, cap - (S.special ? 1 : 0));
@@ -2678,7 +2682,7 @@
     if (c.inbound) return c.from + 'からの観光客';
     if (c.celeb) return c.isNew ? 'お忍びの芸能人' : 'お忍びの常連（芸能人）';
     if (c.bride) return '式を控えた花嫁・新規';
-    if (c.sns && c.isNew) return 'SNSを見て来店・新規';
+    if (c.sns && c.isNew) return (SNSPF[c.sns] ? SNSPF[c.sns].n : 'SNS') + 'を見て来店・新規';
     if (c.isNew) return c.ref ? '紹介・新規' : '新規';
     if (c.plan) return courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回';
     if (c.member) return '会員';
@@ -3590,13 +3594,34 @@
   }
 
   /* --- SNS発信 --- */
-  function snsFix() { if (!S.sns) S.sns = { f: 0, wk: 0, n: 0, last: 0, best: 0, used: {} }; return S.sns; }
+  // 媒体ごとにフォロワーの年齢層と得意なことが違う。mix はフォロワー全体のうち各媒体の割合
+  var SNSPF = {
+    ig: { n: 'Instagram', who: '20〜30代の女性が中心', d: 'バランス型。物販とライブ配信で商品が売れやすい。接客のセンスがある応募者が集まる',
+      ages: [20, 30, 30, 40], bud: 0.05, grd: 0, view: 1, gain: 1, buzz: 1, live: { s: 1.3, g: 1 } },
+    tt: { n: 'TikTok', who: '10〜20代が中心', d: 'いちばんバズりやすく、新規のお客様が増える。ただし予算は控えめ。伸びしろのある若い応募者が集まる',
+      ages: [20, 20, 20, 30], bud: -0.12, grd: 0, view: 1.5, gain: 1.2, buzz: 2, live: { s: 0.8, g: 1.6 } },
+    yt: { n: 'YouTube', who: '30〜50代が中心', d: '伸びはゆっくり。信頼されやすく、予算の高いお客様が来る。経験のある応募者が集まる',
+      ages: [30, 40, 50, 60], bud: 0.15, grd: 8, view: 0.7, gain: 0.8, buzz: 0.6, live: { s: 1, g: 0.8, rich: true } }
+  };
+  function snsFix() {
+    if (!S.sns) S.sns = { f: 0, wk: 0, n: 0, last: 0, best: 0, used: {} };
+    if (!S.sns.mix) S.sns.mix = { ig: 0.6, tt: 0.25, yt: 0.15 };
+    return S.sns;
+  }
   function snsQ() { var f = snsFix().f; return f / (f + 5000); }
+  function pfN(pf) { var P = snsFix(); return Math.round(P.f * P.mix[pf]); }
+  function pfPick() { var m = snsFix().mix, x = rnd(); return x < m.ig ? 'ig' : (x < m.ig + m.tt ? 'tt' : 'yt'); }
+  // 媒体のフォロワーを増やす（全体の割合も、その媒体の方へ寄る）
+  function addF(pf, g) {
+    var P = snsFix(), tot = P.f + g;
+    if (tot > 0) Object.keys(P.mix).forEach(function (k) { P.mix[k] = (P.mix[k] * P.f + (k === pf ? g : 0)) / tot; });
+    P.f = tot;
+  }
   function fmtN(n) { n = Math.round(n); return n >= 10000 ? (Math.round(n / 1000) / 10) + '万' : n.toLocaleString('ja-JP'); }
   var SNSP = {
     tech: { n: '施術の動画を撮る', d: '腕のいいお店だと伝わる。来月の新規が前向きに来店する',
       q: function () { return S.staff.reduce(function (m, st) { return Math.max(m, sk(st, 'tech')); }, 1) / 6; } },
-    prod: { n: '商品を紹介する', d: '来月は物販が売れやすくなる。オリジナル商品があると伸びる',
+    prod: { n: '商品を紹介する', d: '来月は物販とオンラインショップが売れやすくなる。オリジナル商品があると伸びる',
       q: function () { var m = S.myProds.reduce(function (a, p) { return Math.max(a, p.q || 0); }, 0); return clamp(0.25 + m * 0.12 + inStock().length * 0.04, 0, 1); } },
     team: { n: 'スタッフの仲良しな日常', d: '求人の質が上がりやすく、スタッフのやる気も上がる',
       q: function () { var t = S.staff.filter(function (st) { return !st.owner; }); if (!t.length) return 0.15;
@@ -3604,34 +3629,86 @@
     room: { n: 'お店の内装を紹介する', d: '内装が豪華なほど伸びる。評判も少し上がる',
       q: function () { return clamp(0.15 + (S.interiorLv || 0) * 0.28, 0, 1); } }
   };
+  var LIVEMIN = 300;
   function snsLeft() { var P = snsFix(); if (P.wk !== S.week) { P.wk = S.week; P.n = 0; P.used = {}; } return 2 - P.n; }
+  function stars(q) { var n = Math.max(1, Math.round(q * 5)); return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n); }
   function snsView(note) {
-    bar(); var P = snsFix(), left = snsLeft();
-    view('<h1>SNSで発信する</h1><p class="lead">フォロワー <b>' + fmtN(P.f) + '人</b>' + (P.best ? '　これまでの最高再生 ' + fmtN(P.best) + '回' : '') +
-      '<br>フォロワーが増えるほど、来店するお客様の予算が高く警戒心が低くなり、求人にも腕のいい人が集まる。投稿は月2回まで。しばらく投稿しないと、フォロワーは少しずつ減る。</p>' + (note || ''),
+    bar(); var P = snsFix(), left = snsLeft(), liveDone = P.live === S.week;
+    view('<h1>SNSで発信する</h1><p class="lead">フォロワー合計 <b>' + fmtN(P.f) + '人</b>' + (P.best ? '　これまでの最高再生 ' + fmtN(P.best) + '回' : '') +
+      '<br>' + Object.keys(SNSPF).map(function (k) { return SNSPF[k].n + ' ' + fmtN(pfN(k)) + '人'; }).join('　') +
+      '<br>媒体ごとにフォロワーの年齢層が違う。力を入れた媒体によって、来るお客様と求人に集まる人が変わる。投稿は月2回まで。しばらく投稿しないと、フォロワーは少しずつ減る。</p>' + (note || ''),
+      Object.keys(SNSPF).map(function (k) {
+        var x = SNSPF[k];
+        return { label: x.n + 'に投稿する', sub: x.who + '　' + x.d, off: left <= 0, go: function () { snsPfView(k); } };
+      }).concat([{ label: 'ライブ配信をする', sub: liveDone ? '今月は配信ずみ' : (P.f < LIVEMIN ? 'フォロワーが' + LIVEMIN + '人をこえるとできる' : '在庫の商品がその場でネットで売れ、フォロワーも増える。月1回まで。あなたの疲れ+8'),
+        off: liveDone || P.f < LIVEMIN, go: liveView }])
+      .concat([{ main: true, label: 'もどる', go: investView }]));
+  }
+  function snsPfView(pf) {
+    bar(); var P = snsFix(), left = snsLeft(), x = SNSPF[pf];
+    view('<h1>' + x.n + 'に投稿する</h1><p class="lead">' + x.who + '。フォロワー ' + fmtN(pfN(pf)) + '人。今月あと' + left + '回投稿できる。</p>',
       Object.keys(SNSP).map(function (k) {
         var t = SNSP[k], q = t.q();
-        return { label: t.n, sub: t.d + '　出来ばえ ' + '★★★★★'.slice(0, Math.max(1, Math.round(q * 5))) + '☆☆☆☆☆'.slice(0, 5 - Math.max(1, Math.round(q * 5))) + (P.used[k] ? '　今月は投稿ずみ' : ''),
-          off: left <= 0 || P.used[k], go: function () { snsPost(k); } };
-      }).concat([{ main: true, label: 'もどる', go: investView }]));
+        return { label: t.n, sub: t.d + '　出来ばえ ' + stars(q) + (P.used[k] ? '　今月は投稿ずみ' : ''),
+          off: left <= 0 || P.used[k], go: function () { snsPost(k, pf); } };
+      }).concat([{ main: true, label: 'もどる', go: function () { snsView(); } }]));
   }
-  function snsPost(k) {
-    var P = snsFix(), t = SNSP[k], q = t.q();
+  function snsPost(k, pf) {
+    pf = pf || 'ig';
+    var P = snsFix(), t = SNSP[k], q = t.q(), x = SNSPF[pf], base = pfN(pf);
     snsLeft(); P.n++; P.used[k] = true; P.last = S.week;
-    var views = Math.round((1500 + P.f * 0.5) * (0.5 + q) * (0.6 + rnd() * 0.8)), buzz = roll(0.04 + q * 0.08);
+    var views = Math.round((1500 + base * 0.5 + P.f * 0.15) * (0.5 + q) * (0.6 + rnd() * 0.8) * x.view), buzz = roll((0.04 + q * 0.08) * x.buzz);
     if (buzz) views = Math.round(views * (8 + rnd() * 8));
-    var gain = Math.round(views * (0.02 + q * 0.05) / (1 + P.f / 50000));
-    P.f += gain; P.best = Math.max(P.best, views);
+    var gain = Math.round(views * (0.02 + q * 0.05) * x.gain / (1 + P.f / 50000));
+    addF(pf, gain); P.best = Math.max(P.best, views);
     var extra = '';
     if (k === 'tech') { S.snsTech = S.week + 1; extra = '来月の新規は、動画を見て期待して来てくれる。'; }
     if (k === 'prod') { S.snsProd = S.week + 1; extra = '来月は物販が売れやすい。'; }
     if (k === 'team') { S.staff.forEach(function (st) { if (!st.owner) moodUp(st, 4, 3); }); extra = 'スタッフも「見ましたよ！」とうれしそう。'; }
     if (k === 'room') { S.rep = clamp(S.rep + 1, 0, 100); extra = '「行ってみたい」のコメントが並んだ。'; }
-    var note = '<div class="news good">' + t.n.replace('する', 'した').replace('撮る', '撮った') + '。再生 ' + fmtN(views) + '回、フォロワー +' + fmtN(gain) + '人。' + extra + '</div>';
+    var note = '<div class="news good">' + x.n + 'で' + t.n.replace('する', 'した').replace('撮る', '撮った') + '。再生 ' + fmtN(views) + '回、フォロワー +' + fmtN(gain) + '人。' + extra + '</div>';
     SFX.good();
-    if (buzz) return showCut({ kicker: 'バズった！', title: fmtN(views) + '回再生', sub: 'フォロワー +' + fmtN(gain) + '人', icon: 'heart', c1: '#FF7AA8', c2: '#E8558A',
+    if (buzz) return showCut({ kicker: x.n + 'でバズった！', title: fmtN(views) + '回再生', sub: 'フォロワー +' + fmtN(gain) + '人', icon: 'heart', c1: '#FF7AA8', c2: '#E8558A',
       sound: function () { SFX.fanfare(true); } }, function () { snsView(note); });
     snsView(note);
+  }
+  /* --- ライブ配信：在庫の商品がその場で売れて、フォロワーも増える --- */
+  function liveView() {
+    bar();
+    var stock = inStock().reduce(function (a, p) { return a + S.stock[p.k]; }, 0);
+    view('<h1>ライブ配信をする</h1><p class="lead">どこで配信する？ 商品はお店の在庫から送る（いまの在庫 ' + stock + '個）。在庫がないと、フォロワーが増えるだけになる。</p>',
+      Object.keys(SNSPF).map(function (k) {
+        var x = SNSPF[k], L = x.live;
+        return { label: x.n + 'で配信する', sub: 'フォロワー ' + fmtN(pfN(k)) + '人　' + (L.rich ? '高い商品から売れやすい' : L.s > 1 ? '商品がよく売れる' : 'フォロワーがよく増える。商品は売れにくい'), go: function () { doLive(k); } };
+      }).concat([{ main: true, label: 'もどる', go: function () { snsView(); } }]));
+  }
+  // 在庫から n 個を売る。rich なら高い順。売上（手数料ぶんの率をかけた額）と内訳を返す
+  function sellOnline(n, rich, rate) {
+    var money = 0, sold = 0, got = {};
+    while (n > 0) {
+      var list = inStock(); if (!list.length) break;
+      var p = rich ? list.slice().sort(function (a, b) { return b.price - a.price; })[0] : pick(list);
+      S.stock[p.k]--; n--; sold++; money += Math.round(priceOf(p) * rate); got[p.n] = (got[p.n] || 0) + 1;
+    }
+    S.cash += money; S.wk.prod += money; S.wk.online = (S.wk.online || 0) + money; S.total.sold += sold;
+    return { money: money, sold: sold, out: n > 0, txt: Object.keys(got).map(function (k) { return k + '×' + got[k]; }).join('、') };
+  }
+  function doLive(pf) {
+    var P = snsFix(), x = SNSPF[pf], L = x.live, F = pfN(pf);
+    P.live = S.week; P.last = S.week;
+    S.fatigue = clamp(S.fatigue + 8, 0, 100);
+    var want = Math.round((1 + F * 0.001) * L.s * (S.snsProd === S.week ? 1.3 : 1) * (0.6 + rnd() * 0.8));
+    var r = sellOnline(want, L.rich, 1);
+    var gain = Math.round((150 + F * 0.04) * L.g * (0.6 + rnd() * 0.8) / (1 + P.f / 80000));
+    addF(pf, gain);
+    SFX.coin();
+    snsView('<div class="news good">' + x.n + 'でライブ配信をした。' + (r.sold ? '商品が' + r.sold + '個売れた（' + r.txt + '）。売上 ' + yen(r.money) + '。' : (r.out ? '欲しい人はいたが、売れる在庫がなかった。' : '今回は商品は売れなかった。')) +
+      (r.out ? '途中で在庫が切れてしまった。' : '') + 'フォロワー +' + fmtN(gain) + '人。</div>');
+  }
+  /* --- オンラインショップ：毎月、在庫の商品がネットで売れる（手数料と送料で1割引かれる） --- */
+  function eshopMonth() {
+    var P = snsFix(), n = Math.round((P.f * 0.0006 + S.rep * 0.03) * (0.7 + P.mix.ig) * (S.snsProd === S.week ? 1.5 : 1) * (0.7 + rnd() * 0.6));
+    return sellOnline(n, false, 0.9);
   }
   function renoLeftList() { return [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; }); }
   // まとめてリニューアル：to が null なら全店1段階ずつ、数字ならその段階まで。来月の家賃と給与は残す
@@ -3966,6 +4043,7 @@
       S.wk.cost = RENT + S.wk.wage + S.wk.base.cost;
       S.cash -= S.wk.cost;
       S.wk.roy = S.royalty || 0; S.cash += S.wk.roy;
+      S.wk.eshop = S.eshop ? eshopMonth() : null;
       S.wk.sales = S.wk.trial + S.wk.course + S.wk.prod + S.wk.opt + S.wk.fee + S.wk.roy + (S.wk.extra || 0) + S.wk.base.sales;
       S.total.sales += S.wk.sales - S.wk.refund; S.total.cost += S.wk.cost;
       if (hasTier('world') || hasTier('resort')) S.fx = clamp(Math.round(((S.fx || 1) + (1 - (S.fx || 1)) * 0.15 + (rnd() - 0.5) * 0.08) * 100) / 100, 0.75, 1.35);
@@ -4007,7 +4085,7 @@
     return '<div class="slip box"><dl>' +
       (w.base ? '<dt>通常営業（' + w.base.n + '名）</dt><dd>' + yen(w.base.sales) + '</dd>' : '') +
       '<dt>体験コース</dt><dd>' + yen(w.trial) + '</dd><dt>コース・会員</dt><dd>' + yen(w.course) + '</dd>' +
-      '<dt>物販</dt><dd>' + yen(w.prod) + '</dd><dt>オプション</dt><dd>' + yen(w.opt) + '</dd>' +
+      '<dt>物販</dt><dd>' + yen(w.prod) + '</dd>' + (w.online ? '<dt>　うちオンライン</dt><dd>' + yen(w.online) + '</dd>' : '') + '<dt>オプション</dt><dd>' + yen(w.opt) + '</dd>' +
       (w.fee ? '<dt>会費（4か月ごと）</dt><dd>' + yen(w.fee) + '</dd>' : '') +
       (w.roy ? '<dt>のれん分けの売上の一部</dt><dd>' + yen(w.roy) + '</dd>' : '') +
       (w.extra ? '<dt>賞金など</dt><dd>' + yen(w.extra) + '</dd>' : '') +
@@ -4065,6 +4143,8 @@
       '<details class="fold"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
     if (S.wk.quit) h += '<div class="news bad">' + S.wk.quit + 'が「辞めさせてください」と言って、店を去った。</div>';
     (S.wk.left || []).forEach(function (n) { h += '<div class="news bad">' + n + 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。</div>'; });
+    if (S.wk.eshop) h += S.wk.eshop.sold ? '<div class="news good">オンラインショップで商品が' + S.wk.eshop.sold + '個売れた（' + S.wk.eshop.txt + '）。売上 ' + yen(S.wk.eshop.money) + '。' + (S.wk.eshop.out ? '在庫が足りず、売り逃しがあった。' : '') + '</div>'
+      : (S.wk.eshop.out ? '<div class="news bad">オンラインショップに注文が来たが、在庫がなかった。商品を仕入れておこう。</div>' : '<div class="news">オンラインショップは、今月は注文がなかった。</div>');
     if ((S.wk.spl || []).length) h += '<details class="fold"><summary>スタッフが特殊スキルを覚えた（' + S.wk.spl.length + '）</summary>' + S.wk.spl.map(function (x) { return '<div class="news good">' + x.t + '</div>'; }).join('') + '</details>';
     h = missionBox() + h;
     if (S.yearRes && S.yearRes.y === yearOf() && monthOf() === 3) h = '<div class="news good">' + S.yearRes.y + '年目のサロンランキングは' + S.yearRes.rank + '位' + (S.yearRes.prize ? '。賞金' + yen(S.yearRes.prize) + 'を受け取った' : '') + '。</div>' + h;
@@ -4441,6 +4521,13 @@
     var sq2 = S && S.sns ? snsQ() : 0;
     if (tr === 'rookie' && roll(sq2)) tr = pick(['god', 'talk', 'heal', 'listen', 'vet']);
     for (var bn = Math.round(sq2 * 5 + rnd() * sq2 * 2); bn > 0; bn--) { var kk = pick(Object.keys(sk2)); sk2[kk] = Math.min(5, sk2[kk] + 1); }
+    // SNSの媒体で集まる人が変わる：TikTokは伸びしろのある若い人、YouTubeは経験者、Instagramは接客のセンスがある人
+    var gift0 = pick([1, 2, 2, 3, 3, 3, 3, 4, 4, 5]), mx2 = S && S.sns && sq2 ? snsFix().mix : null, up = function (k) { sk2[k] = Math.min(5, sk2[k] + 1); };
+    if (mx2) {
+      if (roll(sq2 * mx2.tt * 1.5)) gift0 = Math.min(5, gift0 + 1);
+      if (roll(sq2 * mx2.yt * 1.5)) { up(pick(Object.keys(sk2))); up(pick(Object.keys(sk2))); }
+      if (roll(sq2 * mx2.ig * 1.5)) { up('word'); up('emp'); }
+    }
     var tmp = { sk: sk2 }; skFix(tmp); var tech = tmp.tech, talk = tmp.talk;
     pool = pool || STAFFNAMES;
     if (!WORLDNAMES.length) Object.keys(AREAS).forEach(function (k) { (AREAS[k].names || []).forEach(function (n) { WORLDNAMES.push(n); }); });
@@ -4450,7 +4537,7 @@
     for (var nt = 0; nt < 30; nt++) { name = fullName(given, area2); if (!taken[name]) break; }
     taken[name] = true; taken[given] = true;
     var keys6 = SKILLS.map(function (x) { return x[0]; }), fav = TPREF[tr] && tr !== 'rookie' ? TPREF[tr] : pick(keys6), weak = pick(keys6.filter(function (x) { return x !== fav; }));
-    return { name: name, temper: pick(Object.keys(TEMPER)), gift: pick([1, 2, 2, 3, 3, 3, 3, 4, 4, 5]), fav: fav, weak: weak, trait: tr, sk: sk2, tech: tech, talk: talk, cap: tr === 'tough' ? 4 : 3,
+    return { name: name, temper: pick(Object.keys(TEMPER)), gift: gift0, fav: fav, weak: weak, trait: tr, sk: sk2, tech: tech, talk: talk, cap: tr === 'tough' ? 4 : 3,
       wage: 9000 + (tech + talk) * 2500 + (tr === 'vet' ? 6000 : 0) - (tr === 'rookie' ? 3000 : 0),
       look: { hair: pick(HAIRS), skin: pick(SKINS), style: pick(['long', 'bob', 'bun', 'pony']), uniform: true } };
   }
