@@ -336,20 +336,61 @@
   var RANKS = [3000000, 2000000, 1200000, 400000];
   var WEEKS = 24, START = 300000, RENT = 70000, TRIAL = 5000, FEE = 15000, MAXSTAFF = 4, HIRE = 30000;
   var CONCERN = {
-    face:  { n: '肌のくすみ',     vague: '最近、鏡を見るとなんだか疲れて見えて…。' },
-    slim:  { n: 'お腹まわり',     vague: 'このところ体が重たい感じがして…。' },
-    lymph: { n: '脚のむくみ',     vague: '夕方になると、体がだるくなるんです…。' },
-    head:  { n: '頭と目の疲れ',   vague: '最近よく眠れなくて、なんだか重たくて…。' },
-    relax: { n: 'とにかく癒やされたい', vague: '仕事が立て込んでいて、とにかく疲れていて…。' }
+    pore:   { n: '毛穴の黒ずみ',       vague: '最近、鏡を見ると肌がざらついて見えて…。' },
+    bright: { n: '肌のくすみ',         vague: '最近、鏡を見るとなんだか疲れて見えて…。' },
+    aging:  { n: 'ハリ・たるみ',       vague: '写真に写った自分の顔に、ちょっとびっくりして…。' },
+    dry:    { n: '頭と目の疲れ',       vague: '最近よく眠れなくて、頭がなんだか重たくて…。' },
+    scalp:  { n: '頭皮のべたつき',     vague: '夕方になると、頭がむずむずして気になって…。' },
+    hair:   { n: '髪のパサつき・うねり', vague: '髪がまとまらなくて、朝の支度が憂うつで…。' },
+    lymph:  { n: '脚のむくみ',         vague: '夕方になると、体がだるくなるんです…。' },
+    slim:   { n: 'お腹まわり',         vague: 'このところ体が重たい感じがして…。' },
+    aroma:  { n: 'とにかく癒やされたい', vague: '仕事が立て込んでいて、とにかく疲れていて…。' }
   };
+  // 基本メニューは3つ。選んだあとにもう一段カウンセリングして、細かいケアを決める
   var MENU = {
-    face:  { n: 'フェイシャル' },
-    lymph: { n: 'リンパドレナージュ' },
-    relax: { n: 'アロマ全身' },
-    slim:  { n: '痩身ボディ', need: 'slimMachine' },
-    head:  { n: 'ヘッドスパ', need: 'headSpa' }
+    face: { n: 'フェイシャル', ask: 'お肌のことで、いちばん気になるのはどれですか。', subs: ['pore', 'bright', 'aging'] },
+    head: { n: 'ヘッドスパ', need: 'headSpa', ask: '頭や髪のことで、気になるのはどれですか。', subs: ['dry', 'scalp', 'hair'] },
+    body: { n: 'ボディトリートメント', ask: '体のことで、いちばん気になるのはどれですか。', subs: ['lymph', 'slim', 'aroma'] }
   };
-  var NEAR = { slim: ['lymph'], lymph: ['slim', 'relax'], head: ['relax'], relax: ['head', 'lymph'], face: [] };
+  var SUBMENU = {
+    pore:   { n: '毛穴ケア',           cat: 'face', need: 'hifu' },
+    bright: { n: '美肌ケア',           cat: 'face' },
+    aging:  { n: 'エイジングケア',     cat: 'face', need: 'rfFace' },
+    dry:    { n: 'ドライヘッドスパ',   cat: 'head' },
+    scalp:  { n: '頭皮クレンジング',   cat: 'head' },
+    hair:   { n: '髪質改善',           cat: 'head', need: 'hairM' },
+    lymph:  { n: 'リンパドレナージュ', cat: 'body' },
+    slim:   { n: '痩身ボディ',         cat: 'body', need: 'slimMachine' },
+    aroma:  { n: 'アロマトリートメント', cat: 'body' }
+  };
+  // アロマトリートメントのブレンド。高いほど満足度が上がるが、お財布にきびしい人には逆効果
+  var BLEND = {
+    relax:   { n: 'リラックスブレンド', price: 0,    sat: 0 },
+    season:  { n: '季節限定ブレンド',   price: 1500, sat: 5 },
+    premium: { n: 'プレミアムアロマ',   price: 3500, sat: 10, need: 'aromaPro' }
+  };
+  var NEAR = { face: [], head: ['body'], body: ['head'] };
+  // 以前のセーブの悩み（肌・頭・癒やし）を、新しい細かい悩みに置きかえる
+  var OLDC = { face: ['pore', 'bright', 'aging'], head: ['dry', 'scalp', 'hair'], relax: ['aroma'] };
+  function fixConcern(c) {
+    ['concern', 'today'].forEach(function (f) { if (c[f] && !CONCERN[c[f]]) c[f] = pick(OLDC[c[f]] || ['aroma']); });
+    if (c.menu && !MENU[c.menu]) c.menu = 'body';
+    if (c.sub && !SUBMENU[c.sub]) c.sub = null;
+  }
+  function catOf(k) { return SUBMENU[k] ? SUBMENU[k].cat : 'body'; }
+  function subOk(k) { var x = SUBMENU[k], m = MENU[x.cat]; return (!m.need || !!S[m.need]) && (!x.need || !!S[x.need]); }
+  function subName(k, bl) { return SUBMENU[k].n + (bl ? '・' + BLEND[bl].n : ''); }
+  function blendSat(bl) {
+    var x = BLEND[bl];
+    if (x.price && (C.budget === 0 || C.pers === 'price')) return bl === 'premium' ? -4 : 2;
+    return x.sat;
+  }
+  function newConcern() {
+    var ks = Object.keys(CONCERN);
+    // 開業した月は、まだ提供できないヘッドスパと痩身を望むお客様は来ない
+    if (S.week <= 1) ks = ks.filter(function (k) { return catOf(k) !== 'head' && k !== 'slim'; });
+    return pick(ks);
+  }
   var PRESS = { strong: 'しっかり強め', mid: 'ほどよく', soft: 'ソフトにやさしく' };
   var PERS = {
     careful: { n: '慎重派', guard: 60 }, quick: { n: '即決派', guard: 26 }, price: { n: '価格重視', guard: 46 },
@@ -398,15 +439,18 @@
     listen: { n: '聞き上手',       d: 'カウンセリングで3つ質問できる。悩みと好みを外さない' }
   };
   var INVEST = [
-    { k: 'headSpa',     n: 'ヘッドスパ台',     price: 80000,  d: 'ヘッドスパを提供できる' },
-    { k: 'slimMachine', n: '痩身マシン',       price: 120000, d: '痩身ボディを提供できる' },
-    { k: 'hifu',    n: '毛穴吸引マシン',           price: 150000, d: 'フェイシャルの満足度が上がる' },
+    { k: 'headSpa',     n: 'ヘッドスパ台',     price: 80000,  d: 'ヘッドスパ（ドライヘッドスパ・頭皮クレンジング）を提供できる' },
+    { k: 'hairM',       n: '髪質改善トリートメント機', price: 120000, d: 'ヘッドスパの髪質改善を提供できる（ヘッドスパ台も必要）' },
+    { k: 'slimMachine', n: '痩身マシン',       price: 120000, d: 'ボディトリートメントの痩身ボディを提供できる' },
+    { k: 'hifu',    n: '毛穴吸引マシン',           price: 150000, d: 'フェイシャルの毛穴ケアを提供できる' },
+    { k: 'rfFace',  n: 'ラジオ波美顔機',           price: 180000, d: 'フェイシャルのエイジングケアを提供できる' },
+    { k: 'aromaPro', n: 'プレミアム精油の仕入れ契約', price: 100000, d: 'アロマトリートメントでプレミアムアロマ（+¥3,500）を出せる' },
     { k: 'cavi',    n: 'キャビテーション',         price: 200000, d: '痩身ボディの満足度が上がる' },
     { k: 'lymphM',  n: '吸引リンパマシン',         price: 150000, d: 'リンパドレナージュの満足度が上がる' },
     { k: 'devFace', n: '家庭用美顔器の取り扱い',   price: 100000, d: '物販で家庭用美顔器（¥59,800）を売れるようになる。肌の悩みのお客様に', stock: 'device' },
     { k: 'devEms',  n: '家庭用EMSの取り扱い',      price: 80000,  d: '物販で家庭用EMS（¥39,800）を売れるようになる。お腹や脚の悩みのお客様に', stock: 'ems' }
   ];
-  var MACHB = { face: 'hifu', slim: 'cavi', lymph: 'lymphM' };
+  var MACHB = { slim: 'cavi', lymph: 'lymphM' };
   var NAMES = ['佐伯', '三浦', '小野寺', '柏木', '真鍋', '日下部', '早乙女', '宇野', '桜庭', '水島', '藤崎', '成瀬', '相馬', '椎名', '榎本',
     '神崎', '白石', '菅原', '筒井', '堀内', '一ノ瀬', '戸田', '浅野', '久保田', '望月', '杉浦', '平岡', '有馬', '村瀬', '若林',
     '大河内', '芹沢', '朝倉', '片桐', '野々村', '鳴海', '上条', '綾瀬', '牧', '東'];
@@ -1846,8 +1890,9 @@
   function courseOf(k) { return COURSES.concat([BRIDAL]).filter(function (c) { return c.k === k; })[0]; }
   function inStock() { return prods().filter(function (p) { return S.stock[p.k] > 0; }); }
   // 商品とお悩みの相性
-  var PFIT = { set: ['face', 'slim'], serum: ['face'], bath: ['relax', 'head', 'lymph'], device: ['face'], ems: ['slim', 'lymph'],
-    skin: ['face'], body: ['slim', 'lymph'], aroma: ['relax', 'head'], inner: ['slim', 'face'], hair: ['head', 'relax'], uv: ['face'], eye: ['head', 'face'], scent: ['relax'], mask: ['face', 'relax'] };
+  var F3 = ['pore', 'bright', 'aging'], H3 = ['dry', 'scalp', 'hair'];
+  var PFIT = { set: F3.concat(['slim']), serum: F3, bath: ['aroma', 'lymph'].concat(H3), device: F3, ems: ['slim', 'lymph'],
+    skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['hair', 'scalp', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], mask: F3.concat(['aroma']) };
   function pcat(p) {
     if (!p.mine) return p.k;
     if (p.cat) return p.cat;
@@ -2514,7 +2559,7 @@
     used[name] = true;
     var sq = S.sns ? snsQ() : 0, pers = pick(Object.keys(PERS)), r = rnd() + (S.rep - 40) / 400 + sq * 0.3, male = roll(0.15), fromSns = roll(sq * 0.6);
     return { id: S.uid++, name: name, age: pick([20, 30, 30, 40, 40, 50, 60]), male: male, look: makeLook(male),
-      concern: pick(Object.keys(CONCERN)), pref: pick(Object.keys(PRESS)), pers: pers, budget: r < 0.33 ? 0 : (r < 0.78 ? 1 : 2),
+      concern: newConcern(), pref: pick(Object.keys(PRESS)), pers: pers, budget: r < 0.33 ? 0 : (r < 0.78 ? 1 : 2),
       grd: clamp(PERS[pers].guard + (50 - S.rep) * 0.2 + rnd() * 10 - 5 - (ref ? 18 : 0) - (S.storm ? 10 : 0) - (S.hum - 30) * 0.2 - sq * 12 - (fromSns ? 6 : 0), 5, 95), int: (ref ? 8 : 0) + (fromSns ? 6 : 0) + (S.snsTech === S.week ? 6 : 0), sat: 0, sns: fromSns,
       known: {}, asked: [], used: {}, turns: 0, pushed: false, log: [], revenue: 0, ref: ref, isNew: true,
       loy: ref ? 15 : 0, visits: 0, active: false, plan: null, member: false, booked: 0, last: 0, phase: 'meet' };
@@ -2674,10 +2719,10 @@
     expAdd(st, 2);
     if (has(st, 'aura') && C.isNew) C.grd = clamp(C.grd - 14, 0, 100);
     if (has(st, 'machine') && C.isNew) C.int += 14;
-    C.sat = 0; C.used = {}; C.turns = 0; C.revenue = 0; C.pushed = false; C.split = false; C.tried = null; C.log = []; C.got = [];
+    C.sat = 0; C.used = {}; C.turns = 0; C.revenue = 0; C.pushed = false; C.sub = null; C.blend = null; C.subAsked = {}; C.split = false; C.tried = null; C.log = []; C.got = [];
     if (!C.isNew) {
       if (C.plan) C.plan.left--;
-      C.today = roll(0.7) ? C.concern : pick(Object.keys(CONCERN));
+      C.today = roll(0.7) ? C.concern : newConcern();
     }
     C.phase = 'meet';
   }
@@ -2724,29 +2769,60 @@
   /* --- 施術（新規と常連で共通） --- */
   function treatMenu() {
     bar(); setScene('talk');
-    view(karte() + talkHtml() + stepHtml('施術メニューを選ぶ', 'お悩みに合うほど満足度が上がる。'),
+    view(karte() + talkHtml() + stepHtml('施術メニューを選ぶ', '選んだあとに、もう一段くわしく聞いてケアを決める。'),
       Object.keys(MENU).map(function (k) {
         var m = MENU[k], locked = m.need && !S[m.need];
-        return { label: m.n, sub: locked ? '設備がないので提供できない' : '', off: locked, go: function () { C.menu = k; treatPress(); } };
-      }), 'two');
+        return { label: m.n, sub: locked ? '設備がないので提供できない' : m.subs.map(function (x) { return SUBMENU[x].n; }).join('・'), off: locked, go: function () { C.menu = k; treatSub(); } };
+      }));
+  }
+  // 2段目のカウンセリング：メニューの中で、いちばん気になることを聞く
+  function treatSub() {
+    var m = MENU[C.menu], need = C.isNew ? C.concern : C.today;
+    if (!C.subAsked) C.subAsked = {};
+    if (!C.subAsked[C.menu]) {
+      C.subAsked[C.menu] = true;
+      say('me', m.ask);
+      if (catOf(need) === C.menu) { say('you', '「' + CONCERN[need].n + '」がいちばん気になっていて。'); C.known.concern = true; }
+      else say('you', 'うーん、そこは特に気になっていなくて…。', 'bad');
+    }
+    bar();
+    view(karte() + talkHtml() + stepHtml(m.n + '　ケアを選ぶ', 'お悩みにぴったり合うほど満足度が上がる。'),
+      m.subs.map(function (k) {
+        var locked = !subOk(k);
+        return { label: SUBMENU[k].n, sub: locked ? '設備がないので提供できない' : '', off: locked, go: function () { C.sub = k; C.blend = null; if (k === 'aroma') treatBlend(); else treatPress(); } };
+      }).concat([{ label: 'メニュー選びにもどる', go: treatMenu }]));
+  }
+  function treatBlend() {
+    bar();
+    view(karte() + talkHtml() + stepHtml('アロマのブレンドを選ぶ', '高いブレンドほど満足度が上がる。お財布にきびしいお客様には逆効果。'),
+      Object.keys(BLEND).map(function (k) {
+        var x = BLEND[k], locked = x.need && !S[x.need];
+        return { label: x.n + '　' + (x.price ? '+' + yen(x.price) : '追加料金なし'), sub: locked ? '仕入れ契約がないので出せない' : '', off: locked, go: function () { C.blend = k; treatPress(); } };
+      }).concat([{ label: 'ケア選びにもどる', go: treatSub }]));
   }
   function treatPress() {
-    view(karte() + stepHtml(MENU[C.menu].n + '　圧の強さを決める', '好みに合うほど満足度が上がる。'),
+    view(karte() + stepHtml(subName(C.sub, C.blend) + '　圧の強さを決める', '好みに合うほど満足度が上がる。'),
       Object.keys(PRESS).map(function (k) { return { label: PRESS[k], go: function () { doTreat(k); } }; }));
   }
-  function satCalc(menu, press, st) {
+  function blendPay(bl) {
+    var p = bl ? BLEND[bl].price : 0;
+    if (p) { S.cash += p; S.wk.opt += p; C.revenue += p; }
+  }
+  function satCalc(menu, press, st, bl) {
     var need = C.isNew ? C.concern : C.today;
-    var match = menu === need ? 45 : (NEAR[need].indexOf(menu) >= 0 ? 28 : 12);
+    var match = menu === need ? 45 : (catOf(menu) === catOf(need) ? 30 : (NEAR[catOf(need)].indexOf(catOf(menu)) >= 0 ? 22 : 12));
     var order = ['soft', 'mid', 'strong'], gap = Math.abs(order.indexOf(press) - order.indexOf(C.pref));
     var p = gap === 0 ? 25 : (gap === 1 ? 12 : 0);
     var sat = clamp(Math.round(4 + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 100);
+    if (bl) sat = clamp(sat + blendSat(bl), 5, 100);
     return { sat: sat, match: match, gap: gap };
   }
   function doTreat(press) {
-    var r = satCalc(C.menu, press, C.st);
+    var r = satCalc(C.sub, press, C.st, C.blend);
     C.sat = r.sat;
     C.log = [];
-    say('note', MENU[C.menu].n + '（' + PRESS[press] + '）を60分。');
+    blendPay(C.blend);
+    say('note', subName(C.sub, C.blend) + '（' + PRESS[press] + '）を60分。');
     if (C.sat >= 75) say('you', 'すごく良かったです…。体が軽くなりました。', 'good');
     else if (C.sat >= 50) say('you', '気持ちよかったです。ありがとうございます。');
     else say('you', r.match < 40 ? 'うーん、気になっていた所とは少し違ったかも…。' : (r.gap === 2 ? '圧がちょっと合わなかったです…。' : 'まあ、こんなものでしょうか。'), 'bad');
@@ -2957,13 +3033,16 @@
   function autoCore() {
     var st = C.st, tr = st.trait, lines = [];
     var need = C.isNew ? C.concern : C.today;
-    var avail = Object.keys(MENU).filter(function (k) { return !MENU[k].need || S[MENU[k].need]; });
+    var avail = Object.keys(SUBMENU).filter(subOk);
     var menu = (avail.indexOf(need) >= 0 && (st.trait === 'listen' || roll(C.isNew ? 0.3 + 0.06 * sk(st, 'listen') + 0.05 * sk(st, 'know') : (S.ekarte ? 1 : 0.9)))) ? need :
-      (avail.filter(function (k) { return NEAR[need].indexOf(k) >= 0; })[0] || pick(avail));
+      (pick(avail.filter(function (k) { return catOf(k) === catOf(need); })) || pick(avail.filter(function (k) { return NEAR[catOf(need)].indexOf(catOf(k)) >= 0; })) || pick(avail));
+    var bl = menu === 'aroma' ? (S.aromaPro && C.budget >= 2 ? 'premium' : (C.budget >= 1 ? 'season' : 'relax')) : null;
+    C.menu = catOf(menu); C.sub = menu; C.blend = bl;
     var press = (!C.isNew || st.trait === 'listen' || roll(0.25 + 0.1 * sk(st, 'listen') + 0.03 * sk(st, 'emp'))) ? C.pref : pick(Object.keys(PRESS));
-    C.sat = satCalc(menu, press, st).sat;
+    C.sat = satCalc(menu, press, st, bl).sat;
+    blendPay(bl);
     reputeBySat();
-    lines.push(stName(st) + 'が' + MENU[menu].n + '（' + PRESS[press] + '）を担当。満足度' + C.sat + '。');
+    lines.push(stName(st) + 'が' + subName(menu, bl) + '（' + PRESS[press] + '）を担当。満足度' + C.sat + '。');
     if (C.press) {
       S.cash += TRIAL; S.wk.trial += TRIAL; C.revenue += TRIAL;
       lines.push(pressOutcome()); endVisit(C);
@@ -3146,7 +3225,7 @@
     bar();
     view('<h1>今日は何する？</h1><p class="lead">お店のお休みの日。疲れが70をこえると施術の質が落ち、90をこえると寝こんで1か月お店に立てない。体力が高いほど疲れがたまりにくい。</p>' + fatigueBars(),
       holOpts().map(function (a) {
-        return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: a.sub, off: S.cash < a.cost, go: function () {
+        return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: a.sub, off: a.cost > 0 && S.cash < a.cost, go: function () {
           if (a.cost) pay(a.cost);
           var res = a.r(); S.holPending = false; S.holInv = null; SFX.good();
           bar();
@@ -4485,7 +4564,7 @@
       var d = JSON.parse(raw), s2 = d.S, sid = {}, cid = {};
       s2.staff.forEach(function (st) { sid[st.id] = st; });
       (s2.shops || []).forEach(function (b) { b.staff.forEach(function (st) { sid[st.id] = st; }); });
-      d.cust.forEach(function (c) { c.st = (c.st !== null && c.st !== undefined) ? (sid[c.st] || null) : null; cid[c.id] = c; });
+      d.cust.forEach(function (c) { c.st = (c.st !== null && c.st !== undefined) ? (sid[c.st] || null) : null; cid[c.id] = c; fixConcern(c); });
       s2.clients = s2.clients.map(function (i) { return cid[i]; }).filter(Boolean);
       s2.queue = s2.queue.map(function (i) { return cid[i]; }).filter(Boolean);
       s2.refunds = s2.refunds.map(function (r) { return { c: cid[r.c], n: r.n, price: r.price }; }).filter(function (r) { return r.c; });
