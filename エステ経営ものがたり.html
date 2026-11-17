@@ -1030,10 +1030,14 @@
   var SEASONCH = {};
   function crewAll() { return allStaff().filter(function (st) { return !st.owner; }); }
   SEASONCH.s_sakura = function (st, done) {
-    var n = crewAll().length, c = 3000 * Math.max(1, n);
-    return [{ label: 'スタッフみんなでお花見をする　' + yen(c), sub: '全員のやる気+12、信頼+6', off: S.cash < c, go: function () { pay(c); crewAll().forEach(function (x) { moodUp(x, 12, 6); }); hum(2); done('桜の下でお弁当を広げた。新しい1年もがんばろう、とみんなで乾杯した。'); } },
-      { label: '桜と店内の写真をSNSに投稿する', sub: 'フォロワーが増える', go: function () { var P = snsFix(), g = Math.round(200 + P.f * 0.04); P.f += g; done('桜の投稿に「きれい！」の声が集まった。フォロワー +' + fmtN(g) + '人。'); } },
-      { label: 'いつも通り営業する', go: function () { done('窓の外の桜をながめながら、いつもの1か月が始まる。'); } }];
+    // スタッフがいない4月（とくに開業した月）は、ひとりのお花見と開店の文面にする。効果と費用は従来と同じ
+    var n = crewAll().length, c = 3000 * Math.max(1, n), solo = n === 0, open = S.week === 1;
+    return [{ label: solo ? (open ? '桜の下で、開業の決意を新たにする　' : 'ひとりで桜を見に行く　') + yen(c) : 'スタッフみんなでお花見をする　' + yen(c), sub: solo ? '人間力+2' : '全員のやる気+12、信頼+6', off: S.cash < c,
+        go: function () { pay(c); crewAll().forEach(function (x) { moodUp(x, 12, 6); }); hum(2);
+          done(solo ? (open ? '満開の桜を見上げて、「ここから、いいお店をつくろう」と心に決めた。' : '公園のベンチで、ひとりで桜をながめた。気持ちが少し軽くなった。') : '桜の下でお弁当を広げた。新しい1年もがんばろう、とみんなで乾杯した。'); } },
+      { label: open ? '開店のお知らせに、桜と店内の写真をSNSに投稿する' : '桜と店内の写真をSNSに投稿する', sub: 'フォロワーが増える', go: function () { var P = snsFix(), g = Math.round(200 + P.f * 0.04); P.f += g;
+          done((open ? '「桜の季節に新しいお店！」と、開店の投稿に声が集まった。' : '桜の投稿に「きれい！」の声が集まった。') + 'フォロワー +' + fmtN(g) + '人。'); } },
+      { label: open ? '開店準備の仕上げをして、営業を始める' : 'いつも通り営業する', go: function () { done(open ? 'ぴかぴかに磨いた店内に、桜の花びらがひとひら。いよいよ開店だ。' : '窓の外の桜をながめながら、いつもの1か月が始まる。'); } }];
   };
   SEASONCH.s_mother = function (st, done) {
     return [{ label: '母の日ギフト券を売り出す', sub: '今月はコースも商品も売れやすい', go: function () { S.gift = true; S.disc = true; done('「母に贈りたくて」というお客様が来てくれそうだ。'); } },
