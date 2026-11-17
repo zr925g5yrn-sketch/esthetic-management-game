@@ -387,8 +387,8 @@
   }
   function newConcern() {
     var ks = Object.keys(CONCERN);
-    // 開業した月は、まだ提供できないヘッドスパと痩身を望むお客様は来ない
-    if (S.week <= 1) ks = ks.filter(function (k) { return catOf(k) !== 'head' && k !== 'slim'; });
+    // 開業した月は、設備がなければヘッドスパと痩身を望むお客様は来ない
+    if (S.week <= 1) ks = ks.filter(function (k) { return (catOf(k) !== 'head' || S.headSpa) && (k !== 'slim' || S.slimMachine); });
     return pick(ks);
   }
   var PRESS = { strong: 'しっかり強め', mid: 'ほどよく', soft: 'ソフトにやさしく' };
@@ -2470,8 +2470,33 @@
       hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
       lifeKey: null, lifePending: false, lifeNote: '', evClientId: null,
       ev: null, evLast: {}, vipCount: 0, vipSeen: false, vipNext: 0, rivalUntil: 0, buzz: { until: 0, n: 0 }, special: null, quitRisk: null };
-    if (hero) applyHero(hero);
+    if (hero) { applyHero(hero); return openStaff(); }
     startWeek();
+  }
+  /* --- 開業の準備：スタッフ候補3人から1人だけ雇える → 設備投資を選べる → 営業開始 --- */
+  function openStaff() {
+    bar(); setScene('idle');
+    var taken = {}, cands = [0, 1, 2].map(function () { return genCand(taken, null, null); });
+    (function show() {
+      view('<h1>開業の準備　スタッフ</h1><p class="lead">求人を出したら、3人が応募してきた。雇えるのは1人だけ。採用費' + yen(HIRE) + 'と、毎月の給与がかかる。雇わずにひとりで始めてもいい。</p><p class="lead">所持金 ' + yen(S.cash) + '</p>',
+        cands.map(function (cd) {
+          return { label: cd.name + '　' + TRAITS[cd.trait].n, sub: TRAITS[cd.trait].d + '　気質：' + TEMPER[cd.temper || 'sunao'].n + '　伸びしろ' + stars5(cd.gift || 3) + '　得意：' + skName(cd.fav || 'tech') + '　' + statText(cd) + '　月給' + yen(cd.wage),
+            off: S.cash < HIRE, go: function () { pay(HIRE); hireTo(null, cd); SFX.hire(); openInvest(cd.name + 'を採用した。'); } };
+        }).concat([{ label: '雇わずに、ひとりで始める', sub: '給与がかからない。接客はすべて自分で', go: function () { openInvest(''); } }]));
+    })();
+  }
+  var OPENINV = ['headSpa', 'hairM', 'hifu', 'rfFace', 'slimMachine', 'aromaPro'];
+  function openInvest(note) {
+    bar();
+    var items = INVEST.filter(function (v) { return OPENINV.indexOf(v.k) >= 0; }), any = items.some(function (v) { return S[v.k]; });
+    view('<h1>開業の準備　設備投資</h1>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+      '<p class="lead">設備投資をしますか？ 設備を入れると、提供できるメニューが増える。何も買わずに、このまま開業してもいい。</p>' +
+      '<p class="lead">所持金 ' + yen(S.cash) + '。月末には家賃' + yen(RENT) + 'と給与の支払いがある。' + (S.cash < 150000 ? '<b>使いすぎると、すぐ赤字になるかも。</b>' : '') + '</p>',
+      items.map(function (v) {
+        var dep = v.k === 'hairM' && !S.headSpa;
+        return { label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: dep ? 'ヘッドスパ台を入れると選べる' : v.d, off: !!S[v.k] || dep || S.cash < v.price,
+          go: function () { pay(v.price); S[v.k] = true; SFX.hire(); openInvest(v.n + 'を導入した。'); } };
+      }).concat([{ main: true, label: any ? 'これで開業する' : '設備はこのままで開業する', go: function () { startWeek(); } }]));
   }
   /* --- 主人公の名前と性格（いくつかの質問で決まる） --- */
   var PERSONA = {
