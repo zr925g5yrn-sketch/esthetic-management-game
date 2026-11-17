@@ -2446,8 +2446,21 @@
     ['宝くじで100万円が当たった！', [['お店の設備に使う', { shrewd: 2 }], ['スタッフやお世話になった人に分ける', { kind: 2 }], ['旅に出て、美しい景色を見に行く', { roman: 2 }], ['もしものために貯金する', { steady: 2 }]]],
     ['スタッフが大きなミスをしてしまった。', [['一緒にお客様に謝りに行く', { kind: 1, hot: 1 }], ['なぜ起きたのか、一緒に考える', { logic: 2 }], ['「次がんばろう」と笑って励ます', { mypace: 1, chat: 1 }], ['きちんと注意して、仕組みを直す', { steady: 1, shrewd: 1 }]]],
     ['道で財布を拾った。中には大金が…', [['すぐに交番に届ける', { kind: 1, steady: 1 }], ['持ち主を探して、自分で届けに行く', { hot: 1, roman: 1 }], ['なぜか、ちょうど持ち主が通りかかった', { lucky: 3 }], ['届けたあと、お礼のついでにお店を宣伝する', { shrewd: 2 }]]],
-    ['あなたの夢は？', [['世界中にお店を広げる', { shrewd: 2, hot: 1 }], ['町でいちばん愛されるお店にする', { kind: 1, steady: 1 }], ['誰も見たことのない美しさをつくる', { roman: 2 }], ['毎日を楽しく、笑っていられること', { mypace: 1, chat: 1, lucky: 1 }]]]
+    ['あなたの夢は？', [['世界中にお店を広げる', { shrewd: 2, hot: 1 }], ['町でいちばん愛されるお店にする', { kind: 1, steady: 1 }], ['誰も見たことのない美しさをつくる', { roman: 2 }], ['毎日を楽しく、笑っていられること', { mypace: 1, chat: 1, lucky: 1 }]]],
+    ['お客様に「次もあなたにお願いしたい」と指名された！', [['うれしくて、もっと喜ばせたくなる', { kind: 2 }], ['何が良かったのか、理由を聞いてみる', { logic: 2 }], ['次の予約につなげるチャンスだと思う', { shrewd: 2 }], ['たまたま運が良かったのかも', { lucky: 2, mypace: 1 }]]],
+    ['新しい施術メニューを考えることになった。', [['流行りを調べて、売れそうなものにする', { shrewd: 1, logic: 1 }], ['香りや色、空間まで美しくこだわる', { roman: 2 }], ['自分の体で、何度も試してみる', { hot: 2 }], ['お客様に「何が欲しいか」を聞いて回る', { chat: 2 }]]],
+    ['大切な予約が入っている日に、大雨が降ってきた。', [['タオルと温かいお茶を用意して待つ', { kind: 2 }], ['お客様に一件ずつ確認の電話をする', { steady: 2 }], ['「雨の日割引」を思いつく', { shrewd: 2 }], ['なぜか、お店の前だけ雨がやんだ', { lucky: 3 }]]],
+    ['友だちから、急に旅行に誘われた。', [['すぐ行く！ その場で返事をする', { hot: 1, chat: 1 }], ['行き先の美術館や景色を調べ始める', { roman: 2 }], ['お店のことを考えて、今回は見送る', { steady: 2 }], ['「行けたら行く」と、ゆるく返す', { mypace: 2 }]]],
+    ['商店街のくじ引きで、ハズレを引いた。', [['次は当たる気がする！', { lucky: 2 }], ['確率を考えれば、当然の結果だ', { logic: 2 }], ['その場の人と笑い話にする', { chat: 2 }], ['まあいいか、とすぐ忘れる', { mypace: 2 }]]],
+    ['スタッフから「辞めたい」と相談された。', [['本当の理由を、とことん聞く', { kind: 1, chat: 1 }], ['残ってもらえる条件を、冷静に考える', { logic: 1, shrewd: 1 }], ['「一緒にがんばろう」と熱く伝える', { hot: 2 }], ['本人の人生だから、笑顔で背中を押す', { roman: 1, mypace: 1 }]]]
   ];
+  // 質問は毎回6問。「あなたの夢は？」（5番）を最後に固定し、残りの11問から5問を選ぶ。
+  var HERODREAM = 5;
+  function pickQs() {
+    var a = [];
+    for (var i = 0; i < HEROQ.length; i++) if (i !== HERODREAM) a.push(i);
+    return shuffle(a).slice(0, 5).concat([HERODREAM]);
+  }
   function heroStart(n) {
     SLOT = n;
     bar();
@@ -2455,15 +2468,16 @@
       '<div class="form"><label>名前（6文字まで）<input id="heroName" type="text" maxlength="6" autocomplete="off" placeholder="あかり"></label></div>',
       [{ main: true, label: 'この名前で決める', go: function () {
         var nm = clean($('heroName').value).slice(0, 6) || 'あかり';
-        heroQ({ name: nm, pts: {}, i: 0 });
+        heroQ({ name: nm, pts: {}, i: 0, qs: pickQs() });
       } }, { label: 'もどる', go: function () { slotView(n); } }]);
     setTimeout(function () { try { $('heroName').focus(); } catch (e) {} }, 50);
   }
   function heroQ(h) {
-    if (h.i >= HEROQ.length) return heroResult(h);
-    var q = HEROQ[h.i];
+    if (!h.qs) h.qs = pickQs();
+    if (h.i >= h.qs.length) return heroResult(h);
+    var q = HEROQ[h.qs[h.i]];
     bar();
-    view('<h1>しつもん ' + (h.i + 1) + '／' + HEROQ.length + '</h1><p class="lead">' + h.name + 'さんに聞きます。</p><div class="talk"><div class="say you">' + q[0] + '</div></div>',
+    view('<h1>しつもん ' + (h.i + 1) + '／' + h.qs.length + '</h1><p class="lead">' + h.name + 'さんに聞きます。</p><div class="talk"><div class="say you">' + q[0] + '</div></div>',
       shuffle(q[1].slice()).map(function (a) {
         return { label: a[0], go: function () { Object.keys(a[1]).forEach(function (k) { h.pts[k] = (h.pts[k] || 0) + a[1][k]; }); h.i++; heroQ(h); } };
       }));
@@ -2482,7 +2496,7 @@
     bar();
     view('<h1>' + h.name + 'さんの性格は…</h1><div class="event box"><span class="badge">せいかく</span><h2>' + P.n + '</h2><p>' + P.d + '</p><p class="evnote">' + bon.join('、') + '</p></div>',
       [{ main: true, label: '開業する', go: function () { clearGame(); newGame(h); } },
-       { label: 'しつもんに答えなおす', go: function () { heroQ({ name: h.name, pts: {}, i: 0 }); } }]);
+       { label: 'しつもんに答えなおす', go: function () { heroQ({ name: h.name, pts: {}, i: 0, qs: pickQs() }); } }]);
   }
   function applyHero(h) {
     var o = S.staff[0], P = PERSONA[h.persona] || {};
