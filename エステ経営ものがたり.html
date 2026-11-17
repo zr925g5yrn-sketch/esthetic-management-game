@@ -387,6 +387,8 @@
     var ks = Object.keys(CONCERN);
     // 開業した月は、設備がなければヘッドスパと痩身を望むお客様は来ない
     if (S.week <= 1) ks = ks.filter(function (k) { return (catOf(k) !== 'head' || S.headSpa) && (k !== 'slim' || S.slimMachine); });
+    var cf = S.concept && CONCEPTS[S.concept] && CONCEPTS[S.concept].fav;
+    if (cf && roll(0.35)) { var f2 = ks.filter(function (k) { return cf.indexOf(k) >= 0; }); if (f2.length) return pick(f2); }
     return pick(ks);
   }
   var PRESS = { strong: 'しっかり強め', mid: 'ほどよく', soft: 'ソフトにやさしく' };
@@ -915,10 +917,17 @@
     lucky:  { n: '福を呼ぶ店', wall: ['#FFF4E0', '#FFE2B8'], wp: 'dots', dado: ['#E8A93A', '#FFFFFF'], floor: 'gloss', fc: ['#FFFAF0', '#F4ECDC', '#E8DCC4'], rug: ['#F7B8C8', '#FFFFFF', '#FAD0DA'],
       curt: ['#FAD0DA', '#F7B8C8'], win: '#FFFFFF', door: ['#E8A93A', '#F2C230'], plant: '#4E9E5A', flower: '#F08DAE', pot: '#F2C230', lamp: 'globe', lampc: '#FFF4C0', frame: '#E8A93A', towel: '#FFF4E0', decor: 'maneki' }
   };
+  var BTHEME = {};
+  function branchTheme(V) {
+    var base = THEME[V.area] || THEME.town, c = V.concept && CONCEPTS[V.concept], key = V.area + '|' + (V.concept || '');
+    if (!c) return base;
+    if (!BTHEME[key]) { var T = {}; Object.keys(base).forEach(function (x) { T[x] = base[x]; }); Object.keys(c.tint).forEach(function (x) { T[x] = c.tint[x]; }); BTHEME[key] = T; }
+    return BTHEME[key];
+  }
   function themeOf() {
     var V = scene.shop;
-    if (V && V !== 'ph') return THEME[V.area] || THEME.town;
-    if (!V && S && S.persona) return MAINTHEME[S.persona] || null;
+    if (V && V !== 'ph') return branchTheme(V);
+    if (!V && S && (S.style || S.persona)) return MAINTHEME[S.style || S.persona] || null;
     if (!S && scene.preview) return MAINTHEME[scene.preview.persona] || null;
     return null;
   }
@@ -2674,10 +2683,27 @@
       hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
       lifeKey: null, lifePending: false, lifeNote: '', evClientId: null,
       ev: null, evLast: {}, vipCount: 0, vipSeen: false, vipNext: 0, rivalUntil: 0, buzz: { until: 0, n: 0 }, special: null, quitRisk: null };
-    if (hero) { applyHero(hero); if (hero.origin) applyOrigin(hero.origin); return openStaff(); }
+    if (hero) { applyHero(hero); if (hero.origin) applyOrigin(hero.origin); return openConcept(); }
     startWeek();
   }
-  /* --- 開業の準備：スタッフ候補3人から1人だけ雇える → 設備投資を選べる → 営業開始 --- */
+  /* --- 開業の準備：コンセプト → 内装 → スタッフ候補3人から1人だけ雇える → 設備投資を選べる → 営業開始 --- */
+  function openConcept() {
+    bar(); setScene('idle');
+    view('<h1>開業の準備　コンセプト</h1><p class="lead">どんなお店にする？ コンセプトで、来てくれるお客様が変わる。</p>',
+      Object.keys(CONCEPTS).map(function (c) {
+        return { label: CONCEPTS[c].n, sub: CONCEPTS[c].d, go: function () { S.concept = c; openStyle(); } };
+      }));
+  }
+  function openStyle() {
+    var keys = Object.keys(MAINTHEME), rec = S.persona && MAINTHEME[S.persona] ? S.persona : keys[0];
+    keys = [rec].concat(keys.filter(function (k) { return k !== rec; }));
+    if (!S.style) S.style = rec;
+    bar(); setScene('idle');
+    view('<h1>開業の準備　内装</h1><p class="lead">本店の内装を選ぶ。選ぶと、上の店内がその内装になる。コンセプトは「' + CONCEPTS[S.concept].n + '」。</p>',
+      keys.map(function (k) {
+        return { label: MAINTHEME[k].n + (k === rec ? '　あなたの性格にぴったり' : ''), picked: S.style === k, sub: S.style === k ? 'いま表示中' : '', go: function () { S.style = k; openStyle(); } };
+      }).concat([{ main: true, label: 'この内装に決める', sub: MAINTHEME[S.style].n, go: openStaff }]));
+  }
   function openStaff() {
     bar(); setScene('idle');
     var taken = {}, cands = [0, 1, 2].map(function () { return genCand(taken, null, null); });
@@ -2788,6 +2814,7 @@
     var sq = S.sns ? snsQ() : 0, pers = pick(Object.keys(PERS)), r = rnd() + (S.rep - 40) / 400 + sq * 0.3, male = roll(0.15), fromSns = roll(sq * 0.6);
     var pf = fromSns ? pfPick() : null, age = pf ? pick(SNSPF[pf].ages) : pick([20, 30, 30, 40, 40, 50, 60]);
     if (pf) r += SNSPF[pf].bud;
+    if (S.concept && CONCEPTS[S.concept]) r += CONCEPTS[S.concept].bud || 0;
     return { id: S.uid++, name: name, age: age, male: male, look: makeLook(male),
       concern: newConcern(), pref: pick(Object.keys(PRESS)), pers: pers, budget: r < 0.33 ? 0 : (r < 0.78 ? 1 : 2),
       grd: clamp(PERS[pers].guard + (50 - S.rep) * 0.2 + rnd() * 10 - 5 - (ref ? 18 : 0) - (S.storm ? 10 : 0) - (S.hum - 30) * 0.2 - sq * 12 - (fromSns ? 6 : 0) - (pf ? SNSPF[pf].grd : 0), 5, 95), int: (ref ? 8 : 0) + (fromSns ? 6 : 0) + (S.snsTech === S.week ? 6 : 0), sat: 0, sns: pf || false,
@@ -2850,6 +2877,7 @@
     S.clients.forEach(function (c) { if (c.loy >= 60 && S.week - c.last <= 3 && roll(0.12 + S.hum / 500)) refs++; });
     var newN = 2 + Math.floor(S.rep / 20) + S.ad + (roll(0.5) ? 1 : 0) - (S.storm ? 2 : 0) - (S.week <= S.rivalUntil ? 1 : 0) + (S.week <= S.buzz.until ? S.buzz.n : 0);
     if (S.sns && S.sns.f) newN += Math.round(snsQ() * snsFix().mix.tt * 3);
+    if (S.concept && CONCEPTS[S.concept]) newN += CONCEPTS[S.concept].cnt || 0;
     newN = Math.max(1, newN + pm().newAdj);
     S.ad = 0;
     var cap = totalCap(), keep = Math.max(0, cap - (S.special ? 1 : 0));
@@ -3518,6 +3546,34 @@
     goldcoast:{ n: 'ゴールドコースト店', tier: 'resort', cost: 3800000, rent: 190000, demand: 4, mult: 1.9, peak: [12, 1, 2], d: 'サーファーの楽園。日焼けケアの需要が高い', names: ['シャーロット', 'アメリア', 'イスラ', 'エヴィー', 'ルビー', 'ジョージア', 'マチルダ', 'ハーパー', 'ウィロー', 'スカーレット', 'サディ', 'ポピー', 'ルナ', 'マイア', 'ハーロウ', 'ペニー', 'ジェイド', 'ベイリー', 'サマー', 'タイラ'] },
     dubai:   { n: 'ドバイ店', tier: 'world', cost: 6000000, rent: 300000, demand: 2, mult: 3.2, d: '石油王の街。お客様は少ないが、桁外れに使う', names: ['レイラ', 'ファティマ', 'ヤスミン', 'アミラ', 'ノール', 'サラ', 'マリアム', 'ライラ', 'ハラ', 'ダナ', 'ルーナ', 'シャイマ', 'アヤ', 'ジャナ', 'ラナ', 'ズハ', 'ナディーン', 'アスマ', 'リーム', 'ハムダ', 'ヌーラ', 'アルヤ', 'ムナ', 'シャハド', 'ルブナ', 'ワファ', 'ガダ', 'ダリア', 'サルマ', 'ヒンド', 'ジュード', 'タラ', 'ザイナブ', 'ルカヤ', 'メイサ', 'ニダ', 'アフラ', 'ヌハ', 'バスマ', 'ラワン'] }
   };
+  // お店のコンセプト。本店はお客様の悩みや予算・人数が変わる。支店は街に合うと伸びやすい
+  var CONCEPTS = {
+    relax:  { n: '癒やしのリラクゼーション', d: 'ゆったり癒やされたい人が集まる。ヘッドスパとアロマ、リンパの悩みが多くなる', fav: ['aroma', 'dry', 'scalp', 'lymph'],
+      tint: { flower: '#9DBF7F', towel: '#E6EFD6', rug: ['#9DBF7F', '#F4EDE0', '#B4D096'] } },
+    skin:   { n: '美肌・エイジングケア', d: '肌の悩みに本気で向き合う。フェイシャルの悩みが多くなる', fav: ['pore', 'bright', 'aging'],
+      tint: { flower: '#F7B8C8', towel: '#F7D6E0', rug: ['#E9A9B9', '#FFFFFF', '#F2C3CF'] } },
+    body:   { n: 'ボディメイク', d: '引きしめたい人が集まる。痩身とむくみの悩みが多くなる', fav: ['slim', 'lymph'],
+      tint: { flower: '#5FC8D8', towel: '#D8F0F4', rug: ['#3AC0C8', '#FFFFFF', '#8AD8E4'] } },
+    luxe:   { n: 'ラグジュアリー', d: '上質なひとときを。お客様は少なめだが、予算が高い', bud: 0.2, cnt: -1,
+      tint: { flower: '#E8C15A', towel: '#F4EDE0', frame: '#C9A227', rug: ['#3A2C4A', '#C9A227', '#4E3E5E'] } },
+    casual: { n: '気軽なプチプラ', d: '通いやすさが売り。お客様は多いが、予算は控えめ', bud: -0.15, cnt: 1,
+      tint: { flower: '#F2C230', towel: '#FFF4D0', rug: ['#F2C230', '#FFFFFF', '#F4D368'] } }
+  };
+  // 街ごとの相性。g は合うコンセプト、b は合わないコンセプト
+  var AREAFIT = {
+    station: { g: ['body', 'skin'] }, town: { g: ['relax', 'casual'] }, suburb: { g: ['casual', 'relax'], b: ['luxe'] },
+    omote: { g: ['skin', 'body'], b: ['casual'] }, roppongi: { g: ['luxe', 'body'], b: ['casual'] }, ginza: { g: ['luxe', 'skin'], b: ['casual'] },
+    seoul: { g: ['skin'] }, shanghai: { g: ['luxe', 'skin'] }, hawaii: { g: ['relax', 'body'] }, singapore: { g: ['luxe'] },
+    paris: { g: ['skin', 'luxe'], b: ['casual'] }, shotengai: { g: ['casual', 'relax'], b: ['luxe'] }, ekibiru: { g: ['casual', 'relax'] },
+    shibuya: { g: ['body', 'casual'], b: ['luxe'] }, shinjuku: { g: ['relax', 'skin'] }, ebisu: { g: ['luxe', 'skin'], b: ['casual'] },
+    yokohama: { g: ['relax', 'skin'] }, osaka: { g: ['casual', 'body'] }, nagoya: { g: ['skin', 'casual'] }, fukuoka: { g: ['skin'] },
+    sapporo: { g: ['skin', 'relax'] }, kyoto: { g: ['relax', 'luxe'] }, newyork: { g: ['body', 'luxe'] }, london: { g: ['luxe', 'skin'] },
+    bangkok: { g: ['relax', 'casual'] }, taipei: { g: ['casual', 'skin'] }, la: { g: ['body', 'luxe'] }, bali: { g: ['relax'] },
+    maldives: { g: ['luxe', 'relax'], b: ['casual'] }, phuket: { g: ['relax', 'body'] }, cebu: { g: ['relax', 'casual'] }, guam: { g: ['relax', 'casual'] },
+    cancun: { g: ['luxe', 'relax'] }, santorini: { g: ['luxe', 'relax'] }, goldcoast: { g: ['body', 'skin'] }, dubai: { g: ['luxe'], b: ['casual'] }
+  };
+  function fitOf(area, c) { var F = AREAFIT[area] || {}; return !c ? 0 : (F.g || []).indexOf(c) >= 0 ? 1 : (F.b || []).indexOf(c) >= 0 ? -1 : 0; }
+  function fitText(m) { return m > 0 ? 'この街に合う！' : m < 0 ? 'この街には合わない' : 'ふつう'; }
   var TIER = { local: { n: '近所に出す', m: 1 }, city: { n: '都心に出す', m: 2 }, region: { n: '地方都市に出す', m: 2 }, world: { n: '海外に出す', m: 3 }, resort: { n: '海外リゾートに出す', m: 3 } };
   var OPENGAP = 3;
   function hasTier(t) { return S.shops.some(function (b) { return AREAS[b.area].tier === t; }); }
@@ -3541,12 +3597,12 @@
     cd.look.top = u[0]; cd.look.bottom = u[1];
     list.push({ id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: cd.cap, used: 0, look: cd.look, mot: 65, trust: 30 + ((S && S.heroTrust) || 0) });
   }
-  function openBranch(k, free) {
+  function openBranch(k, free, concept) {
     var A = AREAS[k];
     if (!free) pay(A.cost);
     var taken = {};
     allStaff().forEach(function (st) { taken[st.name] = true; });
-    var b = { id: 'b' + (S.uid++), area: k, name: A.n, staff: [], rep: Math.max(30, S.rep - 10), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free };
+    var b = { id: 'b' + (S.uid++), area: k, name: A.n, staff: [], rep: Math.max(30, S.rep - 10), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free, concept: concept || ((AREAFIT[k] || {}).g || ['relax'])[0] };
     S.shops.push(b);
     var cd = genCand(taken, A.names, k);
     if (A.tier !== 'local') { Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = Math.max(cd.sk[k], 3); }); skFix(cd); cd.wage += 6000; }
@@ -3581,7 +3637,8 @@
       if (!g.mem && g.left === 0 && roll(0.25 + st.talk * 0.05 + keep(st))) { g.left = 5; r.sales += Math.round(64000 * A.mult); r.sold++; }
     });
     // 新規
-    var demand = Math.max(0, 2 + Math.floor(b.rep / 15) + A.demand + (roll(0.5) ? 1 : 0) + pm().newAdj);
+    var fit = fitOf(b.area, b.concept);
+    var demand = Math.max(0, 2 + Math.floor(b.rep / 15) + A.demand + fit + (roll(0.5) ? 1 : 0) + pm().newAdj);
     var n = Math.min(demand, slots);
     r.turned = demand - n;
     for (var k = 0; k < n; k++) {
@@ -3589,7 +3646,7 @@
       expAdd(st, 2);
       var sat = clamp(Math.round(22 + st.tech * 8 + (st.trait === 'god' ? 10 : 0) + (has(st, 'godhand') ? 12 : 0) + intBonus(b.interiorLv || (b.interior ? 1 : 0)) + moodBonus(st) + (S.hum - 30) * 0.15 + rnd() * 30), 5, 100);
       r.served++; r.sales += Math.round(TRIAL * A.mult);
-      if (sat >= 75) b.rep = clamp(b.rep + 1.5, 0, 100); else if (sat < 45) b.rep = clamp(b.rep - 2, 0, 100);
+      if (sat >= 75) b.rep = clamp(b.rep + 1.5 + (fit > 0 ? 0.8 : 0), 0, 100); else if (sat < 45) b.rep = clamp(b.rep - 2, 0, 100);
       if (st.trait === 'mood') b.rep = clamp(b.rep + 1, 0, 100);
       var p = clamp(0.15 + st.talk * 0.08 + (has(st, 'machine') ? 0.15 : 0) + (sat - 55) / 90 + (st.trait === 'talk' ? 0.1 : 0) + (st.trait === 'push' ? 0.12 : 0) + (S.hum - 30) / 300 + moodBonus(st) / 100, 0.04, 0.85);
       if (!roll(p)) continue;
@@ -3602,6 +3659,7 @@
       if (it.booking) b.regs.push({ left: 1, mem: false, last: S.week });
     }
     var bo = baseOps(b.staff, b.rep, A.mult); r.sales += bo.sales; r.cost += bo.cost; r.served += bo.n;
+    if (fit) r.sales = Math.round(r.sales * (1 + 0.12 * fit));
     if (A.peak) { var hi = A.peak.indexOf(monthOf()) >= 0; r.season = hi ? 'ハイシーズン' : 'オフシーズン'; r.sales = Math.round(r.sales * (hi ? 1.45 : 0.75)); }
     if (A.tier === 'world' || A.tier === 'resort') { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
     r.net = r.sales - r.refund - r.cost;
@@ -3622,10 +3680,20 @@
     view('<h1>' + TIER[t].n + '</h1><p class="lead">' + (t === 'resort' ? '世界のリゾート地へ。観光客が主なお客様なので、ハイシーズンは売上が大きく伸び、オフシーズンは落ちこむ。売上は為替でも上下する。いまの為替は×' + (S.fx || 1).toFixed(2) + '。' : t === 'world' ? '現地で店長を採用する。売上も経費も現地のお金なので、円安なら得、円高なら損。いまの為替は×' + (S.fx || 1).toFixed(2) + '。' : t === 'city' ? '都心の店は家賃が高いぶん、お客様の使う金額も大きい。腕のいい店長を採用する。' : t === 'region' ? '日本各地の大きな街へ。その土地の色を生かしたお店をつくる。' : '地元に根ざした支店。') + '</p>',
       freeAreas(t).map(function (k) {
         var A = AREAS[k];
-        return { label: A.n + '　出店費' + yen(A.cost), sub: A.d + '　家賃 月' + yen(A.rent), off: S.cash < A.cost, go: function () {
-          var b = openBranch(k, false); S.wk.opened = b; S.lastOpen = S.week; showCut(branchCut(b), investView);
-        } };
+        var F = AREAFIT[k] || {};
+        return { label: A.n + '　出店費' + yen(A.cost), sub: A.d + '　家賃 月' + yen(A.rent) + ((F.g || []).length ? '　合うコンセプト：' + F.g.map(function (c) { return CONCEPTS[c].n; }).join('・') : ''), off: S.cash < A.cost, go: function () { conceptView(k, t); } };
       }).concat([{ main: true, label: 'もどる', go: function () { branchView(); } }]));
+  }
+
+  function conceptView(k, t) {
+    bar(); var A = AREAS[k];
+    view('<h1>' + A.n + 'のコンセプト</h1><p class="lead">' + A.d + '。街に合うコンセプトにすると、新規が増え、評判と売上が伸びやすい。内装は街とコンセプトで決まる。</p>',
+      Object.keys(CONCEPTS).map(function (c) {
+        var m = fitOf(k, c);
+        return { label: CONCEPTS[c].n + '　' + fitText(m), sub: CONCEPTS[c].d, go: function () {
+          var b = openBranch(k, false, c); S.wk.opened = b; S.lastOpen = S.week; showCut(branchCut(b), investView);
+        } };
+      }).concat([{ main: true, label: 'もどる', go: function () { branchView(t); } }]));
   }
 
   /* --- ペントハウス --- */
@@ -3787,7 +3855,9 @@
     if (V === 'ph') info = 'タワー最上階の会員制サロン。会員 ' + S.ph.members + '／' + phCap() + '人。';
     else {
       var crew = V ? V.staff : S.staff, r = V && V.last;
-      info = '内装 ' + lv + '／' + MAXINT + '　スタッフ ' + crew.length + '人' + (V ? '　評判 ' + stars(V.rep) : '') +
+      var cc = V ? V.concept : S.concept;
+      info = (cc && CONCEPTS[cc] ? 'コンセプト：' + CONCEPTS[cc].n + (V ? '（' + fitText(fitOf(V.area, cc)) + '）' : '') + '<br>' : '') +
+        '内装 ' + lv + '／' + MAXINT + '　スタッフ ' + crew.length + '人' + (V ? '　評判 ' + stars(V.rep) : '') +
         (r ? '<br>先月：来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + '　収支 ' + yen(r.net) : '');
     }
     var list = [null].concat(S.shops).concat(S.ph ? ['ph'] : []);
@@ -3837,7 +3907,7 @@
   };
   var LIVEMIN = 300;
   function snsLeft() { var P = snsFix(); if (P.wk !== S.week) { P.wk = S.week; P.n = 0; P.used = {}; } return 2 - P.n; }
-  function stars(q) { var n = Math.max(1, Math.round(q * 5)); return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n); }
+  function starsQ(q) { var n = Math.max(1, Math.round(q * 5)); return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n); }
   function snsView(note) {
     bar(); var P = snsFix(), left = snsLeft(), liveDone = P.live === S.week;
     view('<h1>SNSで発信する</h1><p class="lead">フォロワー合計 <b>' + fmtN(P.f) + '人</b>' + (P.best ? '　これまでの最高再生 ' + fmtN(P.best) + '回' : '') +
@@ -3855,7 +3925,7 @@
     view('<h1>' + x.n + 'に投稿する</h1><p class="lead">' + x.who + '。フォロワー ' + fmtN(pfN(pf)) + '人。今月あと' + left + '回投稿できる。</p>',
       Object.keys(SNSP).map(function (k) {
         var t = SNSP[k], q = t.q();
-        return { label: t.n, sub: t.d + '　出来ばえ ' + stars(q) + (P.used[k] ? '　今月は投稿ずみ' : ''),
+        return { label: t.n, sub: t.d + '　出来ばえ ' + starsQ(q) + (P.used[k] ? '　今月は投稿ずみ' : ''),
           off: left <= 0 || P.used[k], go: function () { snsPost(k, pf); } };
       }).concat([{ main: true, label: 'もどる', go: function () { snsView(); } }]));
   }
@@ -4112,7 +4182,7 @@
     var col = c.vip ? ['#D9B13A', '#C29A22'] : (c.press ? ['#6C7EAE', '#5A6C9C'] : (c.inbound ? ['#4CC0B0', '#38A898'] : (c.celeb ? ['#5A4A7A', '#46385F'] : ['#FF8FAB', '#F27396'])));
     return { kicker: '特別なお客様', title: nm(c) + 'のご来店', sub: tagOf(c), look: c.look, c1: col[0], c2: col[1], sound: function () { SFX.fanfare(false); } };
   }
-  function branchCut(b) { return { kicker: 'ニュース', title: b.name + ' オープン', sub: '店長は' + b.staff[0].name + '（' + TRAITS[b.staff[0].trait].n + '）', icon: 'shop', c1: '#7FC49A', c2: '#64B083', sound: function () { SFX.fanfare(true); } }; }
+  function branchCut(b) { return { kicker: 'ニュース', title: b.name + ' オープン', sub: (b.concept ? CONCEPTS[b.concept].n + '　' : '') + '店長は' + b.staff[0].name + '（' + TRAITS[b.staff[0].trait].n + '）', icon: 'shop', c1: '#7FC49A', c2: '#64B083', sound: function () { SFX.fanfare(true); } }; }
   function launchCut(p) { return { kicker: '新商品', title: '「' + p.n + '」発売', sub: '品質 ' + '★★★★★'.slice(0, p.q) + '☆☆☆☆☆'.slice(0, 5 - p.q), icon: 'bottle', ic: p.col, c1: '#FF9EB5', c2: '#F07F9C', sound: function () { SFX.fanfare(true); } }; }
   function showCut(c, then) {
     var el = $('cutin'), cx = $('cutcv').getContext('2d');
