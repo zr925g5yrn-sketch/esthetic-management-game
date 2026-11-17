@@ -341,7 +341,6 @@
     aging:  { n: 'ハリ・たるみ',       vague: '写真に写った自分の顔に、ちょっとびっくりして…。' },
     dry:    { n: '頭と目の疲れ',       vague: '最近よく眠れなくて、頭がなんだか重たくて…。' },
     scalp:  { n: '頭皮のべたつき',     vague: '夕方になると、頭がむずむずして気になって…。' },
-    hair:   { n: '髪のパサつき・うねり', vague: '髪がまとまらなくて、朝の支度が憂うつで…。' },
     lymph:  { n: '脚のむくみ',         vague: '夕方になると、体がだるくなるんです…。' },
     slim:   { n: 'お腹まわり',         vague: 'このところ体が重たい感じがして…。' },
     aroma:  { n: 'とにかく癒やされたい', vague: '仕事が立て込んでいて、とにかく疲れていて…。' }
@@ -349,7 +348,7 @@
   // 基本メニューは3つ。選んだあとにもう一段カウンセリングして、細かいケアを決める
   var MENU = {
     face: { n: 'フェイシャル', ask: 'お肌のことで、いちばん気になるのはどれですか。', subs: ['pore', 'bright', 'aging'] },
-    head: { n: 'ヘッドスパ', need: 'headSpa', ask: '頭や髪のことで、気になるのはどれですか。', subs: ['dry', 'scalp', 'hair'] },
+    head: { n: 'ヘッドスパ', need: 'headSpa', ask: '頭や髪のことで、気になるのはどれですか。', subs: ['dry', 'scalp'] },
     body: { n: 'ボディトリートメント', ask: '体のことで、いちばん気になるのはどれですか。', subs: ['lymph', 'slim', 'aroma'] }
   };
   var SUBMENU = {
@@ -358,7 +357,6 @@
     aging:  { n: 'エイジングケア',     cat: 'face', need: 'rfFace' },
     dry:    { n: 'ドライヘッドスパ',   cat: 'head' },
     scalp:  { n: '頭皮クレンジング',   cat: 'head' },
-    hair:   { n: '髪質改善',           cat: 'head', need: 'hairM' },
     lymph:  { n: 'リンパドレナージュ', cat: 'body' },
     slim:   { n: '痩身ボディ',         cat: 'body', need: 'slimMachine' },
     aroma:  { n: 'アロマトリートメント', cat: 'body' }
@@ -371,7 +369,7 @@
   };
   var NEAR = { face: [], head: ['body'], body: ['head'] };
   // 以前のセーブの悩み（肌・頭・癒やし）を、新しい細かい悩みに置きかえる
-  var OLDC = { face: ['pore', 'bright', 'aging'], head: ['dry', 'scalp', 'hair'], relax: ['aroma'] };
+  var OLDC = { face: ['pore', 'bright', 'aging'], head: ['dry', 'scalp'], hair: ['dry', 'scalp'], relax: ['aroma'] };
   function fixConcern(c) {
     ['concern', 'today'].forEach(function (f) { if (c[f] && !CONCERN[c[f]]) c[f] = pick(OLDC[c[f]] || ['aroma']); });
     if (c.menu && !MENU[c.menu]) c.menu = 'body';
@@ -440,7 +438,6 @@
   };
   var INVEST = [
     { k: 'headSpa',     n: 'ヘッドスパ台',     price: 80000,  d: 'ヘッドスパ（ドライヘッドスパ・頭皮クレンジング）を提供できる' },
-    { k: 'hairM',       n: '髪質改善トリートメント機', price: 120000, d: 'ヘッドスパの髪質改善を提供できる（ヘッドスパ台も必要）' },
     { k: 'slimMachine', n: '痩身マシン',       price: 120000, d: 'ボディトリートメントの痩身ボディを提供できる' },
     { k: 'hifu',    n: '毛穴吸引マシン',           price: 150000, d: 'フェイシャルの毛穴ケアを提供できる' },
     { k: 'rfFace',  n: 'ラジオ波美顔機',           price: 180000, d: 'フェイシャルのエイジングケアを提供できる' },
@@ -1890,9 +1887,9 @@
   function courseOf(k) { return COURSES.concat([BRIDAL]).filter(function (c) { return c.k === k; })[0]; }
   function inStock() { return prods().filter(function (p) { return S.stock[p.k] > 0; }); }
   // 商品とお悩みの相性
-  var F3 = ['pore', 'bright', 'aging'], H3 = ['dry', 'scalp', 'hair'];
+  var F3 = ['pore', 'bright', 'aging'], H3 = ['dry', 'scalp'];
   var PFIT = { set: F3.concat(['slim']), serum: F3, bath: ['aroma', 'lymph'].concat(H3), device: F3, ems: ['slim', 'lymph'],
-    skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['hair', 'scalp', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], mask: F3.concat(['aroma']) };
+    skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['scalp', 'dry', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], mask: F3.concat(['aroma']) };
   function pcat(p) {
     if (!p.mine) return p.k;
     if (p.cat) return p.cat;
@@ -2485,7 +2482,7 @@
         }).concat([{ label: '雇わずに、ひとりで始める', sub: '給与がかからない。接客はすべて自分で', go: function () { openInvest(''); } }]));
     })();
   }
-  var OPENINV = ['headSpa', 'hairM', 'hifu', 'rfFace', 'slimMachine', 'aromaPro'];
+  var OPENINV = ['headSpa', 'hifu', 'rfFace', 'slimMachine', 'aromaPro'];
   function openInvest(note) {
     bar();
     var items = INVEST.filter(function (v) { return OPENINV.indexOf(v.k) >= 0; }), any = items.some(function (v) { return S[v.k]; });
@@ -2493,8 +2490,7 @@
       '<p class="lead">設備投資をしますか？ 設備を入れると、提供できるメニューが増える。何も買わずに、このまま開業してもいい。</p>' +
       '<p class="lead">所持金 ' + yen(S.cash) + '。月末には家賃' + yen(RENT) + 'と給与の支払いがある。' + (S.cash < 150000 ? '<b>使いすぎると、すぐ赤字になるかも。</b>' : '') + '</p>',
       items.map(function (v) {
-        var dep = v.k === 'hairM' && !S.headSpa;
-        return { label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: dep ? 'ヘッドスパ台を入れると選べる' : v.d, off: !!S[v.k] || dep || S.cash < v.price,
+        return { label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: !!S[v.k] || S.cash < v.price,
           go: function () { pay(v.price); S[v.k] = true; SFX.hire(); openInvest(v.n + 'を導入した。'); } };
       }).concat([{ main: true, label: any ? 'これで開業する' : '設備はこのままで開業する', go: function () { startWeek(); } }]));
   }
