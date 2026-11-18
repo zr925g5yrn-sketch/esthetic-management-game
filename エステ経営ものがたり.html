@@ -544,9 +544,19 @@
   }
   function catOf(k) { return SUBMENU[k] ? SUBMENU[k].cat : 'body'; }
   function subOk(k) { var x = SUBMENU[k], m = MENU[x.cat]; return (!m.need || !!S[m.need]) && (!x.need || !!S[x.need]); }
-  function subName(k, bl) { return SUBMENU[k].n + (bl ? '・' + BLEND[bl].n : ''); }
+  // 自社のエッセンシャルオイル（在庫があるもの）
+  function myOils() { return ((S && S.myProds) || []).filter(function (p) { return p.cat === 'oil' && S.stock[p.k] > 0; }); }
+  function blendOf(bl) {
+    if (bl && bl.indexOf('my:') === 0) {
+      var k = bl.slice(3), p = ((S && S.myProds) || []).filter(function (x) { return x.k === k; })[0];
+      return p ? { n: 'オリジナル「' + p.n + '」', price: 2500, sat: 4 + 2 * (p.q || 1), my: p } : BLEND.relax;
+    }
+    return BLEND[bl] || BLEND.relax;
+  }
+  function subName(k, bl) { return SUBMENU[k].n + (bl ? '・' + blendOf(bl).n : ''); }
   function blendSat(bl) {
-    var x = BLEND[bl];
+    var x = blendOf(bl);
+    if (x.my && (C.budget === 0 || C.pers === 'price')) return 3;
     if (x.price && (C.budget === 0 || C.pers === 'price')) return bl === 'premium' ? -4 : 2;
     return x.sat;
   }
@@ -2162,7 +2172,7 @@
   // 商品とお悩みの相性
   var F3 = ['pore', 'bright', 'aging'], H3 = ['dry', 'scalp'];
   var PFIT = { set: F3.concat(['slim']), serum: F3, bath: ['aroma', 'lymph'].concat(H3), device: F3, ems: ['slim', 'lymph'],
-    skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['scalp', 'dry', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], mask: F3.concat(['aroma']) };
+    skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['scalp', 'dry', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], oil: ['aroma', 'lymph', 'dry'], mask: F3.concat(['aroma']) };
   function pcat(p) {
     if (!p.mine) return p.k;
     if (p.cat) return p.cat;
@@ -2173,7 +2183,7 @@
   function pickProd(c, list, maxTier) {
     var best = null, bs = -1e9;
     list.filter(function (p) { return p.cost && p.tier <= maxTier; }).forEach(function (p) {
-      var sc = (fits(p, c) ? 3 : 0) + (p.tier === maxTier ? 0.8 : 0) + (p.mine ? 0.4 + p.q * 0.1 : 0) + Math.min(S.stock[p.k], 10) / 25 + rnd() * 1.6;
+      var sc = (fits(p, c) ? 3 : 0) + (c.oilLiked === p.k ? 4 : 0) + (p.tier === maxTier ? 0.8 : 0) + (p.mine ? 0.4 + p.q * 0.1 : 0) + Math.min(S.stock[p.k], 10) / 25 + rnd() * 1.6;
       if (sc > bs) { bs = sc; best = p; }
     });
     return best;
@@ -3833,7 +3843,7 @@
     expAdd(st, 2);
     if (has(st, 'aura') && C.isNew) C.grd = clamp(C.grd - 14, 0, 100);
     if (has(st, 'machine') && C.isNew) C.int += 14;
-    C.sat = 0; C.used = {}; C.turns = 0; C.revenue = 0; C.pushed = false; C.sub = null; C.blend = null; C.subAsked = {}; C.split = false; C.tried = null; C.log = []; C.got = [];
+    C.sat = 0; C.used = {}; C.turns = 0; C.revenue = 0; C.pushed = false; C.sub = null; C.blend = null; C.oilLiked = null; C.subAsked = {}; C.split = false; C.tried = null; C.log = []; C.got = [];
     if (!C.isNew) {
       if (C.plan) C.plan.left--;
       C.today = roll(0.7) ? C.concern : newConcern();
@@ -3912,7 +3922,10 @@
       Object.keys(BLEND).map(function (k) {
         var x = BLEND[k], locked = x.need && !S[x.need];
         return { label: x.n + '　' + (x.price ? '+' + yen(x.price) : '追加料金なし'), sub: locked ? '仕入れ契約がないので出せない' : '', off: locked, go: function () { C.blend = k; treatPress(); } };
-      }).concat([{ label: 'ケア選びにもどる', go: treatSub }]));
+      }).concat(myOils().map(function (p) {
+        var x = blendOf('my:' + p.k);
+        return { label: x.n + '　+' + yen(x.price), sub: '自社のエッセンシャルオイル（品質' + p.q + '・在庫' + S.stock[p.k] + '）。1回で1本使う。気に入ったお客様は、そのまま買ってくれやすい', go: function () { C.blend = 'my:' + p.k; treatPress(); } };
+      })).concat([{ label: 'ケア選びにもどる', go: treatSub }]));
   }
   function treatPress() {
     view(karte() + stepHtml(subName(C.sub, C.blend) + '　圧の強さを決める', '好みに合うほど満足度が上がる。'),
@@ -3930,8 +3943,9 @@
     aroma:  ['いい香りに包まれて…体も心もほぐれました。', 'いい香りで、癒やされました。ありがとうございます。']
   };
   function blendPay(bl) {
-    var p = bl ? BLEND[bl].price : 0;
+    var x = bl ? blendOf(bl) : null, p = x ? x.price : 0;
     if (p) { S.cash += p; S.wk.opt += p; C.revenue += p; }
+    if (x && x.my) { S.stock[x.my.k] = Math.max(0, S.stock[x.my.k] - 1); C.oilLiked = x.my.k; }
   }
   // 満足度は75をこえると伸びにくくなる。100を出すには、すべてがかみ合う必要がある
   function softSat(x) { return x > 75 ? 75 + (x - 75) * 0.35 : x; }
@@ -3955,6 +3969,7 @@
     var vo = VOICE[C.sub] || VOICE.aroma;
     if (C.sat >= 75) say('you', vo[0], 'good');
     else if (C.sat >= 50) say('you', vo[1]);
+    if (C.oilLiked && C.sat >= 60) say('you', 'この香り、すごく好きです…。お家でも使いたいな。');
     else say('you', r.match < 40 ? 'うーん、気になっていた所とは少し違ったかも…。' : (r.gap === 2 ? '圧がちょっと合わなかったです…。' : 'まあ、こんなものでしょうか。'), 'bad');
     reputeBySat();
     if (C.isNew) { C.int = clamp(C.int + 15 + C.sat * 0.5, 0, 100); S.cash += TRIAL; S.wk.trial += TRIAL; C.revenue += TRIAL; }
@@ -4201,7 +4216,7 @@
     var avail = Object.keys(SUBMENU).filter(subOk);
     var menu = (avail.indexOf(need) >= 0 && (st.trait === 'listen' || roll(C.isNew ? 0.3 + 0.06 * sk(st, 'listen') + 0.05 * sk(st, 'know') : (S.ekarte ? 1 : 0.9)))) ? need :
       (pick(avail.filter(function (k) { return catOf(k) === catOf(need); })) || pick(avail.filter(function (k) { return NEAR[catOf(need)].indexOf(catOf(k)) >= 0; })) || pick(avail));
-    var bl = menu === 'aroma' ? (S.aromaPro && C.budget >= 2 ? 'premium' : (C.budget >= 1 ? 'season' : 'relax')) : null;
+    var oils = myOils(), bl = menu === 'aroma' ? (oils.length && C.budget >= 1 && roll(0.6) ? 'my:' + oils[0].k : (S.aromaPro && C.budget >= 2 ? 'premium' : (C.budget >= 1 ? 'season' : 'relax'))) : null;
     C.menu = catOf(menu); C.sub = menu; C.blend = bl;
     var press = (!C.isNew || st.trait === 'listen' || roll(0.25 + 0.1 * sk(st, 'listen') + 0.03 * sk(st, 'emp'))) ? C.pref : pick(Object.keys(PRESS));
     C.sat = satCalc(menu, press, st, bl).sat;
@@ -5289,7 +5304,8 @@
     uv:    { n: '日焼け止め',   cost: 1200, price: 12800, need: 30, tier: 0, col: '#FFFFFF', cap: '#5AA9E6' },
     eye:   { n: 'アイケア',     cost: 2400, price: 22000, need: 40, tier: 1, col: '#BFE6F5', cap: '#2D6E9E' },
     scent: { n: 'フレグランス', cost: 3000, price: 32000, need: 46, tier: 1, col: '#F7B8C8', cap: '#C9A227' },
-    mask:  { n: 'シートマスク', cost: 800,  price: 8800, need: 24, tier: 0, col: '#F4EDE0', cap: '#E0567A' }
+    mask:  { n: 'シートマスク', cost: 800,  price: 8800, need: 24, tier: 0, col: '#F4EDE0', cap: '#E0567A' },
+    oil:   { n: 'エッセンシャルオイル', cost: 1600, price: 16500, need: 34, tier: 0, col: '#9ED68A', cap: '#3E7A4E', d: 'アロマトリートメントのオリジナルブレンドにも使える' }
   };
   var MAXMINE = 12, AUTOSTEP = [0, 3, 6, 10, 15, 20, 30, 50, 80, 100];
   function prods() { return PRODUCTS.filter(function (p) { return !p.unlock || (S && S[p.unlock]); }).concat((S && S.myProds) || []); }
@@ -5317,7 +5333,7 @@
     if (!S.dev && S.myProds.length >= MAXMINE) return view('<h1>商品開発</h1><p class="lead">オリジナル商品は' + MAXMINE + '品まで。新しく作るには、どれかを廃番にする。</p>', S.myProds.map(function (p) { return { label: '「' + p.n + '」を廃番にする', sub: '品質' + p.q + '　在庫' + S.stock[p.k] + '個（仕入れ値で引き取る）', go: function () { S.cash += (S.stock[p.k] || 0) * p.cost; S.myProds.splice(S.myProds.indexOf(p), 1); delete S.stock[p.k]; if (S.autoStock) delete S.autoStock[p.k]; devView(); } }; }).concat([{ main: true, label: 'もどる', go: investView }]));
     if (S.dev) return view('<h1>商品開発</h1><p class="lead">「' + S.dev.name + '」（' + DEVCAT[S.dev.cat].n + '）を開発中。あと' + S.dev.left + 'か月で完成する。</p>',
       [{ main: true, label: 'もどる', go: investView }]);
-    var opts = Object.keys(DEVCAT).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '（売値の目安 ' + yen(DEVCAT[k].price) + '）</option>'; }).join('');
+    var opts = Object.keys(DEVCAT).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '（売値の目安 ' + yen(DEVCAT[k].price) + (DEVCAT[k].d ? '・アロマのブレンドにも使える' : '') + '）</option>'; }).join('');
     view('<h1>商品開発</h1><p class="lead">店のオリジナル商品を作る。完成まで2か月。品質はスタッフの施術の腕と、あなたの人間力で決まる。良い品はよく売れ、話題にもなる。最大' + MAXMINE + '品。</p>' +
       '<div class="form"><label>商品名<input id="dvName" type="text" maxlength="12" autocomplete="off"></label>' +
       '<label>種類<select id="dvCat">' + opts + '</select></label></div>' + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
