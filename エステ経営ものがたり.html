@@ -559,7 +559,8 @@
      ドット絵
      ========================================================= */
   var SW = 128, SH = 84;
-  var cv = $('scene'), g = cv.getContext('2d');
+  var HD = 2, cv = $('scene'), g = cv.getContext('2d');
+  cv.width = SW * HD; cv.height = SH * HD; g.setTransform(HD, 0, 0, HD, 0, 0);
   // 1ドットが画面の整数ピクセルになる大きさに合わせる（ドットの太さが不ぞろいにならないように）
   function fitScene() {
     var dpr = window.devicePixelRatio || 1, box = (cv.parentNode && cv.parentNode.clientWidth) || 300;
@@ -567,12 +568,52 @@
     var k = Math.round(want * dpr / SH);
     if (k * SH / dpr > want * 1.15) k = Math.floor(want * dpr / SH);
     k = Math.max(1, Math.min(k, Math.floor((box - 6) * dpr / SW)));
+    // 細かい絵がにじまないよう、1マスの大きさは偶数にそろえる
+    k = Math.max(2, k - k % 2);
     cv.style.width = (SW * k / dpr + 6) + 'px'; cv.style.height = (SH * k / dpr + 6) + 'px';
   }
   var fitReq = 0;
   window.addEventListener('resize', function () { if (!fitReq) fitReq = requestAnimationFrame(function () { fitReq = 0; fitScene(); }); });
   fitScene();
   function R(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); }
+  function F(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x * HD) / HD, Math.round(y * HD) / HD, w, h); }
+  var SHADE = {};
+  function shade(c, t) {  // t>0 で明るく、t<0 で暗く
+    var key = c + t; if (SHADE[key]) return SHADE[key];
+    var m = /^#([0-9a-f]{6})$/i.exec(c); if (!m) return (SHADE[key] = c);
+    var n = parseInt(m[1], 16), r = n >> 16, gg = (n >> 8) & 255, b = n & 255, to = t > 0 ? 255 : 30, a = Math.abs(t);
+    var f = function (v) { return Math.round(v + (to - v) * a); };
+    return (SHADE[key] = 'rgb(' + f(r) + ',' + f(gg) + ',' + f(b) + ')');
+  }
+  // 仕上げ：描いた絵のふちに立体感（上と左は明るく、下と右は暗く）、平らな面には細かな質感をつける
+  var FIN = { ok: true };
+  function finish() {
+    if (!FIN.ok) return;
+    var W = cv.width, H = cv.height, img;
+    try { img = g.getImageData(0, 0, W, H); } catch (err) { FIN.ok = false; return; }
+    var d = img.data, bw = W / HD, bh = H / HD, x, y;
+    var at = function (bx, by) { return (by * HD * W + bx * HD) * 4; };
+    var diff = function (i, j) { return Math.abs(d[i] - d[j]) + Math.abs(d[i + 1] - d[j + 1]) + Math.abs(d[i + 2] - d[j + 2]) > 48; };
+    var adj = function (px, py, f) { var i = (py * W + px) * 4; d[i] = Math.min(255, d[i] * f); d[i + 1] = Math.min(255, d[i + 1] * f); d[i + 2] = Math.min(255, d[i + 2] * f); };
+    var src = new Uint8ClampedArray(d);
+    var sd = function (i, j) { return Math.abs(src[i] - src[j]) + Math.abs(src[i + 1] - src[j + 1]) + Math.abs(src[i + 2] - src[j + 2]) > 48; };
+    for (y = 0; y < bh; y++) for (x = 0; x < bw; x++) {
+      var i = at(x, y), X = x * HD, Y = y * HD;
+      var up = y > 0 && sd(i, at(x, y - 1)), dn = y < bh - 1 && sd(i, at(x, y + 1)), lf = x > 0 && sd(i, at(x - 1, y)), rt = x < bw - 1 && sd(i, at(x + 1, y));
+      if (up) { adj(X, Y, 1.1); adj(X + 1, Y, 1.1); }
+      if (dn) { adj(X, Y + 1, 0.86); adj(X + 1, Y + 1, 0.86); }
+      if (lf) adj(X, Y + (up ? 1 : 0), 1.05);
+      if (rt) adj(X + 1, Y, 0.9);
+      if (!up && !dn && !lf && !rt && ((x + y) & 1)) adj(X + 1, Y + 1, 0.975);
+    }
+    g.putImageData(img, 0, 0);
+  }
+  // 画面のふちを少し暗くして、奥行きと空気感を出す
+  var VIG = null;
+  function vignette() {
+    if (!VIG) { VIG = g.createRadialGradient(SW / 2, SH / 2, SH * 0.45, SW / 2, SH / 2, SW * 0.72); VIG.addColorStop(0, 'rgba(43,34,56,0)'); VIG.addColorStop(1, 'rgba(43,34,56,0.22)'); }
+    g.fillStyle = VIG; g.fillRect(0, 0, SW, SH);
+  }
   function setCh(s, i, ch) { return s.substr(0, i) + ch + s.substr(i + 1); }
   var BASE = [
     '...hhhh...', '..hhhhhh..', '.hhhhhhhh.', '.hhsssshh.', '.hsessesh.', '.hssssssh.', '..ssmmss..', '...ssss...',
@@ -628,9 +669,34 @@
     var col = { h: look.hair, s: look.skin, e: o.eyes || '#2B2238', m: '#C25B6B', t: look.top, p: look.bottom, b: '#4A3A30', w: '#FFFFFF', k: '#F4A6AE', c: '#9A6A5A', n: '#8A4A5A' };
     if (o.blink) col.e = look.skin;
     // お辞儀のときは体から先に描き、下げた頭を上に重ねる
-    for (var r = bw ? n - 1 : 0; bw ? r >= 0 : r < n; r += bw ? -1 : 1) for (var c = 0; c < 10; c++) {
-      var ch = rows[r][c]; if (ch === '.') continue;
-      if (o.lie) R(x + r, y + c, 1, 1, col[ch]); else R(x + c, y + r + (r < 8 ? bw : 0), 1, 1, col[ch]);
+    var filled = function (rr, cc) { return rr >= 0 && rr < n && cc >= 0 && cc < 10 && rows[rr][cc] !== '.'; };
+    var pos = function (rr, cc) { return o.lie ? [Math.round(x) + rr, Math.round(y) + cc] : [Math.round(x) + cc, Math.round(y) + rr + (rr < 8 ? bw : 0)]; };
+    var NB = [[-1, 0], [1, 0], [0, -1], [0, 1]], r, c, ch, p;
+    // 1回目：輪郭（シルエットの外側に、細い線）
+    for (r = 0; r < n; r++) for (c = 0; c < 10; c++) {
+      if (!filled(r, c)) continue; p = pos(r, c);
+      for (var k = 0; k < 4; k++) {
+        var rr = r + NB[k][0], cc = c + NB[k][1]; if (filled(rr, cc)) continue;
+        var q = pos(rr, cc), dx = Math.sign(q[0] - p[0]), dy = Math.sign(q[1] - p[1]);
+        F(dx < 0 ? p[0] - 0.5 : dx > 0 ? p[0] + 1 : p[0], dy < 0 ? p[1] - 0.5 : dy > 0 ? p[1] + 1 : p[1], dx ? 0.5 : 1, dy ? 0.5 : 1, 'rgba(43,34,56,.5)');
+      }
+    }
+    // 2回目：色と陰影（左上から光が当たる）
+    for (r = bw ? n - 1 : 0; bw ? r >= 0 : r < n; r += bw ? -1 : 1) for (c = 0; c < 10; c++) {
+      ch = rows[r][c]; if (ch === '.') continue;
+      var base = col[ch]; p = pos(r, c);
+      R(p[0], p[1], 1, 1, base);
+      if (ch === 'e') { if (!o.blink) F(p[0], p[1], 0.5, 0.5, '#FFFFFF'); continue; }
+      if (ch === 'm' || ch === 'k' || ch === 'w') continue;
+      if (o.lie) continue;
+      var up = r > 0 ? rows[r - 1][c] : '.';
+      if (up === '.' ) F(p[0], p[1], 1, 0.5, shade(base, 0.22));
+      else if (ch === 's' && up === 'h') F(p[0], p[1], 1, 0.5, shade(base, -0.16));
+      if (!filled(r, c - 1)) F(p[0], p[1], 0.5, 1, shade(base, 0.12));
+      if (!filled(r, c + 1)) F(p[0] + 0.5, p[1], 0.5, 1, shade(base, -0.2));
+      if (!filled(r + 1, c)) F(p[0], p[1] + 0.5, 1, 0.5, shade(base, -0.2));
+      if (ch === 'h' && (r === 1 || r === 2) && (c === 3 || c === 4)) F(p[0] + 0.5, p[1], 0.5, 0.5, shade(base, 0.45));
+      if ((ch === 't' || ch === 'p') && (c === 4 || c === 5) && r >= 9) F(p[0] + (c === 4 ? 0.5 : 0), p[1], 0.5, 1, shade(base, -0.1));
     }
     if (look.style === 'bun') { if (o.lie) R(x - 2, y + 4, 2, 2, look.hair); else R(x + 4, y - 2 + bw, 2, 2, look.hair); }
     if (!o.lie && look.vip) { R(x + 3, y + 8, 4, 1, '#FFFFFF'); R(x + 3, y - 3 + bw, 4, 1, '#E8C15A'); R(x + 4, y - 4 + bw, 1, 1, '#E0567A'); }
@@ -1876,7 +1942,7 @@
       return true;
     });
   }
-  function loop(now) { drawScene(now); cutFx(now); requestAnimationFrame(loop); }
+  function loop(now) { g.setTransform(HD, 0, 0, HD, 0, 0); drawScene(now); finish(); vignette(); cutFx(now); requestAnimationFrame(loop); }
   requestAnimationFrame(loop);
 
   /* =========================================================
