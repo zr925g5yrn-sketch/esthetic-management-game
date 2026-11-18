@@ -2082,7 +2082,7 @@
     return m === 1 ? it.price : Math.round(it.price * m / 100) * 100;
   }
   function needOf(it) { return it.need - (S.week <= (S.rankUntil || 0) && (it.sessions || it.member) ? 8 : 0) - (S.disc && (it.sessions || it.member) ? 12 : 0) - (S.gift && (it.cost || it.prod) ? 15 : 0) + (it.cost || it.prod ? 0 : pm().need); }
-  function costOf(p) { return S.sale ? Math.round(p.cost / 2) : p.cost; }
+  function costOf(p) { var c = S.cosme ? Math.round(p.cost * 0.7) : p.cost; return S.sale ? Math.round(c / 2) : c; }
   function rollEvent() {
     S.ev = null; S.evPending = false; S.evNote = ''; S.special = null; S.evStaff = null;
     S.disc = S.gift = S.sale = S.storm = false;
@@ -4412,6 +4412,77 @@
       return { label: st.name, sub: TRAITS[st.trait].n + '　' + statText(st), picked: st.id === S.mainMgr, go: function () { S.mainMgr = st.id; moodUp(st, 10, 5); hqView(st.name + 'を本店の店長にした。'); } };
     }).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
+  /* --- 経営戦略：フランチャイズ・M&A・上場 --- */
+  var FCFEE = 1000000, FCROY = 60000;
+  function fcQ() { return S.fc ? S.fc.q : 80; }
+  function stratMonth() {
+    var notes = [], inc = 0;
+    // フランチャイズ：ロイヤリティが入るが、店が増えるほど理念とサービスの質が下がる
+    if (S.fc && S.fc.n) {
+      var roy = Math.round(S.fc.n * FCROY * (0.5 + S.fc.q / 100) / 1000) * 1000; inc += roy + (S.fc.joinFee || 0);
+      if (S.fc.joinFee) notes.push({ t: 'フランチャイズの加盟金 ' + yen(S.fc.joinFee) + 'が入った。' });
+      S.fc.joinFee = 0;
+      S.fc.q = clamp(S.fc.q - 1 - Math.floor(S.fc.n / 10), 10, 100);
+      if (S.fc.q < 50 && roll(0.15 + (50 - S.fc.q) / 200)) { S.rep = clamp(S.rep - 5, 0, 100); notes.push({ bad: true, t: pick(['加盟店で、マニュアルにない強引な勧誘があったと口コミが広がった', '加盟店の衛生管理が不十分だと、ニュースで取り上げられた', '加盟店の接客がひどいと、SNSで炎上した']) + '。評判−5' }); }
+      if (S.fc.q < 60 && S.fc.n >= 5) S.rep = clamp(S.rep - 0.5, 0, 100);
+    }
+    // 買収した事業の利益
+    var biz = (S.biz || []).reduce(function (a, x) { return a + Math.round(x.profit * (0.8 + rnd() * 0.4)); }, 0);
+    S.wk.fcRoy = inc; S.wk.biz = biz; S.cash += inc + biz;
+    // 上場の準備が終わったら、上場する
+    if (S.ipoPrep && S.week >= S.ipoPrep && !S.ipo) {
+      var val = Math.max(S.lastProfit || 0, 1e7) * 15, raise = Math.round(val * 0.2 / 1e5) * 1e5;
+      S.ipo = { since: S.week, val: val }; S.ipoPrep = 0; S.cash += raise; S.rep = clamp(S.rep + 10, 0, 100); mxpAdd(200);
+      notes.push({ t: '株式を上場した！ 時価総額 ' + yen(val) + '。新しい株で ' + yen(raise) + 'を集めた。' + (S.vc ? 'ベンチャーキャピタルは株を売って、手を離れた。' : '') });
+      S.vc = null; S.wk.ipoCut = true;
+    }
+    S.wk.stratNote = notes;
+  }
+  function stratView(note) {
+    bar();
+    ['フランチャイズ', 'M&A：事業を売る', 'M&A：会社を買う', '上場'].forEach(function (g) { if (GRPOPEN[g] === undefined) GRPOPEN[g] = true; });
+    var L = mlv(), fc = S.fc || { n: 0, q: 80 };
+    var ipoReq = [['本社をオフィスフロア以上に', S.hq && S.hq.lv >= 2], ['店舗を6店以上に（本店をふくむ）', S.shops.length >= 5], ['昨年度の利益3,000万円以上', (S.lastProfit || 0) >= 3e7], ['経営者レベル40以上', L >= 40]];
+    var ipoOk = ipoReq.every(function (x) { return x[1]; });
+    view('<h1>経営戦略</h1>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+      '<p class="lead"><b>フランチャイズ</b>　加盟店 ' + fc.n + '店　理念とサービスの質 ' + Math.round(fc.q) + '／100<br>店が早く増え、加盟金とロイヤリティが入る。ただし加盟店が増えるほど質が下がり、トラブルで本体の評判も落ちる。<br>' +
+      '<b>上場</b>　' + (S.ipo ? '上場ずみ（時価総額 ' + yen(S.ipo.val) + '）' : S.ipoPrep ? '準備中（' + calOf(S.ipoPrep) + 'に上場）' : ipoReq.map(function (x) { return (x[1] ? '✓' : '・') + x[0]; }).join('　')) + '</p>',
+      [{ grp: 'フランチャイズ', label: '加盟店を募集する　' + yen(300000), sub: '説明会を開く。1〜3店が加盟し、1店ごとに加盟金' + yen(FCFEE) + '（来月入る）。質は1店ごとに−2', off: S.cash < 300000 || S.fc && S.fc.wk === S.week,
+          go: function () { pay(300000); S.fc = S.fc || { n: 0, q: 80 }; var k = 1 + (roll(0.5) ? 1 : 0) + (S.rep >= 80 ? 1 : 0); S.fc.n += k; S.fc.q = clamp(S.fc.q - 2 * k, 10, 100); S.fc.joinFee = (S.fc.joinFee || 0) + k * FCFEE; S.fc.wk = S.week; mxpAdd(20); SFX.coin(); stratView(k + '店が加盟した。'); } },
+       { grp: 'フランチャイズ', label: 'スーパーバイザーが加盟店を指導する　' + yen(200000 * Math.max(1, Math.ceil(fc.n / 5))), sub: '理念とサービスの質+12（月1回）', off: !fc.n || S.cash < 200000 * Math.ceil(fc.n / 5) || fc.svWk === S.week,
+          go: function () { pay(200000 * Math.ceil(fc.n / 5)); S.fc.q = clamp(S.fc.q + 12, 0, 95); S.fc.svWk = S.week; SFX.good(); stratView('スーパーバイザーが全加盟店をまわって、理念とマニュアルを伝え直した。'); } }]
+      .concat(S.shops.map(function (b) { var v = shopValue(b); return { grp: 'M&A：事業を売る', label: b.name + 'を売却する　' + yen(v), sub: '店とスタッフごと、ほかの会社に売る。先月の収支 ' + yen(b.last ? b.last.net : 0), go: function () { sellShop(b, v); } }; }))
+      .concat(maOffers().map(function (o) { return { grp: 'M&A：会社を買う', label: o.n + 'を買収する　' + yen(o.price), sub: o.d, off: S.cash < o.price, go: function () { buyCo(o); } }; }))
+      .concat([{ grp: '上場', label: S.ipo ? '上場ずみ' : S.ipoPrep ? '上場の準備中' : '上場の準備を始める　' + yen(5000000), sub: S.ipo ? '株主の期待に応え続けよう' : '監査や体制づくりに6か月かかる。上場すると、時価総額の2割の資金が入り、評判も上がる', off: !!S.ipo || !!S.ipoPrep || !ipoOk || S.cash < 5000000,
+          go: function () { pay(5000000); S.ipoPrep = S.week + 6; SFX.good(); stratView('上場の準備を始めた。監査法人と証券会社がついた。'); } },
+        { main: true, label: 'もどる', go: investView }]));
+  }
+  // 支店の売値：先月の利益の2年分と、出店費の6割
+  function shopValue(b) { return Math.max(500000, Math.round(((b.last ? Math.max(0, b.last.net) : 0) * 24 + AREAS[b.area].cost * 0.6) / 10000) * 10000); }
+  function sellShop(b, v) {
+    S.shops.splice(S.shops.indexOf(b), 1); S.cash += v; S.wk.extra = (S.wk.extra || 0) + v; mxpAdd(40);
+    showCut({ kicker: 'M&A', title: b.name + 'を売却', sub: yen(v) + 'が入った', icon: 'coin', c1: '#F2C230', c2: '#E8A93A', sound: function () { SFX.fanfare(false); } }, function () { stratView(b.name + 'を' + yen(v) + 'で売却した。スタッフも新しい会社で働き続ける。'); });
+  }
+  // 買収の候補（3か月ごとに入れかわる）
+  function maOffers() {
+    if (S.maOffers && S.week - (S.maWeek || 0) < 3) return S.maOffers;
+    var L = mlv(), free = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L + 15; }), o = [];
+    if (free.length >= 2) { var ks = shuffle(free.slice()).slice(0, Math.min(3, free.length)), n2 = ks.length;
+      o.push({ t: 'chain', n: pick(['まちのリラクサロン', 'エステ・ド・ソレイユ', 'ビューティーハウス花園']) + '（' + n2 + '店舗）', areas: ks, price: Math.round(ks.reduce(function (a, k) { return a + AREAS[k].cost * 1.6; }, 0) / 1e5) * 1e5,
+        d: ks.map(function (k) { return AREAS[k].n; }).join('・') + 'の店を、スタッフごと引き継ぐ' }); }
+    var p1 = 150000 + Math.round(rnd() * 250000 / 10000) * 10000;
+    o.push({ t: 'biz', n: pick(['ネイルサロンの会社', 'まつげサロンの会社', 'ヨガスタジオの会社']), profit: p1, price: p1 * 30, d: '毎月およそ' + yen(p1) + 'の利益が入る。サービスの幅が広がり、評判+3' });
+    if (!S.cosme) o.push({ t: 'cosme', n: '化粧品メーカー', price: 15000000, d: '商品の仕入れ値が3割安くなる' });
+    S.maOffers = o; S.maWeek = S.week; return o;
+  }
+  function buyCo(o) {
+    pay(o.price); mxpAdd(60);
+    if (o.t === 'chain') o.areas.forEach(function (k) { var b = openBranch(k, true, ((AREAFIT[k] || {}).g || ['relax'])[0]); b.sponsor = false; b.rep = 45; });
+    if (o.t === 'biz') { S.biz = (S.biz || []).concat([{ n: o.n, profit: o.profit }]); S.rep = clamp(S.rep + 3, 0, 100); }
+    if (o.t === 'cosme') S.cosme = true;
+    S.maOffers = S.maOffers.filter(function (x) { return x !== o; });
+    showCut({ kicker: 'M&A', title: o.n + 'を買収', sub: o.t === 'chain' ? o.areas.length + '店舗が仲間に加わった' : o.t === 'biz' ? '新しいサービスが加わった' : '仕入れが安くなった', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, function () { stratView(o.n + 'を買収した。'); });
+  }
   function eshopMonth() {
     var P = snsFix(), k = deptN('online'), n = Math.round((P.f * 0.0006 + S.rep * 0.03) * (0.7 + P.mix.ig) * (S.snsProd === S.week ? 1.5 : 1) * (1 + 0.5 * k) * (0.7 + rnd() * 0.6));
     return sellOnline(n, false, k ? 0.95 : 0.9);
@@ -4492,8 +4563,9 @@
     var got = [], cost = 0;
     prods().forEach(function (p) {
       var n = ((S.autoStock || {})[p.k] || 0) - S.stock[p.k];
-      if (n > 0 && S.cash < n * p.cost) n = Math.max(0, Math.floor(S.cash / p.cost));
-      if (n > 0) { S.cash -= n * p.cost; S.total.cost += n * p.cost; S.stock[p.k] += n; cost += n * p.cost; got.push(p.n + '×' + n); }
+      var pc = costOf(p);
+      if (n > 0 && S.cash < n * pc) n = Math.max(0, Math.floor(S.cash / pc));
+      if (n > 0) { S.cash -= n * pc; S.total.cost += n * pc; S.stock[p.k] += n; cost += n * pc; got.push(p.n + '×' + n); }
     });
     if (got.length) S.news.push({ t: '自動補充：' + got.join('、') + '（' + yen(cost) + '）' });
   }
@@ -4837,8 +4909,9 @@
       S.wk.cost = RENT + S.wk.wage + S.wk.inc + S.wk.base.cost + S.wk.adCost + S.wk.hqCost + S.wk.loan.interest;
       S.cash -= S.wk.cost;
       S.wk.roy = S.royalty || 0; S.cash += S.wk.roy;
+      stratMonth();
       S.wk.eshop = S.eshop ? eshopMonth() : null;
-      S.wk.sales = S.wk.trial + S.wk.course + S.wk.prod + S.wk.opt + S.wk.fee + S.wk.roy + (S.wk.extra || 0) + S.wk.base.sales;
+      S.wk.sales = S.wk.trial + S.wk.course + S.wk.prod + S.wk.opt + S.wk.fee + S.wk.roy + (S.wk.fcRoy || 0) + (S.wk.biz || 0) + (S.wk.extra || 0) + S.wk.base.sales;
       S.total.sales += S.wk.sales - S.wk.refund; S.total.cost += S.wk.cost;
       if (hasTier('world') || hasTier('resort')) S.fx = clamp(Math.round(((S.fx || 1) + (1 - (S.fx || 1)) * 0.15 + (rnd() - 0.5) * 0.08) * 100) / 100, 0.75, 1.35);
       S.wk.branch = S.shops.map(simBranch);
@@ -4869,6 +4942,7 @@
         if (S.taxPlan.left <= 0 || S.taxPlan.rest <= 0) S.taxPlan = null; }
       if (monthOf() === 3) {
         var tprof = Math.max(0, Math.round(S.yrNet));
+        S.lastProfit = tprof;
         if (tprof > 0) S.taxDue = { y: yearOf(), profit: tprof };
         else S.wk.taxNote = { t: yearOf() + '年目は赤字だったので、税金はかからなかった。' };
         S.yrNet = 0;
@@ -4893,6 +4967,8 @@
       '<dt>物販</dt><dd>' + yen(w.prod) + '</dd>' + (w.online ? '<dt>　うちオンライン</dt><dd>' + yen(w.online) + '</dd>' : '') + '<dt>オプション</dt><dd>' + yen(w.opt) + '</dd>' +
       (w.fee ? '<dt>会費（4か月ごと）</dt><dd>' + yen(w.fee) + '</dd>' : '') +
       (w.roy ? '<dt>のれん分けの売上の一部</dt><dd>' + yen(w.roy) + '</dd>' : '') +
+      (w.fcRoy ? '<dt>フランチャイズ（加盟金・ロイヤリティ）</dt><dd>' + yen(w.fcRoy) + '</dd>' : '') +
+      (w.biz ? '<dt>買収した事業の利益</dt><dd>' + yen(w.biz) + '</dd>' : '') +
       (w.extra ? '<dt>賞金など</dt><dd>' + yen(w.extra) + '</dd>' : '') +
       (w.refund ? '<dt>解約の返金</dt><dd class="minus">' + yen(-w.refund) + '</dd>' : '') +
       '<dt>家賃・固定費</dt><dd class="minus">' + yen(-RENT) + '</dd>' +
@@ -4945,6 +5021,8 @@
     var fee = Math.max(50000, Math.round(tax * 0.08 / 1000) * 1000), taxP = Math.round(taxOf(p - fee) * 0.85 / 1000) * 1000;
     var finish = function (paid, note) {
       S.taxDue = null; S.taxPaid = (S.taxPaid || 0) + paid;
+      if (S.ipo) { var prevP = S.ipo.lastP || 0; S.ipo.val = Math.round(Math.max(p, 1e7) * 15 * (0.6 + S.rep / 250) / 1e6) * 1e6; S.ipo.lastP = p;
+        if (prevP && p < prevP) { hum(-3); note += '<br>減益で、株主総会で厳しい質問が相次いだ（人間力−3）。'; } else note += '<br>株主総会は和やかに終わった。時価総額 ' + yen(S.ipo.val) + '。'; }
       if (S.vc) { var div = Math.max(0, Math.round((p - paid) * S.vc.share / 1000) * 1000); if (div) { pay(div); note += '<br>ベンチャーキャピタルに配当' + yen(div) + 'を払った。'; }
         if (yearOf() >= 2 && S.shops.length < yearOf() - 1) { hum(-2); note += '<br>ベンチャーキャピタルから「もっと店舗を増やしてほしい」と催促された（人間力−2）。'; } }
       S.wk.taxNote = { bad: true, t: note }; SFX.coin(); investView(); };
@@ -4970,6 +5048,7 @@
       S.wk.yearCut = null; S.wk.achGot = [];
       return showCuts(cs, investView);
     }
+    if (S.wk && S.wk.ipoCut) { S.wk.ipoCut = false; return showCut({ kicker: S.company || '上場', title: '株式上場', sub: '時価総額 ' + yen(S.ipo.val), icon: 'crown', c1: '#F2C230', c2: '#E8A93A', sound: function () { SFX.fanfare(true); } }, investView); }
     if (S.taxDue) return taxView();
     if (!S.hq && S.shops.length >= 2 && S.week >= (S.hqLater || 0)) return presidentView();
     var home = S.hq ? 'hq' : null; if (scene.shop !== home) { scene.shop = home; setScene('idle'); }
@@ -4983,6 +5062,7 @@
     if ((S.wk.stLife || []).length) h += '<details class="fold"' + (S.wk.stLife.some(function (x) { return !x.good; }) ? ' open' : '') + '><summary>スタッフの近況（' + S.wk.stLife.length + '）</summary>' + S.wk.stLife.map(function (x) { return '<div class="news' + (x.good ? ' good' : ' bad') + '">' + x.t + '</div>'; }).join('') + '</details>';
     if ((S.wk.incList || []).length) h += '<div class="news good">インセンティブ（コースと商品の売上に応じて）：' + S.wk.incList.join('、') + '</div>';
     if (S.wk.loan && (S.wk.loan.principal || S.wk.loan.notes.length)) h += '<div class="news">借入金の返済（元金）' + yen(S.wk.loan.principal) + '。残り ' + yen(loanRest()) + (S.wk.loan.notes.length ? '<br>' + S.wk.loan.notes.join('<br>') : '') + '</div>';
+    if ((S.wk.stratNote || []).length) h += S.wk.stratNote.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
     if ((S.wk.hqNote || []).length) h += '<div class="news good">本社：' + S.wk.hqNote.join('<br>') + '</div>';
     if (S.wk.levy) h += '<div class="news bad">障害者雇用が足りず、納付金' + yen(S.wk.levy) + 'を払った。本社で採用できる。</div>';
     if (S.wk.taxNote) h += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
@@ -5006,6 +5086,7 @@
         off: !roomAny() || S.cash < HIRE, go: hireView }
     ];
     opts.push({ label: '料金の方針：' + pm().n, sub: pm().d, go: priceView });
+    if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店　' : '') + '会社を大きくする', go: function () { stratView(); } });
     opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); } });
     opts.push({ label: '広告：' + ADLV[S.adLv || 0].n, sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView });
     if (S.hq) opts.unshift({ label: '本社（' + HQLV[S.hq.lv - 1].n + '）', sub: '部署・本社のスタッフ・障害者雇用・本社の移転・本店の店長', go: function () { hqView(); } });
@@ -5035,7 +5116,7 @@
     opts.forEach(function (o) {
       var l = o.label;
       if (/研修|採用|スタッフと過ごす/.test(l)) CAT.staff.push(o);
-      else if (/仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|本社|資金調達/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
+      else if (/仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|本社|資金調達|経営戦略/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
       else CAT.other.push(o);
     });
     var TITLES = { staff: 'スタッフ', shop: 'お店づくり', other: '発信・記録・そのほか' };
