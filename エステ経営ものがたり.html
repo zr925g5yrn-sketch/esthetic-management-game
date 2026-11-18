@@ -115,6 +115,7 @@
   .stk-auto span { flex: 1; }
   .stk-auto button { flex: none; width: 44px; height: 36px; margin: 0; padding: 0; text-align: center; font-size: 1.1rem; box-shadow: 2px 2px 0 var(--ink); }
   .stk-auto b { min-width: 4.5em; text-align: center; }
+  .prof { margin: 8px 0; padding: 8px 10px; font-size: .82rem; line-height: 1.6; background: var(--chip); border-left: 4px solid var(--gold); }
   .karte .first { margin-top: 6px; padding: 4px 8px; font-size: .8rem; line-height: 1.5; color: var(--ink); background: var(--chip); border-left: 4px solid var(--accent); }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
@@ -3372,7 +3373,7 @@
       if (cafe) { for (y = 4; y < 40; y += 6) for (x = (y / 6 % 2) * 6; x < SW; x += 12) R(x, y, 11, 5, night2 ? '#4A3444' : '#E8CCB4'); R(46, 2, 1, 10, '#2B2238'); disc(46, 14, 3, '#F2C230'); g.globalAlpha = 0.18; disc(46, 26, 16, '#FFE08A'); g.globalAlpha = 1; }
       else { R(8, 8, 30, 20, '#FFFFFF'); R(10, 10, 26, 16, '#E8F0F8'); R(96, 10, 22, 30, '#B8866A'); }
       table(38, 52, 52); cup(48, 48); cup(76, 48); if (night2) { R(62, 44, 2, 8, '#FFFFFF'); R(62, 42, 2, 2, reduce || Math.floor(now / 250) % 2 ? '#FFB040' : '#FFE08A'); }
-      var who = k === 'v_date' ? partner : (S && S.evStaff ? staffLook(S.evStaff) : (k === 'v_cafe' ? guest(4) : tm(0)));
+      var who = scene.story.looks && scene.story.looks[0] ? scene.story.looks[0] : k === 'v_date' ? partner : (S && S.evStaff ? staffLook(S.evStaff) : (k === 'v_cafe' ? guest(4) : tm(0)));
       big(k === 'v_talk' ? meU : meC, 16, 30, 2, { face: 'smile' }); big(who, 92, 30, 2, { face: k === 'v_talk' ? 'trouble' : 'smile' });
       if (k === 'v_date') { floaty('heart', 56, 30, now, 0, 1); floaty('heart', 70, 26, now, 0.7, 1); }
       else { var tk = Math.floor(now / 1400) % 2; bigBubble(tk ? 74 : 34, 10, 1, now, k === 'v_talk' ? (tk ? 'sweat' : 'q') : 'note'); }
@@ -4792,6 +4793,7 @@
     r.inv = 0;
     if (A.peak) { var hi = A.peak.indexOf(monthOf()) >= 0; r.season = hi ? 'ハイシーズン' : 'オフシーズン'; r.sales = Math.round(r.sales * (hi ? 1.45 : 0.75)); }
     if (A.tier === 'world' || A.tier === 'resort') { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
+    mgrEffect(b, r);
     r.net = r.sales - r.refund - r.cost;
     if (b.investor && S.week <= b.investor.until && r.net > 0) { r.inv = Math.round(r.net * b.investor.pct / 1000) * 1000; r.cost += r.inv; r.net -= r.inv; }
     if (b.investor && S.week === b.investor.until) { S.wk.stratNote = (S.wk.stratNote || []).concat([{ t: b.name + 'の、' + b.investor.name + 'への利益の支払いが終わった。これからは利益がまるごと入る。' }]); }
@@ -5426,7 +5428,7 @@
   }
   function startDev(plus, cost) {
     var cat = $('dvCat').value, name = clean($('dvName').value) || 'オリジナル' + DEVCAT[cat].n;
-    pay(cost); S.dev = { name: name, cat: cat, left: 2, plus: plus }; SFX.hire(); investView();
+    pay(cost); S.dev = { name: name, cat: cat, left: 2, plus: plus + (S.devHelp ? 1 : 0) }; S.devHelp = 0; SFX.hire(); investView();
   }
   // 開発中の商品を1か月進める。完成したら商品を返す
   function devTick() {
@@ -5614,10 +5616,9 @@
     return gone.map(function (st) { return st.name; });
   }
   function talkLine(st) {
-    if (st.mot >= 75) return '「毎日が楽しいです！ お客様の笑顔を見るのが好きで」';
-    if (st.mot >= 45) return '「がんばります。今月もよろしくお願いします」';
-    if (st.mot >= 25) return '「…ちょっと疲れがたまってるかもしれません」';
-    return '「……」（目を合わせてくれない）';
+    var m = st.mot || 60;
+    if (m >= 45 && (S.week + hashOf(st.id)) % 3 === 0) return '「この前のお休み、' + profOf(st).hobby + 'で気分転換してきました」';
+    return '「' + sayOf(st, m >= 75 ? 'hi' : m >= 45 ? 'mid' : m >= 25 ? 'low' : 'vlow') + '」';
   }
   function careView() {
     bar();
@@ -5657,6 +5658,8 @@
       return function () { if (cost) pay(cost); moodUp(st, m, t); if (extra) extra(); if (m) st.careWeek = S.week; else st.talkWeek = S.week; SFX.good(); careStaff(st, msg); };
     };
     view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + careStaffInfo(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
+      '<div class="prof">気質：' + TEMPER[temperOf(st)].n + '　口ぐせ「' + KUSE[temperOf(st)] + '」<br>趣味：' + profOf(st).hobby + '　好きな食べ物：' + profOf(st).food + '<br>夢：' + ((st.epi || 0) >= 1 ? DREAMS[profOf(st).dream] : '？（もっと仲良くなると話してくれる）') +
+        (relText(st) ? '<br>' + relText(st) : '') + '<br>' + aptText(st) + '</div>' +
       '<div class="talk"><div class="say you">' + talkLine(st) + '</div></div>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       [{ label: 'ご飯に誘う　' + yen(8000), sub: 'やる気+15' + (used ? '　（やる気は今月もう上げた）' : ''), off: used || S.cash < 8000,
          go: act(8000, 15, 0, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。']), function () { dinnerScene([st]); }) },
@@ -5666,7 +5669,8 @@
          go: act(20000, 25, 0, '「えっ、いいんですか！ がんばります！」') },
        { label: '来月は休みをあげる', sub: 'やる気+20。来月は接客しない', off: used,
          go: act(0, 20, 0, '「ありがとうございます、リフレッシュしてきます」', function () { st.restWeek = S.week + 1; }) },
-       promoOpt(st),
+       (function () { var e = epiNext(st); return e ? { label: '話を聞く（' + st.name + 'の物語 ' + (e.n + 1) + '／3）', sub: e.ok ? '信頼が深まったので、打ち明け話をしてくれそう' : '信頼' + e.need + 'で話してくれる（いま' + Math.round(st.trust || 0) + '）', off: !e.ok, go: function () { epiView(st); } } : null; })(),
+       promoOpt(st), mgrOpt(st),
        { label: '別の店舗に移す', sub: 'いまの店との相性：' + fitMark(shopFit(st, shopOf(st))) + (S.shops.length ? '' : '（店舗が1つだけなので移せない）'), off: !S.shops.length, go: function () { moveView(st); } },
        hurt(st) ? { label: '病院に通わせる　' + yen(30000), sub: '手の痛み（腱鞘炎）が早く治る。あと' + (st.hurtUntil - S.week) + 'か月', off: S.cash < 30000 || st.cureWeek === S.week,
          go: function () { pay(30000); st.cureWeek = S.week; st.hurtUntil = Math.max(S.week, st.hurtUntil - 2); moodUp(st, 5, 5); SFX.good(); careStaff(st, st.name + 'を病院に通わせた。痛みがだいぶ楽になったようだ。'); } } : null,
@@ -5771,6 +5775,8 @@
       else S.fatigue = clamp(Math.round(S.fatigue + (6 + ow.used * 5) * (1.25 - S.stamina / 200)), 0, 100);
       S.stamina = clamp(S.stamina - 1, 0, 100);
       S.wk.left = staffWeek();
+      S.wk.relNote = relMonth();
+      S.wk.mgrNotes = (S.wk.branch || []).filter(function (r) { return r.mgr; }).map(function (r) { return r.name + '（店長：' + r.mgr.name + ' ' + starsTxt(r.mgr.stars) + '）…' + r.mgr.note; });
       spAuto();
       godAuto();
       var allNet = S.wk.sales - S.wk.refund - S.wk.cost + S.wk.branch.reduce(function (a, r) { return a + r.net; }, 0) + (S.wk.ph ? S.wk.ph.net : 0);
@@ -5910,6 +5916,8 @@
     if ((S.wk.incList || []).length) h += '<div class="news good">インセンティブ（コースと商品の売上に応じて）：' + S.wk.incList.join('、') + '</div>';
     if (S.wk.loan && (S.wk.loan.principal || S.wk.loan.notes.length)) h += '<div class="news">借入金の返済（元金）' + yen(S.wk.loan.principal) + '。残り ' + yen(loanRest()) + (S.wk.loan.notes.length ? '<br>' + S.wk.loan.notes.join('<br>') : '') + '</div>';
     if ((S.wk.stratNote || []).length) h += S.wk.stratNote.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
+    if ((S.wk.mgrNotes || []).length) h += '<div class="news">店長の采配：<br>' + S.wk.mgrNotes.join('<br>') + '</div>';
+    if ((S.wk.relNote || []).length) h += '<div class="news good">' + S.wk.relNote.join('<br>') + '</div>';
     if ((S.wk.hqNote || []).length) h += '<div class="news good">本社：' + S.wk.hqNote.join('<br>') + '</div>';
     if (S.wk.levy) h += '<div class="news bad">障害者雇用が足りず、納付金' + yen(S.wk.levy) + 'を払った。本社で採用できる。</div>';
     if (S.wk.taxNote) h += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
@@ -5995,11 +6003,11 @@
       reps: [{ t: 'うれしいです！ 来月のご予約、お取りしましょうか？', fx: 'book', res: 'ぜひお願いします！ 楽しみにしています。' }, { t: '（ありがとうのスタンプ）', fx: 'loy', res: '（にっこりのスタンプ）' }] }); }
     var low = crew.filter(function (st) { return (st.mot || 60) < 45; });
     if (low.length) { var st = pick(low); C2.push({ kind: 'staffLow', from: st.name, sid: st.id, w: 4,
-      lines: [{ t: '店長、少しお時間いいですか…。' }, { t: pick(['最近ちょっと自信がなくなってきて。', 'お客様にうまく提案できなくて、落ちこんでいます。', '少し疲れがたまっているみたいで…。']) }],
+      lines: [{ t: '店長、少しお時間いいですか…。' }, { t: sayOf(st, 'low') + '。' }],
       reps: [{ t: 'いつもありがとう。明日ゆっくり話そう。', fx: 'moodBig', res: 'ありがとうございます。少し気が楽になりました。' }, { t: '大丈夫！ 一緒にがんばろう！', fx: 'moodSmall', res: '…はい、がんばります。' }] }); }
     var high = crew.filter(function (st) { return (st.mot || 60) >= 70; });
     if (high.length) { var sh = pick(high); C2.push({ kind: 'staffHigh', from: sh.name, sid: sh.id, w: 2,
-      lines: [{ t: pick(['店長！ 今日のお客様に「また指名したい」って言われました！', '新しい手技、練習してだいぶ上手くなりました！', 'お客様からお手紙をいただきました！']) }],
+      lines: [{ t: pick(['店長！ 今日のお客様に「また指名したい」って言われました！', '新しい手技、練習してだいぶ上手くなりました！', 'お客様からお手紙をいただきました！']) }, { t: sayOf(sh, 'hi') }],
       reps: [{ t: 'すごい！ さすがだね。', fx: 'moodMid', res: 'えへへ、もっとがんばります！' }, { t: '（拍手のスタンプ）', fx: 'moodSmall', res: '（ハートのスタンプ）' }] }); }
     if (crew.length >= 2) { var a = crew[0], b = crew[1], cost = 3000 * crew.length; C2.push({ kind: 'group', from: 'サロンのみんな（' + (crew.length + 1) + '人）', w: 2,
       lines: [{ who: a.name, t: '今月もおつかれさまでした！' }, { who: b.name, t: '打ち上げ、行きたいです〜！' }],
@@ -6345,6 +6353,134 @@
       else { var h = 0, s = String(st.id); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973; st.temper = Object.keys(TEMPER)[h % 5]; }
     }
     return st.temper;
+  }
+  /* --- スタッフの個性：プロフィール、話し方、物語、相性、店長の適性 --- */
+  function hashOf(x) { var h = 0, s2 = String(x); for (var i = 0; i < s2.length; i++) h = (h * 31 + s2.charCodeAt(i)) % 99991; return h; }
+  var HOBBY = ['カフェめぐり', 'ヨガ', '映画を観ること', '料理', '推し活', 'キャンプ', '読書', 'ネイル', 'ランニング', 'ゲーム', '旅行', 'ピアノ', '植物を育てること', '写真'];
+  var FOOD = ['いちご', 'ラーメン', 'パンケーキ', '焼き肉', 'チョコレート', 'お寿司', 'カレー', 'タピオカ', '餃子', 'グラタン', 'おにぎり', 'チーズケーキ'];
+  var DREAMS = {
+    own: '自分のお店を持つこと', master: '技術を極めて、指名No.1になること', family: '家族を楽にさせてあげること',
+    world: '海外のスパで働くこと', teach: '後輩を育てられる人になること', cosme: '自分で考えた化粧品を作ること'
+  };
+  var KUSE = { sunao: 'がんばります！', makezu: '負けませんよ！', sensai: '…大丈夫でしょうか', mypace: 'まあ、なんとかなりますよ', shokunin: '手で覚えるのが一番です' };
+  function profOf(st) {
+    if (!st.prof) { var h = hashOf(st.id + 'p'), dk = Object.keys(DREAMS); st.prof = { hobby: HOBBY[h % HOBBY.length], food: FOOD[Math.floor(h / 7) % FOOD.length], dream: dk[Math.floor(h / 97) % dk.length] }; }
+    return st.prof;
+  }
+  // 気質ごとの話し方（やる気の高さで変わる）
+  var SAYT = {
+    sunao:    { hi: '店長のおかげで、毎日楽しいです！', mid: '今月もがんばります！', low: 'ちょっと疲れちゃったかも…でも大丈夫です', vlow: '……すみません、少し元気が出なくて' },
+    makezu:   { hi: '次は指名数で1位を取りますよ！', mid: 'まだまだ、こんなもんじゃないです', low: '…悔しいけど、最近うまくいかなくて', vlow: 'もう、何をやってもダメな気がして' },
+    sensai:   { hi: 'お客様に喜んでもらえて…うれしいです', mid: '…私で、大丈夫でしょうか', low: '最近、ちょっと眠れなくて…', vlow: '……（目を合わせてくれない）' },
+    mypace:   { hi: 'この仕事、天職かもしれないです', mid: 'まあ、なんとかなりますよ', low: 'ちょっとペースを落としたいかも', vlow: '……しばらく、ひとりにしてほしいです' },
+    shokunin: { hi: '新しい手技、だいぶ手になじんできました', mid: '手で覚えるのが一番です', low: '最近、手が思うように動かなくて', vlow: '……もう、向いてないのかも' }
+  };
+  function sayOf(st, lv) { return (SAYT[temperOf(st)] || SAYT.sunao)[lv]; }
+  // 相性：組み合わせごとに決まる（仲良し・ライバル）
+  function relOf(a, b) { if (!a || !b || a === b || a.owner || b.owner) return null; var ids = [String(a.id), String(b.id)].sort(), h = hashOf(ids.join('|')) % 9; return h <= 1 ? 'pal' : h === 2 ? 'rival' : null; }
+  function mates(st) { var sh = shopOf(st); return (sh ? sh.staff : S.staff).filter(function (x) { return x !== st && !x.owner; }); }
+  function relText(st) {
+    var m = mates(st), p = m.filter(function (x) { return relOf(st, x) === 'pal'; }), r = m.filter(function (x) { return relOf(st, x) === 'rival'; });
+    return (p.length ? '仲良し：' + p.map(function (x) { return x.name; }).join('・') : '') + (p.length && r.length ? '　' : '') + (r.length ? 'ライバル：' + r.map(function (x) { return x.name; }).join('・') : '');
+  }
+  function relMonth() {
+    var groups = [S.staff].concat(S.shops.map(function (b) { return b.staff; })), notes = [];
+    groups.forEach(function (gp) {
+      var m = gp.filter(function (x) { return !x.owner; });
+      for (var i = 0; i < m.length; i++) for (var j = i + 1; j < m.length; j++) {
+        var r = relOf(m[i], m[j]);
+        if (r === 'pal') { moodUp(m[i], 2, 1); moodUp(m[j], 2, 1); if (roll(0.15)) notes.push(m[i].name + 'と' + m[j].name + 'は仲良し。休憩室から笑い声が聞こえる。'); }
+        if (r === 'rival') { expAdd(m[i], 2); expAdd(m[j], 2); moodUp(m[i], -1, 0); moodUp(m[j], -1, 0); if (roll(0.15)) notes.push(m[i].name + 'と' + m[j].name + 'はライバル同士。張り合って、腕を磨いている。'); }
+      }
+    });
+    return notes.slice(0, 2);
+  }
+  // 店長の適性（★1〜5）と、その理由
+  var MGRTYPE = {
+    shokunin: { n: '職人タイプ', d: '施術の満足度と評判が上がる' }, makezu: { n: '攻めのタイプ', d: '売上が伸びるが、スタッフが疲れやすい' },
+    sunao: { n: 'まとめ役タイプ', d: 'スタッフのやる気が安定する' }, sensai: { n: '気配りタイプ', d: '常連さんが離れにくく、よく通ってくれる' },
+    mypace: { n: 'のびのびタイプ', d: 'スタッフがよく育つ' }
+  };
+  function aptOf(st) {
+    var tr = st.trust || 0, mo = S.week - (st.hired || 0), sc = tr / 20 + Math.min(mo, 24) / 6 + (st.leader ? 1.5 : 0) + Math.max(0, (st.tech || 2) + (st.talk || 2) - 3) / 1.5 + (st.aptB || 0) * 1.5 + (st.trait === 'vet' ? 1 : 0) - (st.trait === 'rookie' ? 2 : 0);
+    var why = [];
+    if (tr >= 60) why.push('信頼が厚い'); else if (tr < 25) why.push('信頼がまだ浅い');
+    if (mo >= 12) why.push('経験が長い'); else if (mo < 6) why.push('入社して間もない');
+    if (st.leader) why.push('リーダーを任されている');
+    if ((st.talk || 0) >= 4) why.push('接客が上手い'); if ((st.tech || 0) >= 4) why.push('技術が高い');
+    if (st.aptB) why.push('本人が店長を目指している'); if (st.trait === 'rookie') why.push('まだ新人');
+    return { stars: clamp(Math.round(sc / 2.4) + 1, 1, 5), why: why };
+  }
+  function starsTxt(n) { return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n); }
+  function aptText(st) { var a = aptOf(st), T = MGRTYPE[temperOf(st)]; return '店長適性 ' + starsTxt(a.stars) + (a.why.length ? '（' + a.why.join('・') + '）' : '') + '<br>店長にすると：' + T.n + '（' + T.d + '）'; }
+  // 支店の店長の采配。月末の成績に効く
+  function mgrEffect(b, r) {
+    var mg = b.home ? null : b.staff[0];
+    if (!mg || mg.owner) return;
+    var A = aptOf(mg).stars, ty = temperOf(mg), mult = 1 + (A - 2.5) * 0.02, note;
+    if (ty === 'makezu') { mult += 0.03 + A * 0.01; b.staff.forEach(function (x) { if (x !== mg) moodUp(x, -2, 0); }); note = A >= 3 ? '売上目標を達成した（みんな少しお疲れ）' : '数字ばかり追って、少し空回りした'; }
+    if (ty === 'shokunin') { b.rep = clamp(b.rep + 0.4 * A, 0, 100); note = A >= 3 ? '施術の評判が上がった' : '技術はいいが、お店の切り盛りは手探り'; }
+    if (ty === 'sunao') { b.staff.forEach(function (x) { moodUp(x, 1 + Math.floor(A / 2), 0); }); note = A >= 3 ? 'チームの雰囲気がとてもいい' : 'みんなと一緒に、少しずつ成長中'; }
+    if (ty === 'sensai') { r.sales += Math.round(b.regs.length * 1500 * A / 5); note = A >= 3 ? '常連さんがよく戻ってきた' : '細やかだが、トラブルのたびに落ちこみがち'; }
+    if (ty === 'mypace') { b.staff.forEach(function (x) { expAdd(x, A); }); note = A >= 3 ? 'スタッフがのびのび育っている' : 'のんびりしすぎて、少しゆるんでいる'; }
+    if (A <= 1) note = 'まだ店長に慣れておらず、少しバタついた';
+    r.sales = Math.round(r.sales * mult);
+    r.mgr = { name: mg.name, stars: A, note: note };
+  }
+  // スタッフの物語（信頼30・60・90で、1話ずつ）
+  var EPITH = [30, 60, 90];
+  var EPI = {
+    own: [[['st', 'じつは私、いつか自分のお店を持つのが夢なんです。'], ['me', 'そうなんだ。どんなお店？'], ['st', '小さくても、近所の人がふらっと寄れるお店がいいなって。']],
+      [['st', '開業の本を読んでみたんですけど…お金のこと、全然わからなくて。'], ['me', '最初はみんなそうだよ。私もそうだった。'], ['st', '店長も？ なんだか勇気が出ました。']],
+      [['st', '店長。もしいつか独立したいって言ったら…怒りますか？']], [['「応援するよ。その時はのれん分けしよう」', 'mood'], ['「まずはこの店で、店長を経験してみない？」', 'apt']]],
+    master: [[['st', '練習用のマネキン、家にも置いてるんです。'], ['me', 'すごいね。毎日練習してるの？'], ['st', 'はい。いつか指名No.1になりたくて。']],
+      [['st', '最近、手技がうまくいかなくて…。'], ['me', '焦らなくていいよ。手を見せて。'], ['st', '…店長の手、あったかいですね。もう少しがんばってみます。']],
+      [['st', '店長、私にもっと難しい技術を教えてください！']], [['「よし、とっておきを教えよう」', 'tech'], ['「まずはお客様の話を聞く力を磨こう」', 'talk']]],
+    family: [[['st', 'うち、弟と妹が3人いて。私が一番上なんです。'], ['me', 'しっかり者なんだね。'], ['st', 'えへへ。母が一人で育ててくれたので、早く楽にさせたくて。']],
+      [['st', 'この前、初めてのお給料で母にプレゼントを買いました。'], ['me', '喜んでくれた？'], ['st', '泣いてました。…私も、ちょっと泣きました。']],
+      [['st', 'もっと稼げるようになりたいんです。何をがんばればいいですか？']], [['「コースの提案を一緒に練習しよう」', 'talk'], ['「長く働けるように、体を大事にね」', 'mood']]],
+    world: [[['st', '学生のとき、バリ島のスパに行って感動したんです。'], ['me', 'どんなところが？'], ['st', '言葉が通じなくても、手で気持ちが伝わるんだって。']],
+      [['st', '英語の勉強、毎晩してるんですけど、なかなか覚えられなくて。'], ['me', '海外のお客様が来たら、一緒に接客してみよう。'], ['st', 'ほんとですか！ がんばります！']],
+      [['st', 'いつか、海外のお店で働いてみたいです。']], [['「海外に店を出したら、その時は任せるよ」', 'apt'], ['「その夢、全力で応援する」', 'gift']]],
+    teach: [[['st', '新人のころ、先輩にすごく助けてもらったんです。'], ['me', 'どんな先輩だったの？'], ['st', '失敗しても、絶対に怒らない人でした。']],
+      [['st', '後輩に教えるのって、難しいですね。伝わらなくて…。'], ['me', '伝わらないのは、あなたのせいじゃないよ。'], ['st', '…ありがとうございます。教え方、工夫してみます。']],
+      [['st', '私、いつかお店のみんなをまとめられる人になりたいです。']], [['「リーダーを目指してみよう」', 'apt'], ['「まずは自分の腕を磨こう」', 'tech']]],
+    cosme: [[['st', '休みの日に、手作りの化粧水を作ってるんです。'], ['me', 'へえ、すごい！'], ['st', '材料を選ぶのが楽しくて。']],
+      [['st', 'お客様に合う化粧品って、人それぞれなんですよね。'], ['me', 'よく見てるね。'], ['st', 'いつか、自分で考えた化粧品を作ってみたいんです。']],
+      [['st', 'お店のオリジナル商品、私も一緒に考えてもいいですか？']], [['「ぜひ！ 次の商品開発を手伝って」', 'dev'], ['「その目、接客にも活かそう」', 'talk']]]
+  };
+  var EPIFX = { mood: 'やる気+25、信頼+15', apt: '店長適性が上がった', tech: '技術の力が2つ上がった', talk: '接客の力が2つ上がった', gift: '伸びしろが★1つ増えた', dev: '次の商品開発の品質が上がりやすくなった' };
+  function epiNext(st) { var n = st.epi || 0; return n < 3 ? { n: n, need: EPITH[n], ok: (st.trust || 0) >= EPITH[n] } : null; }
+  function epiView(st) {
+    var e = epiNext(st); if (!e || !e.ok) return careStaff(st);
+    var E = EPI[profOf(st).dream], lines = E[e.n];
+    evScene(['v_cafe']); if (scene.story) scene.story.looks = [staffLook(st)];
+    bar();
+    var h = '<h1>' + st.name + 'の物語　' + (e.n + 1) + '／3</h1><div class="talk">' + lines.map(function (l) { return '<div class="say ' + (l[0] === 'me' ? 'me' : 'you') + '">' + (l[0] === 'me' ? '' : '<span class="who">' + st.name + '</span>') + l[1] + '</div>'; }).join('') + '</div>';
+    if (e.n < 2) return view(h, [{ main: true, label: 'うなずく', go: function () { st.epi = e.n + 1; moodUp(st, 5, 3); SFX.good(); careStaff(st, st.name + 'のことが、少しわかった気がする。'); } }]);
+    view(h, E[3].map(function (c) {
+      return { label: c[0], sub: EPIFX[c[1]], go: function () {
+        st.epi = 3; moodUp(st, 8, 5);
+        if (c[1] === 'mood') moodUp(st, 25, 15);
+        if (c[1] === 'apt') st.aptB = (st.aptB || 0) + 1;
+        if (c[1] === 'tech') { skUp(st, 'tech'); skUp(st, 'tech'); }
+        if (c[1] === 'talk') { skUp(st, 'talk'); skUp(st, 'talk'); }
+        if (c[1] === 'gift') { talentOf(st); st.gift = Math.min(5, (st.gift || 3) + 1); }
+        if (c[1] === 'dev') S.devHelp = 1;
+        SFX.fanfare(false); careStaff(st, st.name + '「ありがとうございます、店長！」（' + EPIFX[c[1]] + '）');
+      } };
+    }));
+  }
+  // 店長を任命・交代する
+  function mgrOpt(st) {
+    var sh = shopOf(st), r = roleOf(st);
+    if (r === 'mgr' || st.owner) return null;
+    if (sh) { var cur = sh.staff[0]; return { label: sh.name + 'の店長にする', sub: '店長適性 ' + starsTxt(aptOf(st).stars) + '・' + MGRTYPE[temperOf(st)].n + '　いまの店長：' + (cur ? cur.name + '（' + starsTxt(aptOf(cur).stars) + '）' : 'なし'), go: function () {
+      var old = sh.staff[0]; sh.staff.splice(sh.staff.indexOf(st), 1); sh.staff.unshift(st); st.leader = false; moodUp(st, 15, 5); if (old) moodUp(old, -8, -3); SFX.hire();
+      careStaff(st, st.name + 'を' + sh.name + 'の店長にした。「精いっぱい務めます！」'); } }; }
+    if (S.hq) return { label: '本店の店長にする', sub: '店長適性 ' + starsTxt(aptOf(st).stars) + '・' + MGRTYPE[temperOf(st)].n, go: function () {
+      S.mainMgr = st.id; st.leader = false; moodUp(st, 15, 5); SFX.hire(); careStaff(st, st.name + 'を本店の店長にした。'); } };
+    return null;
   }
   function tMark(v) { return v >= 40 ? '◎' : v >= 30 ? '○' : v >= 20 ? '△' : '×'; }
   // 研修で伸ばす余地がある人（神技・神対応の両方に届いた人は対象外）
