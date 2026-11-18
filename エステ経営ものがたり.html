@@ -352,8 +352,21 @@
     tropical: song(108, 'C5 E5 G5 - E5 - C5 - D5 F5 A5 - F5 - D5 - E5 G5 C6 - G5 - E5 - D5 - - - G4 - - - ' +
       'C5 E5 G5 - A5 - G5 - F5 - E5 - D5 - C5 - D5 E5 F5 - E5 - D5 - C5 - - - C5 - - -', ['C3', 'D3', 'C3', 'G2', 'C3', 'F2', 'G2', 'C3'], [0, -1, 7, -1, 0, -1, 7, -1], { dur: 0.7, hat: 1 })
   };
-  // 本店の内装で、営業中の曲の音色が変わる
-  var STYLEWAVE = { kind: 'triangle', logic: 'sine', hot: 'square', roman: 'triangle', steady: 'sine', chat: 'triangle', shrewd: 'sine', mypace: 'sine', lucky: 'square' };
+  // 小節ごとの和音の種類と、曲の編成のタイプ（lounge：ラウンジ、elegant：上品、active：元気、resort：南国、calm：静か）
+  var SONGQ = {
+    title: ['M7', 'm7', 'm7', 'M7', 'M7', 'm7', 'm7', '7'], story: ['M7', 'M7', 'm7', '7', 'M7', 'M7', '7', 'M7'],
+    treat: ['M7', 'M7', 'm7', 'm7', 'M7', 'M7', 'sus', '7'], night: ['m7', 'm7', 'M', 'M', 'M7', 'M7', '7', 'm7'],
+    relax: ['M7', 'm7', 'M7', '7', 'M7', 'sus', 'm7', 'M7'], skin: ['M7', 'm7', 'M7', '7', 'M7', 'M7', '7', 'M7'],
+    body: ['m7', 'm7', 'm7', 'm7', 'M7', 'M7', '7', '7'], luxe: ['m7', 'm7', '7', '7', 'M7', 'M7', '7', 'm7'],
+    casual: ['M', 'M', 'M', 'm', 'M', '7', 'M', 'M'], tropical: ['M', 'm', 'M', '7', 'M', 'M', '7', 'M']
+  };
+  var SONGSTYLE = { title: 'lounge', story: 'elegant', treat: 'calm', night: 'lounge', relax: 'lounge', skin: 'elegant', body: 'active', luxe: 'lounge', casual: 'active', tropical: 'resort' };
+  Object.keys(SONGQ).forEach(function (k) { SONGS[k].q = SONGQ[k]; SONGS[k].style = SONGSTYLE[k]; });
+  var QINT = { M7: [0, 4, 7, 11], m7: [0, 3, 7, 10], '7': [0, 4, 7, 10], M: [0, 4, 7, 12], m: [0, 3, 7, 12], sus: [0, 5, 7, 10] };
+  function chordOf(root, q) { var f = nf(root) * 2; return (QINT[q] || QINT.M7).map(function (iv) { return f * Math.pow(2, iv / 12); }); }
+  // 本店の内装で、営業中のメロディの楽器が変わる
+  var STYLELEAD = { kind: 'epiano', logic: 'piano', hot: 'pluck', roman: 'piano', steady: 'epiano', chat: 'epiano', shrewd: 'epiano', mypace: 'marimba', lucky: 'pluck' };
+  var SONGLEAD = { lounge: 'epiano', elegant: 'piano', active: 'pluck', resort: 'marimba', calm: 'bell' };
   function songKey() {
     if (scene.story) return 'story';
     if (!S) return 'title';
@@ -366,9 +379,68 @@
     if (S.wk && S.wk.closed) return 'night';
     return S.concept && SONGS[S.concept] ? S.concept : 'title';
   }
-  function songWave(key, SG) {
-    if (!S || scene.shop || !CONCEPTS[key]) return SG.wave;
-    return STYLEWAVE[S.style || S.persona] || SG.wave;
+  function songLead(key, SG) {
+    if (!S || scene.shop || !CONCEPTS[key]) return SONGLEAD[SG.style] || 'epiano';
+    return STYLELEAD[S.style || S.persona] || SONGLEAD[SG.style];
+  }
+  // 会社の成長度合い：1 開業したて、2 支店がある、3 社長（本社）、4 上場
+  function bgmStage() { if (!S) return 2; if (scene.story) return 2; return S.ipo ? 4 : S.hq ? 3 : S.shops.length ? 2 : 1; }
+  // ---- BGMの楽器（その場で合成）----
+  function bOut(node, wet) { node.connect(bgm.gain); if (wet && bgm.rev) { var w = AC.createGain(); w.gain.value = wet; node.connect(w); w.connect(bgm.rev); } }
+  function bEnv(gn, t, a, peak, d, sus, rel, end) { gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(peak, t + a); gn.gain.setTargetAtTime(peak * sus, t + a, d); gn.gain.setTargetAtTime(0.0001, end, rel); }
+  function bOsc(type, f, t, end, dest, gainV, detune) { var o = AC.createOscillator(), gg = AC.createGain(); o.type = type; o.frequency.value = f; if (detune) o.detune.value = detune; gg.gain.value = gainV; o.connect(gg); gg.connect(dest); o.start(t); o.stop(end); return o; }
+  var INST = {
+    epiano: function (f, t, dur, vol) { var gn = AC.createGain(); bEnv(gn, t, 0.006, vol, 0.35, 0.35, 0.25, t + dur); bOsc('sine', f, t, t + dur + 1.2, gn, 1); bOsc('sine', f * 2, t, t + dur + 1.2, gn, 0.3); bOsc('triangle', f * 3.01, t, t + dur + 1.2, gn, 0.06); bOut(gn, 0.45); },
+    piano: function (f, t, dur, vol) { var gn = AC.createGain(); bEnv(gn, t, 0.004, vol, 0.25, 0.25, 0.3, t + dur); bOsc('triangle', f, t, t + dur + 1.2, gn, 1); bOsc('sine', f * 2, t, t + dur + 1.2, gn, 0.4); bOsc('sine', f * 4, t, t + dur + 1.2, gn, 0.06); bOut(gn, 0.5); },
+    pluck: function (f, t, dur, vol) { var gn = AC.createGain(), lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(700, t + 0.25); bEnv(gn, t, 0.004, vol * 0.7, 0.12, 0.3, 0.1, t + dur); bOsc('square', f, t, t + dur + 0.6, lp, 0.6); bOsc('triangle', f, t, t + dur + 0.6, lp, 0.6, 7); lp.connect(gn); bOut(gn, 0.3); },
+    marimba: function (f, t, dur, vol) { var gn = AC.createGain(); bEnv(gn, t, 0.003, vol * 1.2, 0.09, 0.05, 0.08, t + Math.min(dur, 0.35)); bOsc('sine', f, t, t + 0.8, gn, 1); bOsc('sine', f * 4, t, t + 0.3, gn, 0.15); bOut(gn, 0.35); },
+    bell: function (f, t, dur, vol) { var gn = AC.createGain(); bEnv(gn, t, 0.005, vol, 0.6, 0.2, 0.5, t + dur); bOsc('sine', f, t, t + dur + 1.6, gn, 1); bOsc('sine', f * 2.76, t, t + dur + 1.6, gn, 0.18); bOut(gn, 0.7); }
+  };
+  function bPad(fs, t, dur, vol, cut) { var gn = AC.createGain(), lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cut || 900; bEnv(gn, t, 0.5, vol, 1, 0.8, 0.6, t + dur);
+    fs.forEach(function (f) { bOsc('sawtooth', f, t, t + dur + 2, lp, 1, -7); bOsc('sawtooth', f, t, t + dur + 2, lp, 1, 7); }); lp.connect(gn); bOut(gn, 0.7); }
+  function bStrings(fs, t, dur, vol) { var gn = AC.createGain(), lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; bEnv(gn, t, 0.9, vol, 1, 0.9, 0.9, t + dur);
+    var lfo = AC.createOscillator(), lg = AC.createGain(); lfo.frequency.value = 5.2; lg.gain.value = 6; lfo.connect(lg); lfo.start(t); lfo.stop(t + dur + 2.5);
+    fs.forEach(function (f) { [-10, 0, 10].forEach(function (c) { var o = bOsc('sawtooth', f, t, t + dur + 2.5, lp, 1, c); lg.connect(o.detune); }); }); lp.connect(gn); bOut(gn, 0.8); }
+  function bBass(f, t, dur, vol) { var gn = AC.createGain(); bEnv(gn, t, 0.01, vol, 0.25, 0.5, 0.08, t + dur); bOsc('sine', f, t, t + dur + 0.4, gn, 1); bOsc('triangle', f * 2, t, t + dur + 0.4, gn, 0.25); bOut(gn, 0.05); }
+  function bNoise(t, dur, type, freq, vol, wet) { var a = AC; if (!nbuf) noiseSrc(a); var sN = a.createBufferSource(), fl = a.createBiquadFilter(), gn = a.createGain(); sN.buffer = nbuf; fl.type = type; fl.frequency.value = freq;
+    gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur); sN.connect(fl); fl.connect(gn); bOut(gn, wet || 0); sN.start(t); sN.stop(t + dur + 0.05); }
+  function bKick(t, vol) { var o = AC.createOscillator(), gn = AC.createGain(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14); gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.3); o.connect(gn); bOut(gn, 0); o.start(t); o.stop(t + 0.32); }
+  // 1マス（8分音符）ぶんを鳴らす。場面の曲、内装の楽器、会社の成長で編成が変わる
+  function bgmStep(SG, key, i, t, d) {
+    var stg = bgmStage(), k = i % SG.lead.length, pos = k % 8, bar = Math.floor(k / 8) % SG.roots.length, tok = SG.lead[k], st = SG.style, lead = INST[songLead(key, SG)] || INST.epiano;
+    var ch = chordOf(SG.roots[bar], SG.q[bar]), root = nf(SG.roots[bar]);
+    if (tok !== '-') { var len = 1; while (SG.lead[(k + len) % SG.lead.length] === '-' && len < 6) len++; lead(nf(tok), t, d * len * 0.95, st === 'calm' ? 0.09 : 0.11); }
+    var b = SG.bass[pos]; if (b >= 0) bBass(root * Math.pow(2, b / 12), t, d * 1.5, st === 'calm' ? 0.14 : 0.2);
+    // 伴奏：開業したては軽く、成長すると和音やストリングスが加わる
+    if (pos === 0) {
+      if (stg === 1 && st !== 'active') ch.slice(1).forEach(function (f, j) { (st === 'elegant' ? INST.piano : INST.epiano)(f, t + j * 0.03, d * 3, 0.03); });
+      if (stg >= 2 || st === 'calm') { if (st === 'elegant') bStrings(ch, t, d * 8, 0.02); else bPad(ch, t, d * 8, st === 'calm' ? 0.03 : 0.035, stg >= 4 ? 1300 : 900); }
+      if (stg >= 4 && st !== 'calm') bStrings(ch.map(function (f) { return f * 2; }), t, d * 8, 0.016);
+    }
+    // リズム
+    if (st === 'active') { if (pos === 0 || pos === 4) bKick(t, 0.45); if (pos % 2) bNoise(t, 0.04, 'highpass', 8000, 0.04); if (stg >= 3 && (pos === 2 || pos === 6)) bNoise(t, 0.12, 'bandpass', 1500, 0.12, 0.2); }
+    else if (st === 'resort') { bNoise(t, 0.05, 'highpass', 6500, pos % 2 ? 0.04 : 0.025, 0.1); if (stg >= 3 && (pos === 0 || pos === 4)) bKick(t, 0.35); }
+    else if (st !== 'calm') {
+      if (stg >= 2 && pos % 2) bNoise(t, 0.05, 'highpass', 7500, 0.035, 0.1);
+      if (stg >= 3) { if (pos === 0 || pos === 5) bKick(t, 0.4); if (pos === 2 || pos === 6) bNoise(t, 0.22, 'bandpass', 1800, 0.1, 0.25); }
+    }
+    // 合いの手と、きらきらした分散和音
+    if (st !== 'calm' && stg >= 3 && pos === 7 && bar % 2 === 1) INST.bell(ch[ch.length - 1] * 2, t, 0.3, 0.04);
+    if (st !== 'calm' && stg >= 4 && pos % 2 === 1) INST.bell(ch[(pos >> 1) % ch.length] * 4, t, 0.15, 0.02);
+  }
+  // 大事な場面の短い曲（BGMがオンのときだけ）。鳴らせたら true
+  function bgmJingle(kind) {
+    if (!AC || !bgm.gain || soundMode !== 'all') return false;
+    var t = AC.currentTime + 0.05, J = {
+      sold: { n: ['C5', 'E5', 'G5', 'C6', 0, 'B5', 'C6'], c: [['C3', 'M7'], ['F3', 'M7']], dt: 0.13 },
+      ipo: { n: ['G4', 'C5', 'E5', 'G5', 'C6', 0, 'E6', 'D6', 'C6', 0, 'G5', 0, 'C6'], c: [['C3', 'M'], ['F3', 'M'], ['G3', 'M'], ['C3', 'M']], dt: 0.16 },
+      sad: { n: ['E5', 'D5', 'C5', 0, 'B4', 'A4', 0, 'G#4', 'A4'], c: [['A2', 'm7'], ['F2', 'M7'], ['E2', '7']], dt: 0.28 }
+    }[kind];
+    if (!J) return false;
+    J.n.forEach(function (n, i) { if (n) { INST.epiano(nf(n), t + i * J.dt, J.dt * 1.6, 0.13); if (kind !== 'sad') INST.bell(nf(n) * 2, t + i * J.dt, 0.15, 0.03); } });
+    J.c.forEach(function (c, i) { var fs = chordOf(c[0], c[1]); (kind === 'ipo' ? bStrings : bPad)(fs, t + i * J.dt * 4, J.dt * 4.2, kind === 'ipo' ? 0.03 : 0.04, 1200); bBass(nf(c[0]), t + i * J.dt * 4, J.dt * 3.5, 0.18); });
+    if (kind === 'ipo') [0, 2, 4, 6].forEach(function (i) { bKick(t + i * J.dt, 0.4); });
+    return true;
   }
   var bgm = { on: false, step: 0, next: 0, timer: null, gain: null, key: null };
   function bgmTick() {
@@ -378,17 +450,13 @@
       // 場面が変わったら、小節の頭で次の曲に切りかえる
       var want = songKey();
       if (want !== bgm.key && (!bgm.key || bgm.step % 8 === 0)) { bgm.key = want; bgm.step = 0; }
-      var SG = SONGS[bgm.key] || SONGS.title, d = 60 / SG.bpm / 2, wv = songWave(bgm.key, SG);
-      var i = bgm.step % SG.lead.length, tok = SG.lead[i], bar = Math.floor(i / 8) % SG.roots.length, b = SG.bass[i % 8];
-      var t = bgm.next - AC.currentTime;
-      if (tok !== '-') tone(nf(tok), 0, d * SG.dur, wv, wv === 'square' ? 0.05 : wv === 'sine' ? 0.13 : 0.1, t, bgm.gain);
-      if (b >= 0) tone(nf(SG.roots[bar]) * Math.pow(2, b / 12), 0, d * 1.5, 'sine', 0.16, t, bgm.gain);
-      if (SG.hat && i % SG.hat === SG.hat - 1) noise(0.03, { f: 8000, type: 'highpass', vol: 0.015, when: t, dest: bgm.gain });
+      var SG = SONGS[bgm.key] || SONGS.title, d = 60 / (SG.bpm + (bgmStage() >= 3 && SG.style !== 'calm' ? 4 : 0)) / 2;
+      bgmStep(SG, bgm.key, bgm.step, bgm.next, d);
       bgm.step++; bgm.next += d;
     }
   }
   // 音の部品を作り直したときは、BGMも最初からつなぎ直す
-  function bgmReset() { if (bgm.timer) clearInterval(bgm.timer); bgm.timer = null; bgm.gain = null; bgm.on = false; }
+  function bgmReset() { if (bgm.timer) clearInterval(bgm.timer); bgm.timer = null; bgm.gain = null; bgm.rev = null; bgm.on = false; }
   function bgmSync() {
     var want = soundMode === 'all' && !!AC;
     if (want && bgm.on && (!bgm.gain || !bgm.timer)) bgm.on = false;
@@ -398,6 +466,9 @@
     if (bgm.gain) { try { bgm.gain.gain.setTargetAtTime(0, AC.currentTime, 0.05); } catch (err) {} bgm.gain = null; }
     if (!want) return;
     bgm.gain = AC.createGain(); bgm.gain.gain.value = 0.5; bgm.gain.connect(master);
+    try { bgm.rev = AC.createConvolver(); var rl = Math.floor(AC.sampleRate * 2.4), rb = AC.createBuffer(2, rl, AC.sampleRate);
+      for (var rc = 0; rc < 2; rc++) { var rd = rb.getChannelData(rc); for (var ri = 0; ri < rl; ri++) rd[ri] = (Math.random() * 2 - 1) * Math.pow(1 - ri / rl, 2.6); }
+      bgm.rev.buffer = rb; var rg = AC.createGain(); rg.gain.value = 0.3; bgm.rev.connect(rg); rg.connect(bgm.gain); } catch (err) { bgm.rev = null; }
     bgm.step = 0; bgm.key = null; bgm.next = AC.currentTime + 0.1;
     bgm.timer = setInterval(bgmTick, 100);
     bgmTick();
@@ -3458,6 +3529,7 @@
     applySale(C, it);
     if (it.big && ((C.pushed && C.grd >= 45 && roll(0.35)) || (C.sat < 45 && roll(0.25)))) S.refunds.push({ c: C, n: it.n, price: priceOf(it) });
     C.bought = it;
+    if (it.big || it.member || it.royal) bgmJingle('sold');
     setScene('sold');
     if (!it.cost && inStock().length) return upsell();
     farewell('sold');
@@ -5129,7 +5201,8 @@
       S.wk.yearCut = null; S.wk.achGot = [];
       return showCuts(cs, investView);
     }
-    if (S.wk && S.wk.ipoCut) { S.wk.ipoCut = false; return showCut({ kicker: S.company || '上場', title: '株式上場', sub: '時価総額 ' + yen(S.ipo.val), icon: 'crown', c1: '#F2C230', c2: '#E8A93A', sound: function () { SFX.fanfare(true); } }, investView); }
+    if (S.wk && S.wk.ipoCut) { S.wk.ipoCut = false; return showCut({ kicker: S.company || '上場', title: '株式上場', sub: '時価総額 ' + yen(S.ipo.val), icon: 'crown', c1: '#F2C230', c2: '#E8A93A', sound: function () { if (!bgmJingle('ipo')) SFX.fanfare(true); } }, investView); }
+    if (S.wk && !S.wk.sadPlayed && (S.wk.quit || (S.wk.left || []).length)) { S.wk.sadPlayed = true; bgmJingle('sad'); }
     if (S.taxDue) return taxView();
     if (!S.hq && S.shops.length >= 2 && S.week >= (S.hqLater || 0)) return presidentView();
     var home = S.hq ? 'hq' : null; if (scene.shop !== home) { scene.shop = home; setScene('idle'); }
