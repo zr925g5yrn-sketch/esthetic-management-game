@@ -5025,7 +5025,7 @@
       ages: [20, 30, 30, 40], bud: 0.05, grd: 0, view: 1, gain: 1, buzz: 1, live: { s: 1.3, g: 1 } },
     tt: { n: 'dopaTK', who: '10〜20代が中心', d: 'いちばんバズりやすく、新規のお客様が増える。ただし予算は控えめ。伸びしろのある若い人から求人が集まる',
       ages: [20, 20, 20, 30], bud: -0.12, grd: 0, view: 1.5, gain: 1.2, buzz: 2, live: { s: 0.8, g: 1.6 } },
-    yt: { n: 'WeTV', who: '30〜50代が中心', d: '伸びはゆっくり。信頼されやすく、予算の高いお客様が来る。経験のある人から求人が集まる',
+    yt: { n: 'MYch', who: '30〜50代が中心', d: '伸びはゆっくり。信頼されやすく、予算の高いお客様が来る。経験のある人から求人が集まる',
       ages: [30, 40, 50, 60], bud: 0.15, grd: 8, view: 0.7, gain: 0.8, buzz: 0.6, live: { s: 1, g: 0.8, rich: true } }
   };
   function snsFix() {
@@ -6677,7 +6677,7 @@
     var sq2 = S && S.sns ? snsQ() : 0;
     if (tr === 'rookie' && roll(sq2)) tr = pick(['god', 'talk', 'heal', 'listen', 'vet']);
     for (var bn = Math.round(sq2 * 5 + rnd() * sq2 * 2); bn > 0; bn--) { var kk = pick(Object.keys(sk2)); sk2[kk] = Math.min(5, sk2[kk] + 1); }
-    // SNSの媒体で集まる人が変わる：dopaTKは伸びしろのある若い人、WeTVは経験者、baeglamは接客のセンスがある人
+    // SNSの媒体で集まる人が変わる：dopaTKは伸びしろのある若い人、MYchは経験者、baeglamは接客のセンスがある人
     var gift0 = pick([1, 2, 2, 3, 3, 3, 3, 4, 4, 5]), mx2 = S && S.sns && sq2 ? snsFix().mix : null, up = function (k) { sk2[k] = Math.min(5, sk2[k] + 1); };
     if (mx2) {
       if (roll(sq2 * mx2.tt * 1.5)) gift0 = Math.min(5, gift0 + 1);
