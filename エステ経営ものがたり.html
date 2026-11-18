@@ -2724,7 +2724,25 @@
         ['「このお店、あなたに任せたい」。母が鍵を渡してくれた。', 'mom3'], ['看板をかけかえて、新しいお店として開業する。', 'open']] },
     bali: { n: 'バリ島で修業', d: '南の島のスパで、アロマとハンドの技を磨いてきた。', bon: '技術+1、傾聴力+1', sk: { tech: 1, listen: 1 },
       p: [['思いきって、バリ島のスパに飛びこんだ。', 'bali1'], ['花とアロマに囲まれて、毎日ハンドの技を磨いた。', 'bali2'],
-        ['島の人たちのおもてなしに、何度も心を動かされた。', 'bali3'], ['帰国して、学んだすべてを自分のお店にこめる。', 'open']] }
+        ['島の人たちのおもてなしに、何度も心を動かされた。', 'bali3'], ['帰国して、学んだすべてを自分のお店にこめる。', 'open']] },
+    nurse: { n: '看護師からの転身', d: '病院で患者さんに寄りそううちに、「病気になる前に癒やす場所」をつくりたくなった。', sk: { emp: 1, care: 1 },
+      p: [['病院の看護師として、夜勤もこなす毎日だった。', 'nurse1'], ['患者さんの手をさすると、表情がふっとやわらいだ。', 'nurse2'],
+        ['「病気になる前に、心と体をほぐせる場所をつくりたい」', 'nurse3'], ['病院を卒業して、自分のお店を開くことにした。', 'open']] },
+    athlete: { n: '元アスリート', d: 'けがで引退したあと、体のケアに救われてボディケアの道へ。', sk: { tech: 1 }, hum: 3,
+      p: [['陸上の選手として、毎日記録と向き合っていた。', 'ath1'], ['けがで引退。支えてくれたのは、トレーナーの手だった。', 'ath2'],
+        ['今度は自分が、がんばる人の体を支えたい。', 'ath3'], ['勉強と練習を重ねて、自分のお店を開くことにした。', 'open']] },
+    cosme: { n: '百貨店の美容部員', d: '化粧品カウンターで働くうちに、肌そのものを育てたいと思うようになった。', sk: { know: 1, word: 1 },
+      p: [['百貨店の化粧品カウンターで、美容部員をしていた。', 'cos1'], ['「肌の悩みが消えない」と話すお客様に、何度も出会った。', 'cos2'],
+        ['化粧品で隠すより、肌そのものを育てたい。', 'cos3'], ['エステの道に進み、自分のお店を開くことにした。', 'open']] },
+    grandma: { n: '祖母のひと言', d: '「あんたの手はあったかいね」。おばあちゃんの言葉を胸に修業してきた。', rep: 3, hum: 5,
+      p: [['おばあちゃんの家に行くと、いつも肩をもんであげた。', 'gma1'], ['「あんたの手はあったかいね」。それが口ぐせだった。', 'gma2'],
+        ['その言葉を胸に、毎晩おそくまで修業を重ねた。', 'gma3'], ['あの言葉にこたえるために、自分のお店を開く。', 'open']] },
+    paris: { n: 'パリで修業', d: '本場のエステティックを学びに渡仏。言葉の壁を越えて資格を取った。', sk: { tech: 1, know: 1 }, cash: -50000, cashNote: '留学の費用',
+      p: [['本場のエステを学ぶため、思いきってパリへ渡った。', 'paris1'], ['言葉が通じず、ひとりで泣いた夜もあった。', 'paris2'],
+        ['それでも学び続けて、ついに資格を手にした。', 'paris3'], ['帰国して、パリで学んだすべてを自分のお店にこめる。', 'open']] },
+    crowd: { n: 'クラウドファンディング', d: '資金が足りず、夢を動画で発信したら全国から支援が集まった。', cash: 100000, fol: 150,
+      p: [['お店を開きたい。でも、資金がぜんぜん足りなかった。', 'cf1'], ['思いきって、夢を動画にしてネットで発信した。', 'cf2'],
+        ['全国から、たくさんの応援と支援が届いた。', 'cf3'], ['応援してくれた人たちのために、お店を開く。', 'open']] }
   };
   function applyOrigin(k) {
     var O = ORIGINS[k], o = S.staff[0];
@@ -2732,6 +2750,7 @@
     Object.keys(O.sk || {}).forEach(function (x) { o.sk[x] = Math.min(5, o.sk[x] + O.sk[x]); });
     skFix(o);
     S.rep = clamp(S.rep + (O.rep || 0), 0, 100); S.cash += O.cash || 0; S.hum += O.hum || 0;
+    if (O.fol) { addF('ig', Math.round(O.fol * 0.5)); addF('yt', Math.round(O.fol * 0.3)); addF('tt', O.fol - Math.round(O.fol * 0.5) - Math.round(O.fol * 0.3)); }
     S.origin = k;
   }
   function originView(h) {
@@ -2740,7 +2759,7 @@
     view('<h1>開業までの道のり</h1><p class="lead">' + h.name + 'さんは、どんな道を歩いてきた？</p>',
       Object.keys(ORIGINS).map(function (k) {
         var O = ORIGINS[k];
-        return { label: O.n, sub: O.d + '　' + O.bon, go: function () { storyPlay(h, k, 0); } };
+        return { label: O.n, sub: O.d, go: function () { storyPlay(h, k, 0); } };
       }).concat([{ label: 'おまかせで決める', sub: 'どれか1つを選んでもらう', go: function () { storyPlay(h, pick(Object.keys(ORIGINS)), 0); } },
         { label: '性格の結果にもどる', go: function () { heroResult(h, true); } }]));
   }
@@ -2749,10 +2768,29 @@
     scene.story = { pic: O.p[i][1], t0: performance.now() };
     if (i === 0) SFX.sparkle();
     bar();
-    var go = function () { scene.story = null; h.origin = k; clearGame(); newGame(h); };
+    var go = function () { originBonus(h, k); };
     view('<h1>' + O.n + '</h1><p class="lead">' + (i + 1) + '／' + O.p.length + '</p><div class="talk"><div class="say note">' + O.p[i][0] + '</div></div>',
-      [last ? { main: true, label: '開業の準備をはじめる', sub: O.bon, go: go } : { main: true, label: 'つぎへ', go: function () { storyPlay(h, k, i + 1); } }]
+      [last ? { main: true, label: 'つぎへ', go: go } : { main: true, label: 'つぎへ', go: function () { storyPlay(h, k, i + 1); } }]
         .concat(last ? [] : [{ label: 'ストーリーをとばす', go: go }]));
+  }
+  // ストーリーのあとに、これまでの経験で身についた力を発表する
+  function originGains(O) {
+    var L = Object.keys(O.sk || {}).map(function (x) { return skName(x) + ' +' + O.sk[x]; });
+    if (O.hum) L.push('人間力 +' + O.hum);
+    if (O.rep) L.push('評判 +' + O.rep);
+    if (O.cash > 0) L.push('元手 +' + yen(O.cash) + '（支援金）');
+    if (O.cash < 0) L.push('元手 −' + yen(-O.cash) + (O.cashNote ? '（' + O.cashNote + '）' : ''));
+    if (O.fol) L.push('SNSのフォロワー +' + O.fol);
+    return L;
+  }
+  function originBonus(h, k) {
+    var O = ORIGINS[k];
+    scene.story = { pic: 'open', t0: performance.now() };
+    SFX.fanfare(true);
+    bar();
+    view('<h1>' + O.n + '</h1><div class="event box"><span class="badge">けいけん</span><h2>これまでの経験が、力になった！</h2>' +
+      originGains(O).map(function (t) { return '<div class="news good"><b>' + t + '</b></div>'; }).join('') + '</div>',
+      [{ main: true, label: '開業の準備をはじめる', go: function () { scene.story = null; h.origin = k; clearGame(); newGame(h); } }]);
   }
   // ストーリーの1場面を描く（128×84）。動きを減らす設定では止まった絵になる
   // 本社の社長室。本社のグレードで内装が変わる（1：小さな事務所、2：オフィス、3：高層ビル、4：タワー最上階）
@@ -2935,6 +2973,141 @@
       big({ hair: me.hair, skin: me.skin, top: '#FFFFFF', bottom: '#C49A5A', style: 'bun', uniform: true }, 56, 30, 2, { arms: (Math.floor(t * 2) % 2) === 0, face: 'smile' });
       for (i = 0; i < 5; i++) flower(80 + (i * 9) % 30, 60 + (i * 5) % 6);
       fall(['#FFFFFF', '#F2C230', '#F7B5C8'], 12);
+    } else if (k === 'nurse1') {
+      R(0, 0, SW, SH, '#2C3354'); R(0, 58, SW, 26, '#5A6488'); R(0, 58, SW, 1, '#7A84A8');
+      R(14, 8, 30, 24, '#4A5478'); R(16, 10, 26, 20, '#1A1E3A'); R(34, 13, 6, 6, '#FFF4C0'); R(36, 13, 4, 4, '#1A1E3A');
+      for (i = 0; i < 4; i++) { g.globalAlpha = 0.25; R(56 + i * 18, 0, 8, 6, '#FFE08A'); g.globalAlpha = 1; R(58 + i * 18, 0, 4, 2, '#FFF4C0'); }
+      R(96, 20, 20, 38, '#8A94B8'); R(98, 22, 16, 34, '#A8B2D0'); R(110, 38, 2, 3, '#F2C230'); R(102, 14, 12, 5, '#E0567A'); R(107, 15, 2, 3, '#FFFFFF'); R(106, 16, 4, 1, '#FFFFFF');
+      big({ hair: me.hair, skin: me.skin, top: '#FFFFFF', bottom: '#FFFFFF', style: 'bun', uniform: true }, 52 + Math.round(reduce ? 0 : Math.sin(t * 1.4) * 6), 26, 2, { face: 'smile' });
+      R(48, 44, 8, 10, '#C8A57A'); R(49, 45, 6, 8, '#FFFFFF');
+      floaty('zz', 80, 26, now, 0, 1);
+    } else if (k === 'nurse2') {
+      R(0, 0, SW, SH, '#EAF2F4'); R(0, 60, SW, 24, '#C8D8DC'); R(0, 18, SW, 2, '#B8D0D6');
+      R(98, 6, 22, 16, '#FFFFFF'); R(100, 8, 18, 12, '#BFE3F5'); R(8, 4, 2, 44, '#9A93A8'); R(4, 4, 10, 8, '#FFFFFF'); R(6, 12, 6, 3, '#F7B5C8');
+      bed(18, 50, 70, '#BFD8E0');
+      lying(24, 50, guest(2));
+      big({ hair: me.hair, skin: me.skin, top: '#FFFFFF', bottom: '#FFFFFF', style: 'bun', uniform: true }, 84, 22, 2, { arms: true, face: 'smile' });
+      floaty('heart', 40, 34, now, 0, 1); floaty('heart', 62, 30, now, 0.8, 2);
+    } else if (k === 'nurse3') {
+      bands(['#BFE3F5', '#D2ECF8', '#E4F4FA', '#F2FAFC']);
+      R(0, 0, SW, 6, '#E4E0EC'); R(0, 64, SW, 20, '#D8D4E0');
+      R(70, 10, 48, 40, '#FFFFFF'); R(72, 12, 44, 36, '#9FD8F0'); R(93, 12, 2, 36, '#FFFFFF'); R(72, 38, 44, 10, '#9ED68A');
+      for (i = 0; i < 4; i++) R(76 + i * 10, 30 - (i % 2) * 4, 6, 8, '#6FB06A');
+      big({ hair: me.hair, skin: me.skin, top: '#FFFFFF', bottom: '#FFFFFF', style: 'bun', uniform: true }, 26, 36, 2, { face: 'smile' });
+      bigBubble(48, 8, 2, now, 'heart');
+      floaty('spark', 60, 40, now, 0.5, 1);
+    } else if (k === 'ath1') {
+      bands(['#8FD0F0', '#A6DAF4', '#C2E6F7', '#DAF0FA']);
+      R(0, 30, SW, 14, '#7FC49A'); for (i = 0; i < 10; i++) R(i * 14, 26 + (i % 3), 10, 4, '#6FB06A');
+      R(0, 44, SW, 40, '#C8604A'); for (i = 0; i < 4; i++) R(0, 50 + i * 9, SW, 1, '#FFFFFF');
+      x = reduce ? 50 : ((t * 30) % (SW + 40)) - 20;
+      big({ hair: me.hair, skin: me.skin, top: '#3E8EE0', bottom: '#2B2238', style: 'pony' }, x, 38, 2, { arms: (Math.floor(t * 6) % 2) === 0, face: 'smile' });
+      if (!reduce) for (i = 0; i < 3; i++) R(x - 6 - i * 5, 52 + i * 3, 3, 1, '#FFFFFF');
+      icon('sweat', x + 18, 36);
+    } else if (k === 'ath2') {
+      R(0, 0, SW, SH, '#EEF0F4'); R(0, 60, SW, 24, '#C8CCD8');
+      R(8, 8, 26, 18, '#FFFFFF'); R(10, 10, 22, 14, '#F2C230'); R(16, 12, 10, 10, '#FFE08A'); R(19, 14, 4, 6, '#C9A227');
+      bed(20, 50, 70);
+      lying(26, 50, me);
+      R(40, 46, 10, 4, '#FFFFFF'); R(40, 46, 10, 1, '#E8DCD0');
+      big(crew(2), 86, 20, 2, { arms: (Math.floor(t * 2) % 2) === 0, face: 'smile' });
+      floaty('heart', 50, 32, now, 0.4, 1); icon('sweat', 30, 38);
+    } else if (k === 'ath3') {
+      bands(['#FFC48A', '#FFB07A', '#F79A86', '#E08AA0']);
+      R(70, 18, 18, 18, '#FFE08A');
+      R(0, 44, SW, 40, '#B8604A'); for (i = 0; i < 4; i++) R(0, 50 + i * 9, SW, 1, '#F4D8C8');
+      big({ hair: me.hair, skin: me.skin, top: '#3E8EE0', bottom: '#2B2238', style: 'pony' }, 30, 38, 2, { face: 'smile', arms: true });
+      floaty('star', 64, 30, now, 0, 2); floaty('spark', 90, 40, now, 0.6, 1); floaty('heart', 50, 24, now, 1.1, 1);
+    } else if (k === 'cos1' || k === 'cos2') {
+      R(0, 0, SW, SH, '#FBF4F0'); R(0, 0, SW, 10, '#E8D8D0'); for (i = 0; i < 8; i++) { R(4 + i * 16, 2, 8, 6, '#FFFFFF'); }
+      R(0, 66, SW, 18, '#E0D4D8'); for (i = 0; i < 8; i++) { g.globalAlpha = 0.4; R(i * 16 + 4, 68, 6, 14, '#FFFFFF'); g.globalAlpha = 1; }
+      R(4, 16, 120, 14, '#FFFFFF'); for (i = 0; i < 14; i++) R(8 + i * 8, 20 + (i % 2) * 2, 3, 8 - (i % 2) * 2, ['#E0567A', '#F2C230', '#B8A0D8', '#F7B5C8', '#2B2238'][i % 5]);
+      if (k === 'cos1') {
+        big({ hair: me.hair, skin: me.skin, top: '#2B2238', bottom: '#2B2238', style: 'bun', uniform: true }, 50, 26, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 });
+        floaty('spark', 80, 34, now, 0, 1); floaty('star', 34, 34, now, 0.7, 1);
+      } else {
+        big({ hair: me.hair, skin: me.skin, top: '#2B2238', bottom: '#2B2238', style: 'bun', uniform: true }, 22, 26, 2, { face: 'smile' });
+        big(guest(4), 80, 26, 2, { face: 'trouble' });
+        icon('sweat', 100, 26); bigBubble(56, 6, 1, now, 'q');
+      }
+      R(0, 52, SW, 14, '#D8C8D0'); R(0, 52, SW, 2, '#FFFFFF'); g.globalAlpha = 0.35; R(0, 54, SW, 4, '#FFFFFF'); g.globalAlpha = 1;
+      for (i = 0; i < 6; i++) R(14 + i * 20, 48, 4, 4, ['#F7B5C8', '#FFE08A', '#BFE3F5'][i % 3]);
+    } else if (k === 'cos3') {
+      R(0, 0, SW, SH, '#FFF2F4'); R(0, 62, SW, 22, '#F2DCE2');
+      g.globalAlpha = 0.3; R(0, 0, SW, 30, '#FFFFFF'); g.globalAlpha = 1;
+      big(me, 26, 34, 2, { face: 'bliss' });
+      bigBubble(50, 6, 2, now, 'star');
+      for (i = 0; i < 6; i++) flower(80 + (i * 9) % 36, 54 + (i * 5) % 8);
+      fall(['#F7B5C8', '#FFFFFF', '#FFE08A'], 12);
+    } else if (k === 'gma1' || k === 'gma2') {
+      R(0, 0, SW, SH, '#E8DCC0'); R(0, 0, SW, 4, '#8A6A44');
+      for (x = 6; x < 70; x += 20) { R(x, 8, 18, 40, '#FFFCF2'); for (y = 12; y < 48; y += 8) R(x, y, 18, 1, '#C8B890'); R(x + 8, 8, 1, 40, '#C8B890'); R(x, 8, 18, 1, '#8A6A44'); }
+      R(88, 10, 30, 22, '#8A6A44'); R(90, 12, 26, 18, '#F4ECD8'); R(100, 16, 6, 10, '#3E8E5A'); R(98, 24, 10, 4, '#B8866A');
+      R(0, 56, SW, 28, '#C8C08A'); for (i = 0; i < 4; i++) R(i * 32, 56, 1, 28, '#A8A06A'); R(0, 70, SW, 1, '#A8A06A');
+      R(40, 64, 40, 8, '#9A5A6A'); R(42, 62, 36, 3, '#B87A8A');
+      var gma = { hair: '#C8C4CC', skin: '#F2CFB0', top: '#8E6A9A', bottom: '#6A5A78', style: 'bun' };
+      big(gma, 46, 34, 2, { face: k === 'gma2' ? 'bliss' : 'smile' });
+      sprite({ hair: me.hair, skin: me.skin, top: '#F7B5C8', bottom: '#5C78B0', style: 'pony' }, 72 + wob(400), 38 + (reduce ? 0 : Math.round(Math.abs(Math.sin(t * 3)))), { arms: true, face: 'smile' });
+      if (k === 'gma2') { bigBubble(16, 4, 2, now, 'heart'); floaty('heart', 70, 30, now, 0.4, 1); }
+      else { floaty('note', 82, 30, now, 0, 1); }
+    } else if (k === 'gma3') {
+      R(0, 0, SW, SH, '#2E2A48'); R(10, 8, 24, 18, '#4A4470'); R(12, 10, 20, 14, '#1A1830'); R(24, 13, 5, 5, '#FFF4C0'); R(26, 13, 3, 3, '#1A1830');
+      g.globalAlpha = 0.25; R(40, 10, 70, 50, '#FFE08A'); g.globalAlpha = 1; R(70, 4, 12, 4, '#F2C230'); R(75, 0, 2, 4, '#9A93A8');
+      R(0, 62, SW, 22, '#5A4A40');
+      bed(30, 52, 70);
+      R(36, 46, 24, 6, '#F2CFB0'); R(58, 47, 8, 4, '#F2CFB0');
+      big({ hair: me.hair, skin: me.skin, top: '#FFFFFF', bottom: '#5C4E6E', style: 'bun', uniform: true }, 90, 24, 2, { arms: (Math.floor(t * 2) % 2) === 0 });
+      R(14, 40, 8, 12, '#F7B5C8'); R(15, 42, 6, 1, '#FFFFFF'); R(15, 44, 6, 1, '#FFFFFF');
+      icon('sweat', 110, 26); floaty('star', 52, 30, now, 0, 1);
+    } else if (k === 'paris1') {
+      bands(['#A8D0F0', '#BFDCF4', '#D4E6F6', '#E8F0FA']);
+      icon('cloud', Math.round((t * 3) % (SW + 10)) - 10, 8, '#FFFFFF');
+      var tx = 88;  // 塔のシルエット
+      R(tx + 5, 4, 2, 6, '#6A5A50'); R(tx + 3, 10, 6, 10, '#6A5A50'); R(tx + 1, 20, 10, 3, '#6A5A50'); R(tx, 23, 12, 10, '#6A5A50'); R(tx - 3, 33, 18, 3, '#6A5A50');
+      R(tx - 5, 36, 5, 24, '#6A5A50'); R(tx + 12, 36, 5, 24, '#6A5A50'); R(tx, 38, 12, 4, '#6A5A50'); R(tx + 2, 42, 8, 5, '#E8F0FA');
+      R(0, 60, SW, 24, '#D8CCBC'); for (i = 0; i < 9; i++) R(i * 16, 60, 1, 24, '#C4B6A4'); R(0, 60, SW, 1, '#B8A894');
+      for (i = 0; i < 3; i++) { R(4 + i * 26, 46, 14, 14, '#7FA87A'); R(10 + i * 26, 50, 2, 10, '#6A5040'); }
+      big(me, 40, 40, 2, { face: 'smile' });
+      R(60, 54, 12, 12, '#C8604A'); R(60, 54, 12, 2, '#A84A3A'); R(64, 51, 4, 3, '#2B2238');
+      floaty('heart', 72, 30, now, 0, 1);
+    } else if (k === 'paris2') {
+      R(0, 0, SW, SH, '#2A2440'); R(80, 6, 40, 34, '#4A4470'); R(82, 8, 36, 30, '#1E2246'); R(99, 8, 2, 30, '#4A4470');
+      if (!reduce) for (i = 0; i < 14; i++) { var rx = 82 + (i * 11) % 36, ry = 8 + ((i * 7 + t * 40) % 30); R(rx, ry, 1, 3, '#7F8EC8'); } else for (i = 0; i < 8; i++) R(84 + i * 4, 12 + (i % 3) * 8, 1, 3, '#7F8EC8');
+      R(0, 62, SW, 22, '#3A3050'); R(14, 56, 50, 4, '#6B4E3A'); R(16, 60, 3, 16, '#5A3E2E'); R(58, 60, 3, 16, '#5A3E2E');
+      R(20, 50, 16, 6, '#FFFFFF'); R(28, 50, 1, 6, '#C8C0D0'); R(40, 46, 12, 10, '#B8604A'); R(41, 47, 10, 1, '#F2C230');
+      g.globalAlpha = 0.18; R(14, 30, 40, 26, '#FFE08A'); g.globalAlpha = 1; R(54, 46, 4, 10, '#F2C230');
+      big(me, 64, 40, 2, { face: 'trouble' });
+      icon('sweat', 84, 42); bigBubble(30, 14, 1, now, 'q');
+    } else if (k === 'paris3') {
+      R(0, 0, SW, SH, '#F4ECE0'); R(0, 0, SW, 8, '#C8A57A'); R(0, 60, SW, 24, '#B88A5A'); for (i = 0; i < 8; i++) R(i * 16, 60, 1, 24, '#A87A4A');
+      R(8, 12, 38, 26, '#3E5A4A'); R(10, 14, 34, 22, '#4E7A5E'); for (i = 0; i < 3; i++) R(14, 18 + i * 6, 20 - i * 4, 1, '#FFFFFF');
+      big(me, 54, 34, 2, { face: 'bliss', arms: true });
+      R(80, 34, 26, 18, '#FFF8E8'); R(82, 36, 22, 1, '#C8B890'); R(82, 39, 16, 1, '#C8B890'); R(82, 42, 18, 1, '#C8B890'); R(96, 45, 6, 6, '#E0567A'); R(97, 46, 4, 4, '#F2C230');
+      floaty('star', 30, 40, now, 0, 2); floaty('star', 110, 28, now, 0.5, 1); floaty('heart', 70, 24, now, 1, 1);
+      fall(['#F7B5C8', '#FFE08A', '#BFE3F5'], 14);
+    } else if (k === 'cf1') {
+      R(0, 0, SW, SH, '#EDE6F2'); R(0, 60, SW, 24, '#C8B8D0');
+      R(84, 8, 34, 26, '#FFFFFF'); R(86, 10, 30, 22, '#F7EFE6'); R(90, 14, 22, 3, '#F08DAE'); R(90, 20, 14, 8, '#BFE3F5'); R(106, 20, 6, 8, '#8A5A44');
+      R(10, 52, 60, 4, '#B8866A'); R(12, 56, 3, 20, '#9A6E54'); R(64, 56, 3, 20, '#9A6E54');
+      R(20, 44, 12, 8, '#F7B5C8'); R(22, 42, 8, 3, '#F7B5C8'); R(24, 41, 4, 1, '#2B2238'); R(32, 46, 2, 2, '#F7B5C8');
+      R(44, 48, 4, 4, '#F2C230'); R(46, 49, 1, 2, '#C9A227');
+      big(me, 76, 34, 2, { face: 'trouble' });
+      bigBubble(100, 40, 1, now, 'coin'); icon('sweat', 96, 34);
+    } else if (k === 'cf2') {
+      R(0, 0, SW, SH, '#F6EEF2'); R(0, 60, SW, 24, '#E0D0D8');
+      R(4, 8, 30, 22, '#FFFFFF'); R(6, 10, 26, 18, '#F7B5C8'); R(14, 14, 10, 10, '#FFFFFF'); flower(17, 17);
+      big(me, 30, 32, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 });
+      R(86, 48, 2, 26, '#5A5468'); R(80, 72, 14, 2, '#5A5468'); R(80, 34, 14, 14, '#2B2238'); R(82, 36, 10, 10, '#7FC8E8');
+      if (reduce || Math.floor(now / 500) % 2) R(90, 37, 2, 2, '#E0567A');
+      floaty('note', 60, 30, now, 0, 1); floaty('heart', 70, 22, now, 0.6, 1);
+    } else if (k === 'cf3') {
+      bands(['#FFE8F0', '#FFF0F4', '#FFF6F8', '#FFFAFC']);
+      R(64, 6, 52, 60, '#2B2238'); R(67, 9, 46, 54, '#FFFFFF'); R(71, 14, 38, 3, '#E0567A'); R(71, 20, 30, 2, '#C8C0D0');
+      var fill = reduce ? 38 : Math.min(38, Math.round(t * 12));
+      R(71, 50, 38, 6, '#EDE6F2'); R(71, 50, fill, 6, '#F2C230'); R(71, 26, 38, 20, '#F7EFE6'); for (i = 0; i < 5; i++) R(74 + i * 7, 32 + (i % 2) * 4, 4, 4, '#F08DAE');
+      big(me, 24, 34, 2, { face: 'bliss', arms: true });
+      for (i = 0; i < 4; i++) floaty('heart', 56 + i * 16, 30 + (i % 2) * 6, now, i * 0.4, 1);
+      floaty('coin', 46, 40, now, 0.2, 1);
     } else if (k === 'bali3') {
       bands(['#FFC48A', '#FFB07A', '#F79A86', '#E08AA0']);
       R(56, 40, 16, 16, '#FFE08A');
@@ -3082,14 +3255,31 @@
     ['大切な予約が入っている日に、大雨が降ってきた。', [['タオルと温かいお茶を用意して待つ', { kind: 2 }], ['お客様に一件ずつ確認の電話をする', { steady: 2 }], ['「雨の日割引」を思いつく', { shrewd: 2 }], ['なぜか、お店の前だけ雨がやんだ', { lucky: 3 }]]],
     ['友だちから、急に旅行に誘われた。', [['すぐ行く！ その場で返事をする', { hot: 1, chat: 1 }], ['行き先の美術館や景色を調べ始める', { roman: 2 }], ['お店のことを考えて、今回は見送る', { steady: 2 }], ['「行けたら行く」と、ゆるく返す', { mypace: 2 }]]],
     ['商店街のくじ引きで、ハズレを引いた。', [['次は当たる気がする！', { lucky: 2 }], ['確率を考えれば、当然の結果だ', { logic: 2 }], ['その場の人と笑い話にする', { chat: 2 }], ['まあいいか、とすぐ忘れる', { mypace: 2 }]]],
-    ['スタッフから「辞めたい」と相談された。', [['本当の理由を、とことん聞く', { kind: 1, chat: 1 }], ['残ってもらえる条件を、冷静に考える', { logic: 1, shrewd: 1 }], ['「一緒にがんばろう」と熱く伝える', { hot: 2 }], ['本人の人生だから、笑顔で背中を押す', { roman: 1, mypace: 1 }]]]
+    ['スタッフから「辞めたい」と相談された。', [['本当の理由を、とことん聞く', { kind: 1, chat: 1 }], ['残ってもらえる条件を、冷静に考える', { logic: 1, shrewd: 1 }], ['「一緒にがんばろう」と熱く伝える', { hot: 2 }], ['本人の人生だから、笑顔で背中を押す', { roman: 1, mypace: 1 }]]],
+    ['お客様に「前の店のほうが上手だった」と言われた。', [['「どこが良かったですか？」と詳しく聞く', { logic: 2 }], ['悔しくて、閉店後に猛練習する', { hot: 2 }], ['「今日は私の色を楽しんでください」と笑う', { mypace: 2 }], ['前の店のメニューを、こっそり調べる', { shrewd: 2 }]]],
+    ['開店前に、タオルの洗濯が終わっていないことに気づいた。', [['近くのコインランドリーへ走る', { hot: 2 }], ['予備を確かめて、段取りを組みかえる', { steady: 2 }], ['近所のお店に事情を話して借りる', { chat: 2 }], ['なぜか昨日、多めに洗っていた', { lucky: 2 }]]],
+    ['常連のお客様が、最近元気がない。', [['施術中は何も聞かず、そっと寄りそう', { kind: 2 }], ['好きな香りのアロマを用意しておく', { roman: 2 }], ['「何かあった？」と明るく話しかける', { chat: 2 }], ['来店の間隔や様子をメモして見守る', { steady: 2 }]]],
+    ['向かいに、大手のエステがオープンした。', [['価格とメニューを、徹底的に比べる', { logic: 2 }], ['「うちはうち」と気にしない', { mypace: 2 }], ['こちらもキャンペーンを打つ', { shrewd: 2 }], ['負けるもんか、と燃える', { hot: 2 }]]],
+    ['SNSに、お店の悪い口コミが書かれた。', [['ていねいに、おわびの返信をする', { kind: 2 }], ['本当に問題があったか、記録を見直す', { logic: 2 }], ['気にせず、いつも通りに投稿する', { mypace: 2 }], ['翌日、なぜか良い口コミが3件ついた', { lucky: 2 }]]],
+    ['引っ越し先の部屋を選ぶなら？', [['駅から近くて、家賃が手ごろ', { steady: 2 }], ['窓から夕日が見える部屋', { roman: 2 }], ['商店街のど真ん中', { chat: 2 }], ['これから値上がりしそうな場所', { shrewd: 2 }]]],
+    ['コンビニで、新作スイーツが最後の1個。後ろに子どもが並んでいる。', [['そっと譲る', { kind: 2 }], ['迷わず買う。食べたいものは食べる', { hot: 2 }], ['「半分こしようか」と声をかける', { chat: 2 }], ['振り向いたら、店員さんが追加を並べていた', { lucky: 2 }]]],
+    ['料理をするときは？', [['レシピどおり、きっちり量って作る', { logic: 2 }], ['盛りつけと器にこだわる', { roman: 2 }], ['冷蔵庫の残りで、なんとかする', { mypace: 2 }], ['一週間分を、まとめて作りおきする', { steady: 2 }]]],
+    ['フリーマーケットに出店することになった。', [['値段のつけ方を研究して、全部売り切る', { shrewd: 2 }], ['並べ方を、すてきに飾りつける', { roman: 2 }], ['お客さんとのおしゃべりを楽しむ', { chat: 2 }], ['となりの人が、売れ残りを全部買ってくれた', { lucky: 2 }]]],
+    ['タイムマシンで、1回だけ過去に行けるなら？', [['昔の自分に「大丈夫だよ」と伝える', { kind: 2 }], ['歴史に残る名所を見に行く', { roman: 2 }], ['当たりの株を調べてくる', { shrewd: 2 }], ['特に行かなくていいかな', { mypace: 2 }]]],
+    ['願いが1つ叶う、と言われた。', [['大切な人が、ずっと元気でいられますように', { kind: 2 }], ['世界一の技術がほしい', { hot: 2 }], ['願いを100個に増やしてほしい', { shrewd: 2 }], ['明日も、いい日でありますように', { lucky: 2 }]]],
+    ['無人島に、1つだけ持っていくなら？', [['サバイバルの本', { logic: 2 }], ['使い慣れた道具一式', { steady: 2 }], ['大好きなアロマオイル', { roman: 2 }], ['スマホ。だれかと話したい', { chat: 2 }]]],
+    ['占い師に「来年、大きな転機が来る」と言われた。', [['信じない。根拠がないから', { logic: 2 }], ['今からわくわくして準備する', { hot: 2 }], ['ふーん、とあまり気にしない', { mypace: 2 }], ['その帰り道、四つ葉のクローバーを見つけた', { lucky: 2 }]]],
+    ['自分を動物にたとえると？', [['犬。人が好きで、まっすぐ', { kind: 2 }], ['猫。気ままに、自分らしく', { mypace: 2 }], ['キツネ。かしこく立ち回る', { shrewd: 2 }], ['フクロウ。じっくり考える', { logic: 2 }]]],
+    ['10年後、どんな自分でいたい？', [['たくさんのお店を持つ社長', { shrewd: 2, hot: 1 }], ['今と変わらず、笑ってお客様の前に立っている', { kind: 1, mypace: 1 }], ['海の見える場所に、理想のサロンを建てている', { roman: 2 }], ['お客様と、なんでも話せる仲になっている', { chat: 2 }]]],
+    ['お店の看板に、ひと言書くとしたら？', [['「おかえりなさい」', { kind: 2 }], ['「結果にこだわります」', { logic: 1, steady: 1 }], ['「美しさは、物語になる」', { roman: 2 }], ['「今日は、いいことありそう」', { lucky: 2 }]]],
+    ['引退する日、お客様に何と言われたい？', [['「あなたに出会えてよかった」', { kind: 2 }], ['「あなたの技術は日本一だった」', { hot: 2 }], ['「毎回の話が楽しみだった」', { chat: 2 }], ['「あなたといると、運が向いてきた」', { lucky: 2 }]]]
   ];
-  // 質問は毎回6問。「あなたの夢は？」（5番）を最後に固定し、残りの11問から5問を選ぶ。
-  var HERODREAM = 5;
+  // 質問は毎回6問。最後は「夢」の質問（4パターンから1つ）、残りの25問から5問を選ぶ。
+  var HERODREAMS = [5, 26, 27, 28];
   function pickQs() {
     var a = [];
-    for (var i = 0; i < HEROQ.length; i++) if (i !== HERODREAM) a.push(i);
-    return shuffle(a).slice(0, 5).concat([HERODREAM]);
+    for (var i = 0; i < HEROQ.length; i++) if (HERODREAMS.indexOf(i) < 0) a.push(i);
+    return shuffle(a).slice(0, 5).concat([pick(HERODREAMS)]);
   }
   function heroStart(n) {
     SLOT = n;
