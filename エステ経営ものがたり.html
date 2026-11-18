@@ -5985,11 +5985,41 @@
       reps: [{ t: '光栄です！ 心よりお待ちしております。', fx: 'rep', res: 'ふふ、期待しているわよ。' }] }); }
     if (S.sns && S.sns.f > 0) C2.push({ kind: 'friend', from: '学生時代の友だち', w: 1, lines: [{ t: 'お店のBaeglam見たよ！ すごくおしゃれ！' }],
       reps: [{ t: 'ありがとう！ 今度遊びに来てね。', fx: 'hum', res: '行く行く！ 予約するね。' }] });
-    // 重みをつけて2〜3件選ぶ
-    var out = [], n = Math.min(C2.length, 2 + (roll(0.4) ? 1 : 0));
+    // スタッフからの、いろいろな相談
+    if (crew.length) {
+      var s1 = pick(crew);
+      C2.push(pick([
+        { kind: 'staffOff', from: s1.name, sid: s1.id, w: 2, lines: [{ t: '店長、来月どこかで1日お休みをいただけませんか？' }, { t: pick(['友だちの結婚式があって…。', '家族の用事があって…。', '少し体を休めたくて…。']) }],
+          reps: [{ t: 'もちろん。ゆっくりしてきてね。', fx: 'moodMid', res: 'ありがとうございます！ 助かります。' }, { t: 'ごめん、今月はちょっと厳しいかな…。', fx: 'moodDown', res: '…わかりました。' }] },
+        { kind: 'staffIdea', from: s1.name, sid: s1.id, w: 2, lines: [{ t: '新しいメニューのアイデアを思いついたんです！' }, { t: '今度、聞いてもらえますか？' }],
+          reps: [{ t: 'いいね！ ぜひ聞かせて。', fx: 'idea', res: 'やった！ 資料にまとめておきます！' }, { t: '今は忙しいから、また今度ね。', fx: 'moodSmall', res: 'はい、また今度…。' }] },
+        { kind: 'staffPractice', from: s1.name, sid: s1.id, w: 2, lines: [{ t: '休みの日に、練習会をしたいと思っていて。' }, { t: 'お店のベッドを使ってもいいですか？' }],
+          reps: [{ t: 'もちろん！ 材料費も出すよ。　' + yen(5000), fx: 'practice', cost: 5000, res: 'ありがとうございます！ がんばります！' }, { t: 'いいよ。無理しないでね。', fx: 'practiceS', res: 'はい！' }] }
+      ]));
+    }
+    if (crew.length >= 2) {
+      var bd = pick(crew);
+      C2.push({ kind: 'groupBd', from: 'サロンのみんな（' + (crew.length + 1) + '人）', sid: bd.id, w: 1, lines: [{ who: pick(crew.filter(function (x) { return x !== bd; })) .name, t: '来週、' + bd.name + 'さんの誕生日なんです！' }, { who: '', t: 'みんなでお祝いしませんか？' }],
+        reps: [{ t: 'ケーキを用意しよう！　' + yen(4000), fx: 'bday', cost: 4000, res: 'さすが店長！ 喜びますよ〜！' }, { t: 'メッセージを送ろう。', fx: 'moodSmall', res: '（クラッカーのスタンプ）' }] });
+    }
+    var revs = S.clients.filter(function (c) { return c.active && c.loy >= 50; });
+    if (revs.length) { var rv = pick(revs); C2.push({ kind: 'review', from: rv.name + 'さん', cid: rv.id, w: 1, lines: [{ t: '口コミサイトに、お店のことを書きました！' }, { t: '★5にしておきました。' }],
+      reps: [{ t: 'ありがとうございます！ とてもうれしいです。', fx: 'rep1', res: 'これからもよろしくお願いします！' }] }); }
+    var bk = S.clients.filter(function (c) { return c.active && c.plan; });
+    if (bk.length) { var b2 = pick(bk); C2.push({ kind: 'resched', from: b2.name + 'さん', cid: b2.id, w: 1, lines: [{ t: 'すみません、急な仕事で、次の予約を少しずらしてもいいですか？' }],
+      reps: [{ t: 'もちろん大丈夫ですよ。ご都合のいい日を教えてください。', fx: 'loy3', res: '助かります！ ありがとうございます。' }, { t: '今月は空きが少なくて…。来月でもいいですか？', fx: 'none', res: 'はい、それで大丈夫です。' }] }); }
+    C2.push({ kind: 'oldmate', from: '前の職場の先輩', w: 1, lines: [{ t: '久しぶり！ お店、がんばってるみたいだね。' }, { t: '今度ランチでもどう？' }],
+      reps: [{ t: 'ぜひ！ お話ししたいことがたくさんあります。', fx: 'lunch', res: 'じゃあ来週ね！ 楽しみにしてる。' }, { t: '落ち着いたら、ぜひ！', fx: 'none', res: 'うん、無理しないでね。' }] });
+    // 先月届いた種類は、今月は少し出にくくする（毎月同じお誘いばかりにならないように）
+    var last = S.dotLast || {};
+    C2.forEach(function (m) { if (last[m.kind] && S.week - last[m.kind] <= 1) m.w = m.w * 0.25; });
+    // 重みをつけて3〜4件選ぶ。返信できるのは2通まで
+    var out = [], n = Math.min(C2.length, 3 + (roll(0.5) ? 1 : 0));
     while (out.length < n && C2.length) { var tot = C2.reduce(function (x, m) { return x + m.w; }, 0), r = rnd() * tot, i = 0;
-      while (i < C2.length - 1 && (r -= C2[i].w) > 0) i++; out.push(C2.splice(i, 1)[0]); }
-    out.forEach(function (m, i) { m.id = S.week * 10 + i; m.done = -1; });
+      while (i < C2.length - 1 && (r -= C2[i].w) > 0) i++; var got = C2.splice(i, 1)[0]; out.push(got);
+      if (/^group/.test(got.kind)) C2 = C2.filter(function (m) { return !/^group/.test(m.kind); }); }
+    out.forEach(function (m, i) { m.id = S.week * 10 + i; m.done = -1; last[m.kind] = S.week; });
+    S.dotLast = last;
     return out;
   }
   function dotFx(m, rp) {
@@ -6002,6 +6032,14 @@
       case 'moodMid': if (st) moodUp(st, 8, 3); return (st ? st.name + 'の' : '') + 'やる気+8、信頼+3';
       case 'moodSmall': if (st) moodUp(st, 3, 1); return (st ? st.name + 'の' : '') + 'やる気+3';
       case 'party': crewAll().forEach(function (x) { moodUp(x, 8, 3); }); return '全員のやる気+8、信頼+3';
+      case 'moodDown': if (st) moodUp(st, -6, -3); return (st ? st.name + 'の' : '') + 'やる気−6';
+      case 'idea': if (st) moodUp(st, 8, 4); hum(1); return (st ? st.name + 'の' : '') + 'やる気+8、人間力+1';
+      case 'practice': if (st) { moodUp(st, 6, 3); expAdd(st, 6); } return (st ? st.name + 'の' : '') + 'やる気+6、研修の経験値+6';
+      case 'practiceS': if (st) { moodUp(st, 3, 1); expAdd(st, 3); } return (st ? st.name + 'の' : '') + '研修の経験値+3';
+      case 'bday': crewAll().forEach(function (x) { moodUp(x, x === st ? 18 : 5, x === st ? 8 : 2); }); return (st ? st.name + 'のやる気+18、' : '') + 'みんなのやる気+5';
+      case 'rep1': S.rep = clamp(S.rep + 1, 0, 100); if (c) c.loy = clamp(c.loy + 2, 0, 100); return '評判+1、信頼+2';
+      case 'loy3': if (c) c.loy = clamp(c.loy + 3, 0, 100); return '信頼+3';
+      case 'lunch': hum(1); fat(-4); return '人間力+1、疲れ−4';
       case 'home': fat(-8); hum(1); return '疲れ−8、人間力+1';
       case 'hum': hum(1); return '人間力+1';
       case 'rep': S.rep = clamp(S.rep + 2, 0, 100); return '評判+2';
@@ -6009,14 +6047,17 @@
     }
     return '';
   }
-  function dotUnread() { return (S.dot || []).filter(function (m) { return m.done < 0; }).length; }
+  var DOTMAX = 2;
+  function dotSent() { return (S.dot || []).filter(function (m) { return m.done >= 0; }).length; }
+  function dotLeft() { return Math.max(0, DOTMAX - dotSent()); }
+  function dotUnread() { return dotLeft() ? (S.dot || []).filter(function (m) { return m.done < 0; }).length : 0; }
   function dotView() {
     bar();
     var list = S.dot || [];
-    view('<h1>メッセージ</h1><div class="dotbar"><b>dot.</b><span>メッセージ ' + list.length + '件' + (dotUnread() ? '（未読 ' + dotUnread() + '）' : '') + '</span></div>' +
+    view('<h1>メッセージ</h1><div class="dotbar"><b>dot.</b><span>メッセージ ' + list.length + '件</span></div><p class="lead">' + (dotLeft() ? '今月、返信できるのは<b>あと' + dotLeft() + '通</b>。だれに返すか選ぼう。' : '今月の返信（' + DOTMAX + '通）は終わった。') + '</p>' +
       (list.length ? '' : '<p class="lead">新しいメッセージはない。</p>'),
       list.map(function (m) {
-        return { label: (m.done < 0 ? '● ' : '✓ ') + m.from, sub: m.lines[m.lines.length - 1].t.slice(0, 34), go: function () { dotThread(m); } };
+        return { label: (m.done >= 0 ? '✓ ' : dotLeft() ? '● ' : '　') + m.from, sub: m.lines[m.lines.length - 1].t.slice(0, 34) + (m.done < 0 && !dotLeft() ? '（今月は返信できない）' : ''), go: function () { dotThread(m); } };
       }).concat([{ main: true, label: '月末の画面にもどる', go: investView }]));
   }
   function dotThread(m, note) {
@@ -6025,7 +6066,8 @@
       m.lines.map(function (l) { return '<div class="say you">' + (l.who ? '<span class="who">' + l.who + '</span>' : '') + l.t + '</div>'; }).join('');
     if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="say me">' + rp.t + '</div><div class="say you">' + rp.res + '</div>' + (note || m.note ? '<div class="say note">' + (note || m.note) + '</div>' : ''); }
     h += '</div>';
-    view(h, m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }] :
+    if (m.done < 0 && !dotLeft()) return view(h + '<p class="lead">今月の返信は' + DOTMAX + '通まで。このメッセージには返信できない。</p>', [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }]);
+    view(h + (m.done < 0 ? '<p class="lead">返信できるのは、あと' + dotLeft() + '通。</p>' : ''), m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }] :
       m.reps.map(function (rp, i) {
         return { label: rp.t, off: !!rp.cost && S.cash < rp.cost, go: function () { m.done = i; m.note = dotFx(m, rp); SFX.good(); saveGame('night'); dotThread(m); } };
       }).concat([{ label: 'あとで返信する', go: dotView }]));
@@ -6034,7 +6076,7 @@
   function monthTasks() {
     var T = [], P = snsFix(), left = snsLeft();
     var team = allStaff().filter(function (st) { return !st.owner; });
-    if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: '新着メッセージ ' + dotUnread() + '件', go: dotView } : { t: 'dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
+    if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: 'メッセージ ' + S.dot.length + '件・あと' + dotLeft() + '通返せる', go: dotView } : { t: 'dot.のメッセージ', s: '今月の返信はおしまい', done: true });
     T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
     if (P.f >= LIVEMIN) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
     var tg = tGroups().filter(function (g2) { return g2.mem.length; });
