@@ -258,18 +258,25 @@
     return AC;
   }
   // 画面に戻ったときと、次に画面にさわったときに、音を再開する（iPhoneは操作のときしか再開できないことがある）
+  // 別のアプリから戻ると、iPhoneなどでは音の部品が「動いているのに鳴らない」状態になることがある。
+  // そのため、しばらく離れていたら音の部品を作り直す（次に画面にさわったときに鳴りはじめる）
+  var hiddenAt = 0;
+  function audioRebuild() {
+    var old = AC; AC = null; master = null; nbuf = null; bgmReset();
+    if (old) { try { var pc = old.close(); if (pc && pc.catch) pc.catch(function () {}); } catch (err) {} }
+  }
   function audioWake() {
-    if (soundMode === 'off') return;
+    if (soundMode === 'off' || document.hidden) return;
     if (AC && AC.state !== 'running') ac();
     if (AC) bgmSync();
   }
   document.addEventListener('visibilitychange', function () {
-    if (document.hidden) { if (AC && AC.state === 'running') { try { AC.suspend(); } catch (err) {} } }
-    else audioWake();
+    if (document.hidden) { hiddenAt = Date.now(); if (AC && AC.state === 'running') { try { AC.suspend(); } catch (err) {} } }
+    else { if (AC && hiddenAt && Date.now() - hiddenAt > 1500) { audioRebuild(); ac(); } hiddenAt = 0; audioWake(); }
   });
   window.addEventListener('pageshow', audioWake);
   window.addEventListener('focus', audioWake);
-  ['pointerdown', 'touchend', 'keydown'].forEach(function (ev) { document.addEventListener(ev, audioWake, { capture: true, passive: true }); });
+  ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function (ev) { document.addEventListener(ev, audioWake, { capture: true, passive: true }); });
   function tone(f0, f1, dur, type, vol, when, dest) {
     var a = ac(); if (!a) return;
     var t = a.currentTime + (when || 0), o = a.createOscillator(), gn = a.createGain();
@@ -444,7 +451,9 @@
   }
   var bgm = { on: false, step: 0, next: 0, timer: null, gain: null, key: null };
   function bgmTick() {
-    if (!AC || !bgm.gain || AC.state !== 'running') return;
+    if (!AC || !bgm.gain || AC.state !== 'running') { bgm.stall = 0; return; }
+    if (!document.hidden && AC.currentTime === bgm.lastT) { if (++bgm.stall > 15) { bgm.stall = 0; audioRebuild(); ac(); audioWake(); return; } } else bgm.stall = 0;
+    bgm.lastT = AC.currentTime;
     if (bgm.next < AC.currentTime) bgm.next = AC.currentTime + 0.05;
     while (bgm.next < AC.currentTime + 0.4) {
       // 場面が変わったら、小節の頭で次の曲に切りかえる
