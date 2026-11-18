@@ -477,16 +477,16 @@
     { k: 'concern', n: 'お悩みを掘り下げる', d: '本当に気になっている所が分かる' },
     { k: 'pref',    n: '好みの圧を聞く',     d: '施術の強さの好みが分かる' },
     { k: 'pers',    n: '雑談で人柄をつかむ', d: '性格が分かり、警戒心も少しほぐれる' },
-    { k: 'budget',  n: '予算感をさぐる',     d: '出せる金額の目安が分かる。慎重な人は身構える' }
+    { k: 'budget',  n: '予算感をさぐる',     d: '出せる金額の目安が分かる' }
   ];
   var TALKS = [
-    { k: 'empathy', n: '共感する', d: '警戒心をほぐす', line: 'お忙しい中、よく来てくださいました。その疲れ方、つらいですよね。', int: 5, grd: -15 },
-    { k: 'effect', n: '効果を説明する', d: '興味を引く。効果重視の人に強い', line: '今日の変化を写真で見てみましょう。続けるとここがさらに変わります。', int: 15, grd: 0, by: { effect: { int: 12 } } },
-    { k: 'voice', n: 'お客様の声を紹介する', d: '慎重な人が安心する', line: '同じお悩みで通われている方は、3回目あたりから実感されています。', int: 8, grd: -10, by: { careful: { grd: -10 } } },
-    { k: 'limited', n: '今日だけの特典を出す', d: '即決派と価格重視に強い。慎重派は引く', line: '本日お決めいただくと、入会金が無料になります。', int: 12, grd: 4, by: { quick: { int: 12 }, price: { int: 10 }, careful: { grd: 14 } } },
-    { k: 'split', n: '分割払いを案内する', d: '出せる金額が一段上がる', line: '月々のお支払いに分けることもできますよ。', int: 2, grd: 3, split: true, by: { price: { int: 9 } } },
-    { k: 'advice', n: '売り込まずホームケアを助言する', d: '信頼される。おしゃべり好きに強い', line: 'ご自宅では、お風呂上がりにここを30秒ほぐしてあげてください。', int: 6, grd: -12, by: { chatty: { int: 8 } } },
-    { k: 'push', n: '強く押す', d: '興味は大きく動くが、警戒心も跳ね上がる', line: '今始めないと、もっと戻りにくくなりますよ。今日決めてしまいましょう。', int: 25, grd: 26, push: true }
+    { k: 'empathy', n: '共感する', d: '気持ちに寄りそう', gen: '警戒心がほぐれる', line: 'お忙しい中、よく来てくださいました。その疲れ方、つらいですよね。', int: 5, grd: -15 },
+    { k: 'effect', n: '効果を説明する', d: '施術の効果を伝える', gen: '興味が上がる', line: '今日の変化を写真で見てみましょう。続けるとここがさらに変わります。', int: 15, grd: 0, by: { effect: { int: 12 } } },
+    { k: 'voice', n: 'お客様の声を紹介する', d: '通っている人の話をする', gen: '少し興味が上がり、警戒心もほぐれる', line: '同じお悩みで通われている方は、3回目あたりから実感されています。', int: 8, grd: -10, by: { careful: { grd: -10 } } },
+    { k: 'limited', n: '今日だけの特典を出す', d: '今日だけのお得を伝える', gen: '興味が上がるが、警戒心も少し上がる', line: '本日お決めいただくと、入会金が無料になります。', int: 12, grd: 4, by: { quick: { int: 12 }, price: { int: 10 }, careful: { grd: 14 } } },
+    { k: 'split', n: '分割払いを案内する', d: '支払いの負担を軽くする', gen: '出せる金額が一段上がる', line: '月々のお支払いに分けることもできますよ。', int: 2, grd: 3, split: true, by: { price: { int: 9 } } },
+    { k: 'advice', n: '売り込まずホームケアを助言する', d: '自宅でのケアを教える', gen: '信頼されて、警戒心がほぐれる', line: 'ご自宅では、お風呂上がりにここを30秒ほぐしてあげてください。', int: 6, grd: -12, by: { chatty: { int: 8 } } },
+    { k: 'push', n: '強く押す', d: '強く決断をうながす', gen: '興味は大きく上がるが、警戒心も跳ね上がる', line: '今始めないと、もっと戻りにくくなりますよ。今日決めてしまいましょう。', int: 25, grd: 26, push: true }
   ];
   var COURSES = [
     { k: 'c10', n: '10回コース', price: 118000, need: 80, tier: 2, sessions: 10, big: true },
@@ -3154,13 +3154,16 @@
     var p = bl ? BLEND[bl].price : 0;
     if (p) { S.cash += p; S.wk.opt += p; C.revenue += p; }
   }
+  // 満足度は75をこえると伸びにくくなる。100を出すには、すべてがかみ合う必要がある
+  function softSat(x) { return x > 75 ? 75 + (x - 75) * 0.35 : x; }
   function satCalc(menu, press, st, bl) {
     var need = C.isNew ? C.concern : C.today;
     var match = menu === need ? 45 : (catOf(menu) === catOf(need) ? 30 : (NEAR[catOf(need)].indexOf(catOf(menu)) >= 0 ? 22 : 12));
     var order = ['soft', 'mid', 'strong'], gap = Math.abs(order.indexOf(press) - order.indexOf(C.pref));
     var p = gap === 0 ? 25 : (gap === 1 ? 12 : 0);
-    var sat = clamp(Math.round(4 + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 100);
-    if (bl) sat = clamp(sat + blendSat(bl), 5, 100);
+    var sat = clamp(Math.round(4 + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
+    if (bl) sat = sat + blendSat(bl);
+    sat = clamp(Math.round(softSat(sat)), 5, 100);
     return { sat: sat, match: match, gap: gap };
   }
   function doTreat(press) {
@@ -3189,13 +3192,44 @@
   }
 
   /* --- 新規：クロージング --- */
+  // お客様の気持ちを読む経験。トークを使うたびにたまり、性格ごとの効き目が少しずつ分かる
+  var LEARNGEN = 3, LEARNPERS = 2;
+  function learnFix() {
+    if (S.learn) return S.learn;
+    S.learn = {};
+    // 以前のセーブで、すでにたくさん接客してきたお店は、もう分かっていることにする
+    if ((S.total && S.total.served || 0) >= 40) TALKS.forEach(function (t) { S.learn[t.k] = LEARNGEN; Object.keys(PERS).forEach(function (pk) { S.learn[t.k + '|' + pk] = LEARNPERS; }); });
+    return S.learn;
+  }
+  function talkFx(t, pk) { var by = (t.by && t.by[pk]) || {}; return (by.int || 0) >= 8 || (by.grd || 0) <= -8 ? 1 : (by.grd || 0) >= 8 ? -1 : 0; }
+  function talkSub(t) {
+    var L = learnFix(), out = t.d;
+    if ((L[t.k] || 0) >= LEARNGEN) out += '。' + t.gen;
+    var good = [], bad = [];
+    Object.keys(PERS).forEach(function (pk) { if ((L[t.k + '|' + pk] || 0) >= LEARNPERS) { var f = talkFx(t, pk); if (f > 0) good.push(PERS[pk].n); if (f < 0) bad.push(PERS[pk].n); } });
+    if (good.length) out += '　◎' + good.join('・');
+    if (bad.length) out += '　×' + bad.join('・');
+    var known = Object.keys(PERS).filter(function (pk) { return (L[t.k + '|' + pk] || 0) >= LEARNPERS; }).length;
+    if (known < Object.keys(PERS).length) out += '　（性格ごとの効き目：' + known + '／' + Object.keys(PERS).length + 'が分かった）';
+    return out;
+  }
+  function learnTalk(t) {
+    var L = learnFix(), key = t.k + '|' + C.pers;
+    L[t.k] = (L[t.k] || 0) + 1;
+    var before = L[key] || 0; L[key] = before + 1;
+    if (L[t.k] === LEARNGEN) say('note', '経験から分かってきた：「' + t.n + '」は' + t.gen + '。');
+    if (before + 1 === LEARNPERS) {
+      var f = talkFx(t, C.pers);
+      say('note', 'お客様の気持ちが分かってきた：' + PERS[C.pers].n + 'の人に「' + t.n + '」は' + (f > 0 ? 'よく効く' : f < 0 ? '逆効果のようだ' : 'ふつうに効く') + '。');
+    }
+  }
   function closing() {
     bar();
     var left = 3 - C.turns;
     if (left === 0) return offer();
     view(karte() + talkHtml() + stepHtml('クロージング', 'あと' + left + '回話せる。興味を上げ、警戒心を下げてから提案する。'),
       TALKS.map(function (t) {
-        return { label: t.n, sub: t.d, off: !!C.used[t.k], picked: !!C.used[t.k], go: function () { doTalk(t); } };
+        return { label: t.n, sub: talkSub(t), off: !!C.used[t.k], picked: !!C.used[t.k], go: function () { doTalk(t); } };
       }).concat([{ main: true, label: 'もう提案に進む', go: offer }]));
   }
   function doTalk(t) {
@@ -3211,6 +3245,7 @@
     else if (di >= 18) say('you', pick(['それ、すごく気になります。', 'へえ…それなら続けてみたいかも。', 'そこまで変わるんですか。']), 'good');
     else if (dg <= -12) say('you', pick(['そう言ってもらえると、ほっとします。', '分かってもらえてうれしいです。', '親切に、ありがとうございます。']), 'good');
     else say('you', pick(['なるほど、そうなんですね。', 'ふむふむ。', 'そういうものなんですね。']));
+    learnTalk(t);
     closing();
   }
   function score() { return C.int - C.grd * 0.7 + (C.sat - (C.vip ? 62 : 50)) * (C.vip ? 0.6 : 0.3); }
@@ -3808,7 +3843,7 @@
     for (var k = 0; k < n; k++) {
       var st = next();
       expAdd(st, 2);
-      var sat = clamp(Math.round(22 + st.tech * 8 + (st.trait === 'god' ? 10 : 0) + (has(st, 'godhand') ? 12 : 0) + intBonus(b.interiorLv || (b.interior ? 1 : 0)) + moodBonus(st) + (S.hum - 30) * 0.15 + rnd() * 30), 5, 100);
+      var sat = clamp(Math.round(22 + st.tech * 8 + (st.trait === 'god' ? 10 : 0) + (has(st, 'godhand') ? 12 : 0) + intBonus(b.interiorLv || (b.interior ? 1 : 0)) + moodBonus(st) + (S.hum - 30) * 0.15 + rnd() * 30), 5, 999); sat = clamp(Math.round(softSat(sat)), 5, 100);
       r.served++; r.sales += Math.round(TRIAL * A.mult);
       if (sat >= 75) b.rep = clamp(b.rep + 1.5 + (fit > 0 ? 0.8 : 0), 0, 100); else if (sat < 45) b.rep = clamp(b.rep - 2, 0, 100);
       if (st.trait === 'mood') b.rep = clamp(b.rep + 1, 0, 100);
@@ -4050,7 +4085,9 @@
     if (!S.sns.mix) S.sns.mix = { ig: 0.6, tt: 0.25, yt: 0.15 };
     return S.sns;
   }
-  function snsQ() { var f = snsFix().f; return f / (f + 5000); }
+  // 媒体のかたよりで効き目が変わる。1つだけなら0.65倍、3つ均等なら1.25倍
+  function snsBal() { var m = snsFix().mix, mx = Math.max(m.ig, m.tt, m.yt); return clamp(1.25 - 0.9 * (mx - 1 / 3), 0.65, 1.25); }
+  function snsQ() { var P = snsFix(), f = P.f * snsBal(); return f / (f + 5000); }
   function pfN(pf) { var P = snsFix(); return Math.round(P.f * P.mix[pf]); }
   function pfPick() { var m = snsFix().mix, x = rnd(); return x < m.ig ? 'ig' : (x < m.ig + m.tt ? 'tt' : 'yt'); }
   // 媒体のフォロワーを増やす（全体の割合も、その媒体の方へ寄る）
@@ -4078,6 +4115,7 @@
     bar(); var P = snsFix(), left = snsLeft(), liveDone = P.live === S.week;
     view('<h1>SNSで発信する</h1><p class="lead">フォロワー合計 <b>' + fmtN(P.f) + '人</b>' + (P.best ? '　これまでの最高再生 ' + fmtN(P.best) + '回' : '') +
       '<br>' + Object.keys(SNSPF).map(function (k) { return SNSPF[k].n + ' ' + fmtN(pfN(k)) + '人'; }).join('　') +
+      '<br>バランス ' + Math.round(snsBal() * 100) + '%（3つを同じくらい伸ばすほど、来店や求人への効き目が大きい。同じ媒体ばかりだと伸びも鈍る）' +
       '<br>媒体ごとにフォロワーの年齢層が違う。力を入れた媒体によって、来るお客様と求人に集まる人が変わる。投稿は月2回まで。しばらく投稿しないと、フォロワーは少しずつ減る。</p>' + (note || ''),
       Object.keys(SNSPF).map(function (k) {
         var x = SNSPF[k];
@@ -4101,7 +4139,8 @@
     snsLeft(); P.n++; P.used[k] = true; P.last = S.week;
     var views = Math.round((1500 + base * 0.5 + P.f * 0.15) * (0.5 + q) * (0.6 + rnd() * 0.8) * x.view), buzz = roll((0.04 + q * 0.08) * x.buzz);
     if (buzz) views = Math.round(views * (8 + rnd() * 8));
-    var gain = Math.round(views * (0.02 + q * 0.05) * x.gain / (1 + P.f / 50000));
+    // 同じ媒体ばかりだと伸びが鈍る（その媒体の割合が高いほど、新しいフォロワーが増えにくい）
+    var gain = Math.round(views * (0.02 + q * 0.05) * x.gain * (1.35 - P.mix[pf]) / (1 + P.f / 50000));
     addF(pf, gain); P.best = Math.max(P.best, views);
     var extra = '';
     if (k === 'tech') { S.snsTech = S.week + 1; extra = '来月の新規は、動画を見て期待して来てくれる。'; }
