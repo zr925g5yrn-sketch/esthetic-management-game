@@ -1439,6 +1439,7 @@
     [/筋トレ|筋肉痛|ヨガ|プール|パーソナル/, 'v_gym'], [/ランニング|サイクリング|登山|ご来光/, 'v_mountain'], [/セミナー/, 'v_stage'], [/買い|お買い物/, 'v_shopping'], [/カフェ|集中/, 'v_cafe'], [/スパ|予約ミス/, 'v_spa'], [/ピラティス|筋肉痛/, 'v_gym'], [/推し|チケット|グッズ/, 'v_concert'],
     [/犬/, 'v_dog'], [/デート/, 'v_date'], [/家族/, 'v_family'], [/おうち/, 'v_home']];
   function holPic(title) { for (var i = 0; i < HOLPIC.length; i++) if (HOLPIC[i][0].test(title)) return HOLPIC[i][1]; return 'v_home'; }
+  function dinnerScene(mem) { evScene(['v_dinner']); if (scene.story) scene.story.looks = (mem || []).filter(function (st) { return !st.owner; }).map(staffLook); }
   function evScene(pics) {
     pics = (pics || []).filter(Boolean);
     if (!pics.length) { if (scene.story && scene.story.ev) scene.story = null; return; }
@@ -3216,6 +3217,18 @@
       big(me, 24, 34, 2, { face: 'bliss', arms: true });
       for (i = 0; i < 4; i++) floaty('heart', 56 + i * 16, 30 + (i % 2) * 6, now, i * 0.4, 1);
       floaty('coin', 46, 40, now, 0.2, 1);
+    } else if (k === 'v_dinner') {
+      var ppl = (scene.story.looks && scene.story.looks.length ? scene.story.looks : [tm(0), tm(1), tm(2)]).slice(0, 5), all = [meU].concat(ppl), n2 = all.length;
+      R(0, 0, SW, SH, '#4A3428'); for (x = 0; x < SW; x += 16) R(x, 0, 1, 54, '#3E2A20'); R(0, 18, SW, 2, '#5E4434');
+      for (i = 0; i < 3; i++) { var lx = 20 + i * 44; R(lx, 0, 1, 6, '#2B2238'); g.globalAlpha = 0.16; disc(lx, 11, 11, '#FFE08A'); g.globalAlpha = 1; R(lx - 4, 6, 9, 10, '#E8604A'); R(lx - 4, 8, 9, 1, '#C8402A'); R(lx - 4, 12, 9, 1, '#C8402A'); R(lx - 1, 16, 3, 1, '#2B2238'); }
+      R(0, 62, SW, 22, '#2E2018');
+      var toast = !reduce && Math.floor(t / 2.2) % 2 === 1, pos = function (j) { return Math.round(64 - (n2 - 1) * 11 + j * 22); };
+      all.forEach(function (lk, j) { big(lk, pos(j) - 10, 26 + (toast ? -1 : 0), 2, { rows: 12, face: toast ? 'bliss' : 'smile' }); });
+      R(4, 50, 120, 6, '#8A5A3A'); R(4, 50, 120, 1, '#A8764E'); R(8, 56, 4, 10, '#5A3A2A'); R(116, 56, 4, 10, '#5A3A2A');
+      for (i = 0; i < 4; i++) { var dx = 14 + i * 28; R(dx, 52, 14, 2, '#FFFFFF'); R(dx + 1, 54, 12, 1, '#D8D0C8'); R(dx + 2, 51, 10, 1, ['#E8604A', '#F2C230', '#7FC49A', '#F08DAE'][i]); if (!reduce && i % 2 === 0) { g.globalAlpha = 0.45; R(dx + 6 + Math.sin(now / 300 + i) * 1.5, 49 - ((now / 60 + i * 9) % 7), 2, 2, '#FFFFFF'); g.globalAlpha = 1; } }
+      all.forEach(function (lk, j) { var hx = pos(j), gx = toast ? Math.round(hx + (64 - hx) * 0.35) : hx + 4, gy = toast ? 36 : 44; R(gx, gy, 3, 5, '#F2C230'); R(gx, gy, 3, 1, '#FFFFFF'); R(gx + 1, gy + 5, 1, 1, '#E8E0D4'); });
+      if (toast) floaty('spark', 62, 30, now, 0, 2);
+      floaty('note', 18, 22, now, 0.4, 1); floaty('heart', 106, 22, now, 0.9, 1);
     } else if (k === 'v_onsen') {
       var snowy = mo === 12 || mo <= 2, autumn = mo >= 9 && mo <= 11;
       bands(snowy ? ['#2E3458', '#3E4670', '#56608A', '#7A84A8'] : ['#3A2E58', '#5A4478', '#8A5E8A', '#C8808A']);
@@ -5631,7 +5644,7 @@
       var cost = 6000 * mem.length, used = keys.some(function (k) { return done[k] || done.all; });
       return { label: label + '　' + yen(cost), sub: mem.map(function (st) { return st.name; }).join('・') + '　やる気+10' + (used ? '　今月はもう開いた' : ''),
         off: used || S.cash < cost,
-        go: function () { pay(cost); mem.forEach(function (st) { moodUp(st, 10, 0); }); keys.forEach(function (k) { done[k] = true; }); SFX.good(); S.careNote = note; careView(); } };
+        go: function () { pay(cost); mem.forEach(function (st) { moodUp(st, 10, 0); }); keys.forEach(function (k) { done[k] = true; }); SFX.good(); S.careNote = note; dinnerScene(mem); careView(); } };
     };
     var out = groups.map(function (g2) { var o2 = opt(g2.name + 'で食事会を開く', g2.mem, [g2.key], g2.name + 'の食事会で大いに盛り上がった。チームの距離が縮まった。'); o2.grp = g2.rg + ' の食事会'; return o2; });
     if (groups.length > 1) out.unshift(opt('全店合同の食事会を開く', list, groups.map(function (g2) { return g2.key; }).concat(['all']), '全店合同の食事会で、お店をこえて仲よくなった。みんなの笑顔が増えた。'));
@@ -5646,7 +5659,7 @@
     view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + careStaffInfo(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="talk"><div class="say you">' + talkLine(st) + '</div></div>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       [{ label: 'ご飯に誘う　' + yen(8000), sub: 'やる気+15' + (used ? '　（やる気は今月もう上げた）' : ''), off: used || S.cash < 8000,
-         go: act(8000, 15, 0, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。'])) },
+         go: act(8000, 15, 0, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。']), function () { dinnerScene([st]); }) },
        { label: '面談する', sub: 'じっくり話を聞く。信頼+10' + (talked ? '　（今月はもう面談した）' : ''), off: talked,
          go: act(0, 0, 10, pick(['悩みを打ち明けてくれた。少し距離が縮まった。', '目標を聞いた。「いつか自分の店を持ちたいんです」', 'お客様への思いを聞いた。頼もしくなってきた。'])) },
        { label: 'ボーナスを渡す　' + yen(20000), sub: 'やる気+25', off: used || S.cash < 20000,
@@ -5873,6 +5886,7 @@
           finish(0, '税金を3か月の分割で納めることにした（毎月' + yen(amt) + '）。'); } }]);
   }
   function investView() {
+    evScene([]);
     if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), investView);
     if (S.wk && (S.wk.yearCut || (S.wk.achGot && S.wk.achGot.length))) {
       var cs = []; if (S.wk.yearCut) cs.push(S.wk.yearCut);
@@ -6086,7 +6100,7 @@
     if (m.done < 0 && !dotLeft()) return view(h + '<p class="lead">今月の返信は' + DOTMAX + '通まで。このメッセージには返信できない。</p>', [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }]);
     view(h + (m.done < 0 ? '<p class="lead">返信できるのは、あと' + dotLeft() + '通。</p>' : ''), m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }] :
       m.reps.map(function (rp, i) {
-        return { label: rp.t, off: !!rp.cost && S.cash < rp.cost, go: function () { m.done = i; m.note = dotFx(m, rp); SFX.good(); saveGame('night'); dotThread(m); } };
+        return { label: rp.t, off: !!rp.cost && S.cash < rp.cost, go: function () { m.done = i; m.note = dotFx(m, rp); if (rp.fx === 'party') dinnerScene(crewAll()); if (rp.fx === 'bday') evScene(['v_cake']); SFX.good(); saveGame('night'); dotThread(m); } };
       }).concat([{ label: 'あとで返信する', go: dotView }]));
   }
   // 今月できること。まだのものは ○、すんだものは ✓。押すとその画面へ
