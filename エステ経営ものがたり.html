@@ -2164,7 +2164,7 @@
     var spc = S.clients.filter(function (c) { return c.vip && c.royal && c.loy >= 25 && !c.sponsored; })[0];
     if (spc && S.hum >= 45 && freeAreas('local').length && roll(0.6)) {
       setEvent('sponsor'); S.evClientId = spc.id;
-      S.evText = spc.name + 'さまから「あなたの人柄が気に入ったわ。新しいお店を出すなら、出店費は私が出すわ」と申し出があった。';
+      S.evText = spc.name + 'さまから「あなたの人柄が気に入ったわ。新しいお店を出すなら、私が出資してもいいわよ。もちろん、見返りはいただくけれど」と申し出があった。'; S.spDeal = null;
       return;
     }
     if (S.vipNext === S.week) { setEvent('vip'); S.evText = '先日のお客様のご友人が、紹介で予約を入れた。またセレブだ。'; return; }
@@ -2501,15 +2501,26 @@
       { label: '昇給して引き止める（月+' + yen(15000) + '）', sub: 'やる気が上がる', go: function () { st.wage += 15000; moodUp(st, 25, 3); done(st.name + 'は残ってくれることになった。'); } },
       { label: '送り出す', sub: st.name + 'は店を去る', go: function () { removeStaff(st); var n = trimQueue(); done(st.name + 'を笑顔で送り出した。' + (n ? '人手が減り、' + n + '人の予約をお断りした。' : '')); } } ];
     if (k === 'sponsor') {
-      var spc = S.clients.filter(function (c) { return c.id === S.evClientId; })[0];
-      var opened = S.shops.map(function (b) { return b.area; });
+      var spc = S.clients.filter(function (c) { return c.id === S.evClientId; })[0], who = spc ? spc.name + 'さま' : 'スポンサー';
+      var DEALS = {
+        s15: { n: '出店費を出資してもらう', d: 'かわりに、その支店の利益の15%を5年間（60か月）支払う', pct: 0.15, months: 60 },
+        s30: { n: '出店費と開店資金' + yen(500000) + 'を出資してもらう', d: 'かわりに、その支店の利益の30%を3年間（36か月）支払う', pct: 0.3, months: 36, extra: 500000 },
+        loan: { n: '出店費を無利子で借りる', d: '利益は分けない。そのかわり、出店費を36回で返す', loan: true }
+      };
+      if (!S.spDeal) return Object.keys(DEALS).map(function (dk) {
+        var D = DEALS[dk]; return { label: D.n, sub: D.d, go: function () { S.spDeal = dk; weekIntro(); } };
+      }).concat([{ label: '丁重にお断りする', sub: '自分の力で広げたいと伝える。信頼と評判が上がる', go: function () {
+        if (spc) { spc.sponsored = true; spc.loy = clamp(spc.loy + 10, 0, 100); } S.rep = clamp(S.rep + 3, 0, 100); S.spDeal = null; done('「欲のない人ね。ますます気に入ったわ」'); } }]);
+      var D = DEALS[S.spDeal];
       return freeAreas('local').map(function (a) {
-        return { label: AREAS[a].n + 'を出す（出店費0円）', sub: AREAS[a].d + '　家賃 月' + yen(AREAS[a].rent), go: function () {
+        return { label: AREAS[a].n + 'を出す', sub: D.n + '：' + D.d + '　出店費' + yen(AREAS[a].cost) + '・家賃 月' + yen(AREAS[a].rent), go: function () {
           if (spc) spc.sponsored = true;
-          var b = openBranch(a, true);
-          showCut(branchCut(b), function () { done(b.name + 'を開店した。' + (spc ? spc.name + 'さま' : 'スポンサー') + 'がテープカットに来てくれた。店長は' + b.staff[0].name + '（' + TRAITS[b.staff[0].trait].n + '）。'); }); } };
-      }).concat([{ label: '気持ちだけ受け取る', sub: '信頼と評判が上がる', go: function () {
-        if (spc) { spc.sponsored = true; spc.loy = clamp(spc.loy + 10, 0, 100); } S.rep = clamp(S.rep + 3, 0, 100); done('「欲のない人ね。ますます気に入ったわ」'); } }]);
+          var b = openBranch(a, true), note;
+          if (D.loan) { loanAdd('family', AREAS[a].cost, 0, 36, 0); S.loans[S.loans.length - 1].n = who + 'からの借入'; S.cash -= AREAS[a].cost; note = '出店費' + yen(AREAS[a].cost) + 'は、36回で' + who + 'に返していく。'; }
+          else { b.investor = { name: who, pct: D.pct, until: S.week + D.months }; if (D.extra) S.cash += D.extra; note = 'この店の利益の' + Math.round(D.pct * 100) + '%を、' + D.months + 'か月のあいだ' + who + 'に支払う。' + (D.extra ? '開店資金' + yen(D.extra) + 'も受け取った。' : ''); }
+          S.spDeal = null;
+          showCut(branchCut(b), function () { done(b.name + 'を開店した。' + who + 'がテープカットに来てくれた。' + note); }); } };
+      }).concat([{ label: '条件を選びなおす', go: function () { S.spDeal = null; weekIntro(); } }]);
     }
     if (k === 'rival') return [
       { label: '対抗キャンペーンを打つ　' + yen(50000), sub: '新規は減らず、評判も少し上がる', off: S.cash < 50000,
@@ -4027,9 +4038,12 @@
     var bo = baseOps(b.staff, b.rep, A.mult); r.sales += bo.sales; r.cost += bo.cost; r.served += bo.n;
     r.inc = incPay(b.staff); r.cost += r.inc;
     if (fit) r.sales = Math.round(r.sales * (1 + 0.12 * fit));
+    r.inv = 0;
     if (A.peak) { var hi = A.peak.indexOf(monthOf()) >= 0; r.season = hi ? 'ハイシーズン' : 'オフシーズン'; r.sales = Math.round(r.sales * (hi ? 1.45 : 0.75)); }
     if (A.tier === 'world' || A.tier === 'resort') { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
     r.net = r.sales - r.refund - r.cost;
+    if (b.investor && S.week <= b.investor.until && r.net > 0) { r.inv = Math.round(r.net * b.investor.pct / 1000) * 1000; r.cost += r.inv; r.net -= r.inv; }
+    if (b.investor && S.week === b.investor.until) { S.wk.stratNote = (S.wk.stratNote || []).concat([{ t: b.name + 'の、' + b.investor.name + 'への利益の支払いが終わった。これからは利益がまるごと入る。' }]); }
     b.last = r;
     return r;
   }
@@ -4226,7 +4240,8 @@
       var cc = V ? V.concept : S.concept;
       info = (cc && CONCEPTS[cc] ? 'コンセプト：' + CONCEPTS[cc].n + (V ? '（' + fitText(fitOf(V.area, cc)) + '）' : '') + '<br>' : '') +
         '内装 ' + lv + '／' + MAXINT + '　スタッフ ' + crew.length + '人' + (V ? '　評判 ' + stars(V.rep) : '') +
-        (r ? '<br>先月：来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + '　収支 ' + yen(r.net) : '');
+        (r ? '<br>先月：来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + '　収支 ' + yen(r.net) + (r.inv ? '（出資者へ' + yen(r.inv) + '支払い後）' : '') : '') +
+        (V && V.investor && S.week <= V.investor.until ? '<br>出資：' + V.investor.name + 'に利益の' + Math.round(V.investor.pct * 100) + '%を支払い中（あと' + (V.investor.until - S.week) + 'か月）' : '');
     }
     var list = [null].concat(S.shops).concat(S.ph ? ['ph'] : []);
     view('<h1>' + name + '</h1><p class="lead">' + info + '</p><p class="lead">ほかの店舗も見に行ける。</p>',
