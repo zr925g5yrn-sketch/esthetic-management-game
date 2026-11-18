@@ -155,7 +155,9 @@
   .who-list.auto small { font-size: .74rem; color: var(--sub); }
   .who-list.auto li.bad { border-color: var(--accent); }
   .form { display: grid; gap: 8px; margin: 10px 0 12px; }
-  .form label { display: grid; gap: 3px; font-size: .82rem; color: var(--sub); }
+  .form label { display: grid; gap: 3px; min-width: 0; font-size: .82rem; color: var(--sub); }
+  .form input, .form select { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+  .dvinfo { margin: 0; padding: 6px 10px; background: var(--chip); border-left: 4px solid var(--gold); font-size: .82rem; line-height: 1.6; color: var(--sub); }
   .form input, .form select { font: inherit; font-size: 16px; padding: 8px 10px; border: 3px solid var(--ink); border-radius: 0;
     background: var(--panel); color: var(--ink); -webkit-user-select: text; user-select: text; }
   .savewarn { position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 60; max-width: 416px; margin: 0 auto;
@@ -5353,16 +5355,22 @@
     if (!S.dev && S.myProds.length >= MAXMINE) return view('<h1>商品開発</h1><p class="lead">オリジナル商品は' + MAXMINE + '品まで。新しく作るには、どれかを廃番にする。</p>', S.myProds.map(function (p) { return { label: '「' + p.n + '」を廃番にする', sub: '品質' + p.q + '　在庫' + S.stock[p.k] + '個（仕入れ値で引き取る）', go: function () { S.cash += (S.stock[p.k] || 0) * p.cost; S.myProds.splice(S.myProds.indexOf(p), 1); delete S.stock[p.k]; if (S.autoStock) delete S.autoStock[p.k]; devView(); } }; }).concat([{ main: true, label: 'もどる', go: investView }]));
     if (S.dev) return view('<h1>商品開発</h1><p class="lead">「' + S.dev.name + '」（' + DEVCAT[S.dev.cat].n + '）を開発中。あと' + S.dev.left + 'か月で完成する。</p>',
       [{ main: true, label: 'もどる', go: investView }]);
-    var opts = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone; }).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '（' + fitText2(k) + '・売値の目安 ' + yen(DEVCAT[k].price) + (DEVCAT[k].d ? '・アロマのブレンドにも使える' : '') + '）</option>'; }).join('');
+    var opts = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone; }).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '</option>'; }).join('');
     view('<h1>商品開発</h1><p class="lead">店のオリジナル商品を作る。完成まで2か月。品質はスタッフの施術の腕と、あなたの人間力で決まる。良い品はよく売れ、話題にもなる。最大' + MAXMINE + '品。</p>' +
       '<div class="form"><label>商品名<input id="dvName" type="text" maxlength="12" autocomplete="off"></label>' +
-      '<label>種類<select id="dvCat">' + opts + '</select></label></div>' + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
+      '<label>種類<select id="dvCat">' + opts + '</select></label><p class="dvinfo" id="dvInfo"></p></div>' + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
       [{ label: '標準で開発する　' + yen(150000), sub: '2か月で完成', off: S.cash < 150000, go: function () { startDev(0, 150000); } },
        { label: 'こだわって開発する　' + yen(300000), sub: '2か月で完成。品質が上がりやすい', off: S.cash < 300000, go: function () { startDev(1, 300000); } },
       ].concat(S.myProds.map(function (p) {
         return { label: '「' + p.n + '」を廃番にする', sub: DEVCAT[p.cat] ? DEVCAT[p.cat].n + '　品質' + p.q + '　在庫' + S.stock[p.k] + '個（仕入れ値で引き取る）' : '', go: function () {
           S.cash += (S.stock[p.k] || 0) * p.cost; S.myProds.splice(S.myProds.indexOf(p), 1); delete S.stock[p.k]; if (S.autoStock) delete S.autoStock[p.k]; devView(); } };
       })).concat([{ main: true, label: 'もどる', go: investView }]));
+    var sel = $('dvCat'); if (sel) { sel.addEventListener('change', devInfo); devInfo(); }
+  }
+  function devInfo() {
+    var el = $('dvInfo'), sel = $('dvCat'); if (!el || !sel) return;
+    var D = DEVCAT[sel.value];
+    el.innerHTML = '<span class="stk-fit">合うお悩み：' + fitText2(sel.value) + '</span><br>売値の目安 ' + yen(D.price) + (D.d ? '<br>' + D.d : '');
   }
   function startDev(plus, cost) {
     var cat = $('dvCat').value, name = clean($('dvName').value) || 'オリジナル' + DEVCAT[cat].n;
