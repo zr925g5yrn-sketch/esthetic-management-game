@@ -56,6 +56,7 @@
     padding: 8px 0 6px;
   }
   .bar .week { font-size: 1rem; }
+  .bar .brand { grid-column: 1 / -1; font-size: .78rem; color: var(--accent); line-height: 1.3; }
   .bar .money { text-align: right; font-size: 1.12rem; font-variant-numeric: tabular-nums; }
   .bar .money.minus { color: var(--accent); }
   .bar .sub { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; font-size: .78rem; color: var(--sub); }
@@ -2098,7 +2099,7 @@
       b.innerHTML = '<span class="week">エステ経営ものがたり</span><span></span><button class="snd" id="snd" type="button"></button>';
     } else {
       var full = Math.round(S.rep / 20);
-      b.innerHTML = '<span class="week">' + calOf(S.week) + (S.ownerName ? '　' + S.ownerName + '店長' : '') + '　Lv' + mlv() + '</span>' +
+      b.innerHTML = (S.brand || S.company ? '<span class="brand">' + (S.company && S.brand && S.company.indexOf(S.brand) < 0 ? S.brand + '　｜　' + S.company : (S.company || S.brand)) + '</span>' : '') + '<span class="week">' + calOf(S.week) + (S.ownerName ? '　' + S.ownerName + (S.hq ? '社長' : '店長') : '') + '　Lv' + mlv() + '</span>' +
         '<span class="money' + (S.cash < 0 ? ' minus' : '') + '">' + yen(S.cash) + '</span>' +
         '<button class="snd" id="snd" type="button"></button>' +
         '<span class="sub"><span>評判 ' + '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5 - full) + '</span>' +
@@ -4653,12 +4654,28 @@
     S.opDone = b.name; S.opShop = null; S.opHome = null;
   }
   // 来月、どの店舗で営業するか
+  function nameView() {
+    bar();
+    view('<h1>お店と会社の名前</h1><p class="lead">名前を変えると、支店の名前もまとめて変わる（例：「' + (S.brand || 'サロン・あかり') + ' 表参道店」）。</p>' +
+      '<div class="form"><label>お店の名前（12文字まで）<input id="nmBrand" type="text" maxlength="12" autocomplete="off"></label>' +
+      (S.hq ? '<label>会社の名前（16文字まで）<input id="nmCo" type="text" maxlength="16" autocomplete="off"></label>' : '') + '</div>' +
+      (S.hq ? '' : '<p class="lead">会社の名前は、社長に就任すると決められる。</p>'),
+      [{ main: true, label: 'この名前にする', go: function () {
+        var nb = clean($('nmBrand').value) || S.brand || 'サロン・' + (S.ownerName || 'ルミエ');
+        S.brand = nb;
+        S.shops.forEach(function (b) { if (AREAS[b.area]) b.name = nb + ' ' + AREAS[b.area].n; });
+        if (S.hq && $('nmCo')) S.company = coClean($('nmCo').value) || S.company;
+        SFX.good(); saveGame('night'); bar(); investView();
+      } }, { label: 'やめる', go: investView }]);
+    $('nmBrand').value = S.brand || ''; if ($('nmCo')) $('nmCo').value = S.company || '';
+  }
+  function homeName() { return (S.brand ? S.brand + ' ' : '') + '本店'; }
   function opView() {
     bar();
     var cur = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
     view('<h1>来月の営業店舗</h1><p class="lead">あなたが店に立つ店舗を選ぶ。選んだ店舗のお客様を、自分で接客できる。そのあいだ、本店はスタッフにおまかせで自動で営業する。</p>' +
-      '<p class="lead">いまの予定：<b>' + (cur ? cur.name : '本店') + '</b></p>' + (S.staff.length <= 1 ? '<div class="news bad">本店にあなた以外のスタッフがいない。支店で営業すると、そのあいだ本店はお休みになる（家賃はかかる）。</div>' : ''),
-      [{ label: '本店で営業する', sub: '今までどおり', go: function () { S.opNext = null; investView(); } }].concat(S.shops.map(function (b) {
+      '<p class="lead">いまの予定：<b>' + (cur ? cur.name : homeName()) + '</b></p>' + (S.staff.length <= 1 ? '<div class="news bad">本店にあなた以外のスタッフがいない。支店で営業すると、そのあいだ本店はお休みになる（家賃はかかる）。</div>' : ''),
+      [{ label: homeName() + 'で営業する', sub: '今までどおり', go: function () { S.opNext = null; investView(); } }].concat(S.shops.map(function (b) {
         var A = AREAS[b.area], r = b.last;
         return { label: b.name + 'で営業する', sub: (CONCEPTS[b.concept] ? CONCEPTS[b.concept].n + '　' : '') + 'スタッフ' + b.staff.length + '人　評判' + Math.round(b.rep) + '　家賃 月' + yen(A.rent) + '　単価×' + A.mult + (r ? '　先月の収支 ' + yen(r.net) : ''),
           go: function () { S.opNext = b.id; investView(); } };
@@ -5903,6 +5920,7 @@
         pay(v.price); S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
       } });
     });
+    opts.push({ label: 'お店と会社の名前を変える', sub: 'いま：' + (S.brand || '（未設定）') + (S.company ? '／' + S.company : '') + '　支店の名前もまとめて変わる', go: nameView });
     opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（dot.など）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
     if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
     // メニューを3つにまとめて、月末画面を短くする
@@ -5921,8 +5939,8 @@
     if (curCat && CAT[curCat]) return catView(curCat);
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
-    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + (nx ? nx.name : '本店') : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(
-      S.shops.length ? [{ label: '来月の営業店舗：' + (nx ? nx.name : '本店'), sub: 'あなたが店に立つ店舗を切り替える。選んだ店舗のお客様を自分で接客し、本店はスタッフにおまかせになる', go: opView }] : []).concat([
+    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + (nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(
+      S.shops.length ? [{ label: '来月の営業店舗：' + (nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える。選んだ店舗のお客様を自分で接客し、本店はスタッフにおまかせになる', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
       { label: '発信・記録・そのほか', sub: 'SNS（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]));
@@ -6036,7 +6054,7 @@
     var list = (S.hq ? ['hq'] : []).concat([null]).concat(S.shops).concat(S.ph ? ['ph'] : []);
     if (list.length < 2) return '';
     return '<div class="shopsw" role="group" aria-label="店内を見る店舗"><span>店内を見る</span>' + list.map(function (x, i) {
-      var nm = !x ? '本店' : x === 'ph' ? 'ペントハウス' : x === 'hq' ? '社長室' : x.name;
+      var nm = !x ? '本店' : x === 'ph' ? 'ペントハウス' : x === 'hq' ? '社長室' : (AREAS[x.area] ? AREAS[x.area].n : x.name);
       return '<button type="button" class="chipb' + ((scene.shop || null) === x ? ' on' : '') + '" data-shop="' + i + '">' + nm + '</button>';
     }).join('') + '</div>';
   }
