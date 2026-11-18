@@ -94,6 +94,9 @@
   .say { max-width: 90%; padding: 6px 10px; font-size: .9rem; line-height: 1.5; border: 2px solid var(--ink); }
   .say.me { justify-self: end; background: var(--ink); color: var(--bg); }
   .say.you { justify-self: start; background: var(--panel); }
+  .dotbar { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; padding: 6px 10px; background: var(--ink); color: var(--bg); font-size: .9rem; }
+  .dotbar b { font-size: 1.05rem; letter-spacing: .04em; }
+  .say .who { display: block; font-size: .72rem; color: var(--sub); }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
   .say.bad { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -5694,6 +5697,7 @@
       }
       S.wk.yearCut = monthOf() === 3 ? yearEnd() : null;
       if (S.wk.yearCut) S.wk.achGot = S.wk.achGot.concat(achCheck());
+      S.dot = dotGen();
       S.wk.quit = null;
       if (S.quitRisk) {
         if (roll(0.55 - S.hum / 250) && S.staff.indexOf(S.quitRisk) > 0) { S.staff.splice(S.staff.indexOf(S.quitRisk), 1); S.wk.quit = S.quitRisk.name; }
@@ -5855,7 +5859,7 @@
         pay(v.price); S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
       } });
     });
-    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（Pingloなど）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
+    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（dot.など）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
     if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
     // メニューを3つにまとめて、月末画面を短くする
     var CAT = { staff: [], shop: [], other: [] };
@@ -5881,10 +5885,89 @@
     taskBind(TK); shopSwBind();
   }
   var curCat = null;
+
+  /* --- dot.（メッセージアプリ）：月末に、お客様・スタッフ・家族などからメッセージが届く --- */
+  function dotStaff(id) { return allStaff().filter(function (x) { return x.id === id; })[0] || null; }
+  function dotClient(id) { return S.clients.filter(function (x) { return x.id === id; })[0] || null; }
+  function dotGen() {
+    var C2 = [], crew = crewAll(), L = S.life || {};
+    var regs = S.clients.filter(function (c) { return c.active && !c.vip && S.week - (c.last || 0) <= 1; });
+    if (regs.length) { var c = pick(regs); C2.push({ kind: 'reg', from: c.name + 'さん', cid: c.id, w: 3,
+      lines: [{ t: pick(['先月はありがとうございました！', 'この前の施術、すごくよかったです！', 'こんにちは！ ' + c.name + 'です。']) }, { t: pick(['肌の調子がすごくいいです。', '体が軽くなって、よく眠れました。', '家族にも「きれいになったね」って言われました！']) }],
+      reps: [{ t: 'うれしいです！ 来月のご予約、お取りしましょうか？', fx: 'book', res: 'ぜひお願いします！ 楽しみにしています。' }, { t: '（ありがとうのスタンプ）', fx: 'loy', res: '（にっこりのスタンプ）' }] }); }
+    var low = crew.filter(function (st) { return (st.mot || 60) < 45; });
+    if (low.length) { var st = pick(low); C2.push({ kind: 'staffLow', from: st.name, sid: st.id, w: 4,
+      lines: [{ t: '店長、少しお時間いいですか…。' }, { t: pick(['最近ちょっと自信がなくなってきて。', 'お客様にうまく提案できなくて、落ちこんでいます。', '少し疲れがたまっているみたいで…。']) }],
+      reps: [{ t: 'いつもありがとう。明日ゆっくり話そう。', fx: 'moodBig', res: 'ありがとうございます。少し気が楽になりました。' }, { t: '大丈夫！ 一緒にがんばろう！', fx: 'moodSmall', res: '…はい、がんばります。' }] }); }
+    var high = crew.filter(function (st) { return (st.mot || 60) >= 70; });
+    if (high.length) { var sh = pick(high); C2.push({ kind: 'staffHigh', from: sh.name, sid: sh.id, w: 2,
+      lines: [{ t: pick(['店長！ 今日のお客様に「また指名したい」って言われました！', '新しい手技、練習してだいぶ上手くなりました！', 'お客様からお手紙をいただきました！']) }],
+      reps: [{ t: 'すごい！ さすがだね。', fx: 'moodMid', res: 'えへへ、もっとがんばります！' }, { t: '（拍手のスタンプ）', fx: 'moodSmall', res: '（ハートのスタンプ）' }] }); }
+    if (crew.length >= 2) { var a = crew[0], b = crew[1], cost = 3000 * crew.length; C2.push({ kind: 'group', from: 'サロンのみんな（' + (crew.length + 1) + '人）', w: 2,
+      lines: [{ who: a.name, t: '今月もおつかれさまでした！' }, { who: b.name, t: '打ち上げ、行きたいです〜！' }],
+      reps: [{ t: 'みんなでご飯に行こう！　' + yen(cost), fx: 'party', cost: cost, res: 'やったー！ 店長ありがとうございます！' }, { t: '今月はゆっくり休んでね。', fx: 'none', res: 'はーい！ おつかれさまでした！' }] }); }
+    if (L.partner === 'dating' || L.partner === 'married') { var pn = L.partner === 'married' ? '旦那さん' : '彼'; C2.push({ kind: 'partner', from: pn, w: 2,
+      lines: [{ t: '今日は早く帰れそう？' }, { t: pick(['ごはん作って待ってるね。', 'たまには一緒に映画でも見ない？']) }],
+      reps: [{ t: '急いで帰る！', fx: 'home', res: '気をつけて帰ってきてね。' }, { t: 'ごめん、今日は遅くなりそう。', fx: 'none', res: 'わかった。無理しないでね。' }] }); }
+    C2.push({ kind: 'family', from: '母', w: 1, lines: [{ t: pick(['お店、順調？ 体には気をつけてね。', 'テレビでエステの特集を見たよ。あなたのお店も負けてないね。', '野菜をたくさん送ったから、ちゃんと食べてね。']) }],
+      reps: [{ t: 'ありがとう、元気にやってるよ。', fx: 'hum', res: 'たまには帰ってきなさいね。' }] });
+    C2.push({ kind: 'maker', from: '化粧品メーカーの営業', w: 1, lines: [{ t: 'いつもお世話になっております。新商品のサンプルをお送りしました。' }, { t: 'お店でお試しいただけますと幸いです。' }],
+      reps: [{ t: 'ありがとうございます！ お店で使ってみます。', fx: 'sample', res: 'ぜひ感想をお聞かせください。' }] });
+    var vips = S.clients.filter(function (c) { return c.active && c.vip; });
+    if (vips.length) { var v = pick(vips); C2.push({ kind: 'vip', from: v.name + 'さま', cid: v.id, w: 3, lines: [{ t: 'あなたのお店、お友だちにも紹介しておいたわ。' }],
+      reps: [{ t: '光栄です！ 心よりお待ちしております。', fx: 'rep', res: 'ふふ、期待しているわよ。' }] }); }
+    if (S.sns && S.sns.f > 0) C2.push({ kind: 'friend', from: '学生時代の友だち', w: 1, lines: [{ t: 'お店のBaeglam見たよ！ すごくおしゃれ！' }],
+      reps: [{ t: 'ありがとう！ 今度遊びに来てね。', fx: 'hum', res: '行く行く！ 予約するね。' }] });
+    // 重みをつけて2〜3件選ぶ
+    var out = [], n = Math.min(C2.length, 2 + (roll(0.4) ? 1 : 0));
+    while (out.length < n && C2.length) { var tot = C2.reduce(function (x, m) { return x + m.w; }, 0), r = rnd() * tot, i = 0;
+      while (i < C2.length - 1 && (r -= C2[i].w) > 0) i++; out.push(C2.splice(i, 1)[0]); }
+    out.forEach(function (m, i) { m.id = S.week * 10 + i; m.done = -1; });
+    return out;
+  }
+  function dotFx(m, rp) {
+    var st = m.sid ? dotStaff(m.sid) : null, c = m.cid ? dotClient(m.cid) : null;
+    if (rp.cost) pay(rp.cost);
+    switch (rp.fx) {
+      case 'book': if (c) { c.booked = S.week + 1; c.active = true; c.loy = clamp(c.loy + 5, 0, 100); } return '来月のご予約が入った（信頼+5）';
+      case 'loy': if (c) c.loy = clamp(c.loy + 2, 0, 100); return '信頼+2';
+      case 'moodBig': if (st) moodUp(st, 15, 6); return (st ? st.name + 'の' : '') + 'やる気+15、信頼+6';
+      case 'moodMid': if (st) moodUp(st, 8, 3); return (st ? st.name + 'の' : '') + 'やる気+8、信頼+3';
+      case 'moodSmall': if (st) moodUp(st, 3, 1); return (st ? st.name + 'の' : '') + 'やる気+3';
+      case 'party': crewAll().forEach(function (x) { moodUp(x, 8, 3); }); return '全員のやる気+8、信頼+3';
+      case 'home': fat(-8); hum(1); return '疲れ−8、人間力+1';
+      case 'hum': hum(1); return '人間力+1';
+      case 'rep': S.rep = clamp(S.rep + 2, 0, 100); return '評判+2';
+      case 'sample': var ps = prods().filter(function (p) { return S.stock[p.k] !== undefined; }), p = ps.length ? pick(ps) : null; if (p) { S.stock[p.k] += 2; return p.n + 'の在庫+2'; } return '';
+    }
+    return '';
+  }
+  function dotUnread() { return (S.dot || []).filter(function (m) { return m.done < 0; }).length; }
+  function dotView() {
+    bar();
+    var list = S.dot || [];
+    view('<h1>メッセージ</h1><div class="dotbar"><b>dot.</b><span>メッセージ ' + list.length + '件' + (dotUnread() ? '（未読 ' + dotUnread() + '）' : '') + '</span></div>' +
+      (list.length ? '' : '<p class="lead">新しいメッセージはない。</p>'),
+      list.map(function (m) {
+        return { label: (m.done < 0 ? '● ' : '✓ ') + m.from, sub: m.lines[m.lines.length - 1].t.slice(0, 34), go: function () { dotThread(m); } };
+      }).concat([{ main: true, label: '月末の画面にもどる', go: investView }]));
+  }
+  function dotThread(m, note) {
+    bar();
+    var h = '<h1>メッセージ</h1><div class="dotbar"><b>dot.</b><span>' + m.from + '</span></div><div class="talk">' +
+      m.lines.map(function (l) { return '<div class="say you">' + (l.who ? '<span class="who">' + l.who + '</span>' : '') + l.t + '</div>'; }).join('');
+    if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="say me">' + rp.t + '</div><div class="say you">' + rp.res + '</div>' + (note || m.note ? '<div class="say note">' + (note || m.note) + '</div>' : ''); }
+    h += '</div>';
+    view(h, m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }] :
+      m.reps.map(function (rp, i) {
+        return { label: rp.t, off: !!rp.cost && S.cash < rp.cost, go: function () { m.done = i; m.note = dotFx(m, rp); SFX.good(); saveGame('night'); dotThread(m); } };
+      }).concat([{ label: 'あとで返信する', go: dotView }]));
+  }
   // 今月できること。まだのものは ○、すんだものは ✓。押すとその画面へ
   function monthTasks() {
     var T = [], P = snsFix(), left = snsLeft();
     var team = allStaff().filter(function (st) { return !st.owner; });
+    if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: '新着メッセージ ' + dotUnread() + '件', go: dotView } : { t: 'dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
     T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
     if (P.f >= LIVEMIN) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
     var tg = tGroups().filter(function (g2) { return g2.mem.length; });
@@ -6514,7 +6597,7 @@
     if (!raw) return slotView(n);
     encodeSave(raw).then(function (code) {
       bar();
-      view('<h1>セーブコード</h1><p class="lead">下の文字列をまるごとコピーして、メモ帳やPingloの自分用メモなどに残しておく。別の端末やブラウザで「セーブコードを読み込む」に貼りつけると、つづきから遊べる。</p>' +
+      view('<h1>セーブコード</h1><p class="lead">下の文字列をまるごとコピーして、メモ帳やdot.の自分用メモなどに残しておく。別の端末やブラウザで「セーブコードを読み込む」に貼りつけると、つづきから遊べる。</p>' +
         '<textarea id="code" readonly rows="6" style="width:100%;font-size:11px;word-break:break-all;border:2px solid var(--line);background:var(--panel);color:inherit;padding:6px">' + code + '</textarea><p class="lead" id="cmsg">' + code.length + '文字</p>',
         [{ main: true, label: 'コピーする', go: function () {
           var t = $('code'), ok = function () { $('cmsg').textContent = 'コピーした。'; };
