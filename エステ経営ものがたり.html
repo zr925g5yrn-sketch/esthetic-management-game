@@ -186,6 +186,10 @@
   .event.life .badge { background: #8E6CD8; color: #FFFFFF; }
   .event.season { border-color: #5FAE80; box-shadow: 4px 4px 0 #5FAE80; }
   .event.mission { border-color: #E8A93A; box-shadow: 4px 4px 0 #E8A93A; }
+  .shopsw { display: flex; gap: 6px; align-items: center; overflow-x: auto; padding: 2px 0 8px; margin: 0 0 4px; -webkit-overflow-scrolling: touch; }
+  .shopsw span { flex: none; font-size: .85rem; opacity: .8; }
+  .shopsw .chipb { flex: none; width: auto; margin: 0; padding: 6px 10px; font: inherit; font-size: .9rem; color: var(--ink); background: var(--panel); border: 2px solid var(--line); box-shadow: none; cursor: pointer; }
+  .shopsw .chipb.on { border-color: var(--ink); background: var(--accent); color: var(--accent-ink); }
   .tasks { margin: 8px 0 10px; padding: 8px 10px 10px; }
   .tasks h2 { margin: 0 0 6px; font-size: 1rem; }
   .tasks .task { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin: 4px 0 0; padding: 8px 10px; font: inherit; color: var(--ink);
@@ -2067,7 +2071,7 @@
     intern:     { n: '美容学生のインターン', w: 2, choice: true, d: '美容専門学校から「学生をインターンで受け入れてもらえませんか」と相談があった。' },
     inbound:    { n: 'インバウンドのお客様', w: 2, d: '海外からの観光客が予約した。施術に満足してもらえれば、おみやげに商品を爆買いしてくれるかも。在庫が足りなくても、取り寄せでまとめて売れる。' }
   };
-  function capOf(st) { return st.sick || (st.leaveUntil && st.leaveUntil > S.week) ? 0 : Math.max(0, st.cap + (has(st, 'tough') ? 1 : 0) - (st.pracWeek === S.week ? 1 : 0)); }
+  function capOf(st) { return st.sick || (st.leaveUntil && st.leaveUntil > S.week) ? 0 : Math.max(0, st.cap + (has(st, 'tough') ? 1 : 0) - (st.pracWeek === S.week ? 1 : 0) - ((st.hurtUntil || 0) > S.week ? 2 : 0)); }
   function totalCap() { return S.staff.reduce(function (a, st) { return a + capOf(st); }, 0); }
   function staffPick() { var a = S.staff.filter(function (st) { return !st.owner; }); return a.length ? pick(a) : null; }
   function priceOf(it) {
@@ -2898,7 +2902,7 @@
       loy: ref ? 15 : 0, visits: 0, active: false, plan: null, member: false, booked: 0, last: 0, phase: 'meet' };
   }
   function startWeek() {
-    S.wk = { trial: 0, course: 0, prod: 0, opt: 0, fee: 0, refund: 0, sold: [], closed: false };
+    S.wk = { trial: 0, course: 0, prod: 0, opt: 0, fee: 0, refund: 0, sold: [], closed: false, stLife: [] };
     S.news = []; S.cands = null;
     S.staff.forEach(function (st) { st.used = 0; });
     // 解約（強く押して売ったコースなど）
@@ -3168,6 +3172,7 @@
   }
   function doTreat(press) {
     var r = satCalc(C.sub, press, C.st, C.blend);
+    pressLoad(C.st, press);
     C.sat = r.sat;
     C.log = [];
     blendPay(C.blend);
@@ -3424,6 +3429,7 @@
     C.menu = catOf(menu); C.sub = menu; C.blend = bl;
     var press = (!C.isNew || st.trait === 'listen' || roll(0.25 + 0.1 * sk(st, 'listen') + 0.03 * sk(st, 'emp'))) ? C.pref : pick(Object.keys(PRESS));
     C.sat = satCalc(menu, press, st, bl).sat;
+    pressLoad(st, press);
     blendPay(bl);
     reputeBySat();
     lines.push(stName(st) + 'が' + subName(menu, bl) + '（' + PRESS[press] + '）を担当。満足度' + C.sat + '。');
@@ -3842,7 +3848,7 @@
     r.turned = demand - n;
     for (var k = 0; k < n; k++) {
       var st = next();
-      expAdd(st, 2);
+      expAdd(st, 2); if (roll(0.33)) pressLoad(st, 'strong');
       var sat = clamp(Math.round(22 + st.tech * 8 + (st.trait === 'god' ? 10 : 0) + (has(st, 'godhand') ? 12 : 0) + intBonus(b.interiorLv || (b.interior ? 1 : 0)) + moodBonus(st) + (S.hum - 30) * 0.15 + rnd() * 30), 5, 999); sat = clamp(Math.round(softSat(sat)), 5, 100);
       r.served++; r.sales += Math.round(TRIAL * A.mult);
       if (sat >= 75) b.rep = clamp(b.rep + 1.5 + (fit > 0 ? 0.8 : 0), 0, 100); else if (sat < 45) b.rep = clamp(b.rep - 2, 0, 100);
@@ -4436,6 +4442,23 @@
     else if (S.staff.indexOf(st) > 0) S.staff.splice(S.staff.indexOf(st), 1);
   }
   // 月末に、やる気が少しずつ動く。限界を超えた人は辞めてしまう
+  // スタッフの暮らしのできごと [文, やる気の変化]
+  var STLIFE = [
+    ['失恋してしまった。休憩中も元気がない', -20], ['飼っていたペットが亡くなった。目が赤い', -25], ['家族が入院して、心配ごとが続いている', -15],
+    ['引っ越しで通勤が大変になった', -8], ['体調をくずしがちで、つらそう', -10], ['友だちとケンカしたらしい', -6],
+    ['恋人ができた！ いつもより笑顔が多い', 15], ['結婚が決まった！ みんなでお祝いした', 20], ['資格試験に合格した！', 15],
+    ['誕生日をお店のみんなに祝ってもらった', 10], ['推しのライブに当選して、うきうきしている', 8], ['お客様から感謝の手紙をもらった', 12]
+  ];
+  // どうしても辞めてしまう理由（やる気に関係なく、まれに起こる）
+  var STQUIT = ['家族の介護のため、実家に戻ることになった', 'パートナーの転勤で、遠くへ引っ越すことになった', '別の夢に挑戦したいと、退職を決めた', '体調を整えるため、しばらく働けなくなった'];
+  // 気質とお店のコンセプトの相性。1＝合う、−1＝合わない
+  var TFITC = { relax: { sunao: 1, mypace: 1, makezu: -1 }, skin: { shokunin: 1, sensai: 1, mypace: -1 }, body: { makezu: 1, sunao: 1, sensai: -1 },
+    luxe: { shokunin: 1, sensai: 1, mypace: -1 }, casual: { makezu: 1, mypace: 1, shokunin: -1 } };
+  function shopFit(st, sh) { var c = sh ? sh.concept : S.concept; return c && TFITC[c] ? (TFITC[c][temperOf(st)] || 0) : 0; }
+  function fitMark(f) { return f > 0 ? '◎合う' : f < 0 ? '×合わない' : '○ふつう'; }
+  function hurt(st) { return (st.hurtUntil || 0) > S.week; }
+  // 強めの施術を担当した回数をため、手の負担にする
+  function pressLoad(st, press) { if (st && !st.owner && press === 'strong') st.hand = (st.hand || 0) + 1; }
   function staffWeek() {
     var gone = [];
     allStaff().forEach(function (st) {
@@ -4443,9 +4466,21 @@
       moodFix(st);
       var sh = shopOf(st), busy = sh ? !!(sh.last && sh.last.turned > 0) : (capOf(st) > 0 && st.used >= capOf(st));
       st.mot = clamp(st.mot - (busy ? 4 : 1) / (has(st, 'iron') ? 2 : 1) + Math.floor(S.hum / 30), 0, 100);
+      // お店との相性
+      var fit = shopFit(st, sh); if (fit) st.mot = clamp(st.mot + (fit > 0 ? 2 : -3), 0, 100);
+      // 暮らしのできごと
+      if (roll(0.12)) { var ev = pick(STLIFE); st.mot = clamp(st.mot + ev[1], 0, 100); S.wk.stLife = (S.wk.stLife || []).concat([{ good: ev[1] > 0, t: st.name + '：' + ev[0] + '（やる気' + (ev[1] > 0 ? '+' : '') + ev[1] + '）' }]); }
+      // 手の負担：強めの施術が続くと、腱鞘炎になることがある
+      if (!hurt(st) && (st.hand || 0) > 8 && roll(((st.hand || 0) - 8) * 0.08)) {
+        st.hurtUntil = S.week + 3; st.hand = 0; st.mot = clamp(st.mot - 10, 0, 100);
+        S.wk.stLife = (S.wk.stLife || []).concat([{ good: false, t: st.name + '：強めの施術が続いて、手を痛めてしまった（腱鞘炎）。3か月は担当できる人数が減る' }]);
+      }
+      st.hand = Math.max(0, (st.hand || 0) - 2);
       if (st.mot < 18 && roll((18 - st.mot) / 40 + (st.trust < 30 ? 0.1 : 0))) gone.push(st);
+      else if (roll(0.006)) { st.quitWhy = pick(STQUIT); gone.push(st); }
     });
     gone.forEach(removeStaff);
+    S.wk.leftWhy = {}; gone.forEach(function (st) { if (st.quitWhy) S.wk.leftWhy[st.name] = st.quitWhy; });
     return gone.map(function (st) { return st.name; });
   }
   function talkLine(st) {
@@ -4491,7 +4526,7 @@
     var act = function (cost, m, t, msg, extra) {
       return function () { if (cost) pay(cost); moodUp(st, m, t); if (extra) extra(); if (m) st.careWeek = S.week; else st.talkWeek = S.week; SFX.good(); careStaff(st, msg); };
     };
-    view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
+    view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + careStaffInfo(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="talk"><div class="say you">' + talkLine(st) + '</div></div>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       [{ label: 'ご飯に誘う　' + yen(8000), sub: 'やる気+15' + (used ? '　（やる気は今月もう上げた）' : ''), off: used || S.cash < 8000,
          go: act(8000, 15, 0, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。'])) },
@@ -4502,8 +4537,29 @@
        { label: '来月は休みをあげる', sub: 'やる気+20。来月は接客しない', off: used,
          go: act(0, 20, 0, '「ありがとうございます、リフレッシュしてきます」', function () { st.restWeek = S.week + 1; }) },
        promoOpt(st),
-       { main: true, label: 'もどる', go: careView }]);
+       { label: '別の店舗に移す', sub: 'いまの店との相性：' + fitMark(shopFit(st, shopOf(st))) + (S.shops.length ? '' : '（店舗が1つだけなので移せない）'), off: !S.shops.length, go: function () { moveView(st); } },
+       hurt(st) ? { label: '病院に通わせる　' + yen(30000), sub: '手の痛み（腱鞘炎）が早く治る。あと' + (st.hurtUntil - S.week) + 'か月', off: S.cash < 30000 || st.cureWeek === S.week,
+         go: function () { pay(30000); st.cureWeek = S.week; st.hurtUntil = Math.max(S.week, st.hurtUntil - 2); moodUp(st, 5, 5); SFX.good(); careStaff(st, st.name + 'を病院に通わせた。痛みがだいぶ楽になったようだ。'); } } : null,
+       { main: true, label: 'もどる', go: careView }].filter(Boolean));
   }
+  // 店舗の移籍：相性の合う店に移すと、やる気が上がる
+  function moveView(st) {
+    bar();
+    var from = shopOf(st), list = [null].concat(S.shops).filter(function (sh) { return sh !== from; });
+    var lastOne = from && from.staff.length <= 1;
+    view('<h1>' + st.name + 'を移す</h1><p class="lead">気質：' + TEMPER[temperOf(st)].n + '。いまは' + (from ? from.name : '本店') + '（' + fitMark(shopFit(st, from)) + '）。' +
+      (lastOne ? '<br>この店のスタッフは' + st.name + 'だけなので、移すと店を開けられなくなる。' : '') + '</p>',
+      list.map(function (sh) {
+        var room = (sh ? sh.staff : S.staff).length < maxOf(sh), f = shopFit(st, sh), c = sh ? sh.concept : S.concept;
+        return { label: (sh ? sh.name : '本店') + 'へ移す　' + fitMark(f), sub: (c && CONCEPTS[c] ? CONCEPTS[c].n + '　' : '') + (room ? 'スタッフ ' + (sh ? sh.staff : S.staff).length + '人' : 'もう雇える人数がいっぱい'),
+          off: !room || lastOne, go: function () {
+            var src = from ? from.staff : S.staff; src.splice(src.indexOf(st), 1); (sh ? sh.staff : S.staff).push(st);
+            moodUp(st, f > shopFit(st, from) ? 10 : f < shopFit(st, from) ? -8 : 0, 0); SFX.hire();
+            careStaff(st, st.name + 'が' + (sh ? sh.name : '本店') + 'に移った。' + (f > 0 ? '「ここ、すごく合ってる気がします！」' : f < 0 ? '「…慣れるまで、少しかかりそうです」' : '「よろしくお願いします」'));
+          } };
+      }).concat([{ main: true, label: 'もどる', go: function () { careStaff(st); } }]));
+  }
+  function careStaffInfo(st) { return '　お店との相性：' + fitMark(shopFit(st, shopOf(st))) + (hurt(st) ? '　手を痛めている（あと' + (st.hurtUntil - S.week) + 'か月）' : ''); }
   function promoOpt(st) {
     var r = roleOf(st), mates = shopOf(st) ? shopOf(st).staff : S.staff, ten = S.week - (st.hired || 0);
     if (r === 'mgr') return { label: 'この店の店長', sub: '役職手当 月' + yen(MGRPAY) + 'が付いている', off: true, go: function () {} };
@@ -4695,7 +4751,8 @@
     var h = '<h1>' + calOf(S.week) + 'の月末</h1><div class="sumline' + (allN < 0 ? ' minus' : '') + '">' + (hasBr ? '全店の収支' : '今月の収支') + '　<b>' + yen(allN) + '</b>　所持金 ' + yen(S.cash) + '</div>' +
       '<details class="fold"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
     if (S.wk.quit) h += '<div class="news bad">' + S.wk.quit + 'が「辞めさせてください」と言って、店を去った。</div>';
-    (S.wk.left || []).forEach(function (n) { h += '<div class="news bad">' + n + 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。</div>'; });
+    (S.wk.left || []).forEach(function (n) { var why = S.wk.leftWhy && S.wk.leftWhy[n]; h += '<div class="news bad">' + n + (why ? 'が、' + why + '。引き止めることはできなかった。' : 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。') + '</div>'; });
+    if ((S.wk.stLife || []).length) h += '<details class="fold"' + (S.wk.stLife.some(function (x) { return !x.good; }) ? ' open' : '') + '><summary>スタッフの近況（' + S.wk.stLife.length + '）</summary>' + S.wk.stLife.map(function (x) { return '<div class="news' + (x.good ? ' good' : ' bad') + '">' + x.t + '</div>'; }).join('') + '</details>';
     if ((S.wk.incList || []).length) h += '<div class="news good">インセンティブ（コースと商品の売上に応じて）：' + S.wk.incList.join('、') + '</div>';
     if (S.wk.taxNote) h += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
     if (S.wk.lv) h += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
@@ -4710,7 +4767,7 @@
     if (S.cash < -200000) return view(h + '<div class="news bad">資金が尽きた。これ以上は続けられない。</div>', [{ main: true, label: '結果を見る', go: result }]);
     if (S.week >= WEEKS && !S.endless) return view(h, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
     h += staffHtml();
-    var TK = monthTasks(); h = taskBox(TK) + h;
+    var TK = monthTasks(); h = shopSwitch() + taskBox(TK) + h;
     var opts = [
       { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
       { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
@@ -4758,7 +4815,7 @@
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
       { label: '発信・記録・そのほか', sub: 'SNS（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]);
-    taskBind(TK);
+    taskBind(TK); shopSwBind();
   }
   var curCat = null;
   // 今月できること。まだのものは ○、すんだものは ✓。押すとその画面へ
@@ -4780,6 +4837,24 @@
     if (roomAny() && S.cash >= HIRE * 4) T.push({ t: 'スタッフを採用する', s: '受け入れの空きがある', go: function () { hireView(); } });
     if (!S.dev && S.myProds.length < MAXMINE && S.week >= 3 && S.cash >= 300000) T.push({ t: 'オリジナル商品を開発する', s: '開発中の商品はない', go: devView });
     return T;
+  }
+  // 月末の画面で、上の店内の絵をほかの店舗に切りかえる
+  function shopSwitch() {
+    var list = [null].concat(S.shops).concat(S.ph ? ['ph'] : []);
+    if (list.length < 2) return '';
+    return '<div class="shopsw" role="group" aria-label="店内を見る店舗"><span>店内を見る</span>' + list.map(function (x, i) {
+      var nm = !x ? '本店' : x === 'ph' ? 'ペントハウス' : x.name;
+      return '<button type="button" class="chipb' + ((scene.shop || null) === x ? ' on' : '') + '" data-shop="' + i + '">' + nm + '</button>';
+    }).join('') + '</div>';
+  }
+  function shopSwBind() {
+    var list = [null].concat(S.shops).concat(S.ph ? ['ph'] : []);
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-shop]'), function (b) {
+      b.addEventListener('click', function () {
+        SFX.click(); scene.shop = list[+b.getAttribute('data-shop')]; setScene('idle');
+        Array.prototype.forEach.call(document.querySelectorAll('#app [data-shop]'), function (x) { x.classList.toggle('on', x === b); });
+      });
+    });
   }
   function taskBox(T) {
     var n = T.filter(function (x) { return !x.done; }).length;
