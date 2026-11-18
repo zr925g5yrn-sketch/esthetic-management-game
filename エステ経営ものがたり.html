@@ -377,7 +377,7 @@
   var STYLELEAD = { kind: 'epiano', logic: 'piano', hot: 'pluck', roman: 'piano', steady: 'epiano', chat: 'epiano', shrewd: 'epiano', mypace: 'marimba', lucky: 'pluck' };
   var SONGLEAD = { lounge: 'epiano', elegant: 'piano', active: 'pluck', resort: 'marimba', calm: 'piano' };
   function songKey() {
-    if (scene.story) return 'story';
+    if (scene.story && !scene.story.ev) return 'story';
     if (!S) return 'title';
     if (scene.mode === 'treat' || closeKind() === 'treat') return 'treat';
     // 店舗を見に行っているときは、その店の曲（月末の画面から行くので、夜の曲より先に見る）
@@ -386,6 +386,7 @@
     if (V === 'hq') return S.wk && S.wk.closed ? 'night' : 'luxe';
     if (V) return AREAS[V.area] && AREAS[V.area].tier === 'resort' ? 'tropical' : (V.concept && SONGS[V.concept] ? V.concept : 'relax');
     if (S.wk && S.wk.closed) return 'night';
+    if (opArea() && opArea().tier === 'resort') return 'tropical';
     return S.concept && SONGS[S.concept] ? S.concept : 'title';
   }
   function songLead(key, SG) {
@@ -393,7 +394,7 @@
     return STYLELEAD[S.style || S.persona] || SONGLEAD[SG.style];
   }
   // 会社の成長度合い：1 開業したて、2 支店がある、3 社長（本社）、4 上場
-  function bgmStage() { if (!S) return 1; if (scene.story) return 1; return S.ipo ? 4 : S.hq ? 3 : S.shops.length ? 2 : 1; }
+  function bgmStage() { if (!S) return 1; if (scene.story && !scene.story.ev) return 1; return S.ipo ? 4 : S.hq ? 3 : S.shops.length ? 2 : 1; }
   // ---- BGMの楽器（その場で合成）----
   function bOut(node, wet) { node.connect(bgm.gain); if (wet && bgm.rev) { var w = AC.createGain(); w.gain.value = wet; node.connect(w); w.connect(bgm.rev); } }
   function bEnv(gn, t, a, peak, d, sus, rel, end) { gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(peak, t + a); gn.gain.setTargetAtTime(peak * sus, t + a, d); gn.gain.setTargetAtTime(0.0001, end, rel); }
@@ -784,6 +785,10 @@
     if (!o.lie && look.vip) { R(x + 3, y + 8, 4, 1, '#FFFFFF'); R(x + 3, y - 3 + bw, 4, 1, '#E8C15A'); R(x + 4, y - 4 + bw, 1, 1, '#E0567A'); }
     if (!o.lie && look.glasses) { R(x + 2, y + 3 + bw, 3, 1, '#2B2238'); R(x + 5, y + 3 + bw, 3, 1, '#2B2238'); }
     if (!o.lie && look.phone) { R(x + 8, y + 9, 2, 3, '#2B2238'); R(x + 8, y + 9, 2, 1, '#9FD8F0'); }
+    if (!o.lie && look.scarf) { R(x + 2, y + bw, 6, 1, look.scarf); R(x + 1, y + 1 + bw, 8, 1, look.scarf); R(x, y + 2 + bw, 2, 6, look.scarf); R(x + 8, y + 2 + bw, 2, 6, look.scarf); R(x + 2, y + 7, 6, 1, look.scarf); F(x + 3, y + bw, 3, 0.5, shade(look.scarf, 0.3)); }
+    if (!o.lie && look.flower) { R(x + 7, y + bw, 2, 2, look.flower); R(x + 7.5, y + 0.5 + bw, 1, 1, '#F2C230'); }
+    if (!o.lie && look.hat) { R(x - 1, y + 2 + bw, 12, 1, look.hat); R(x + 2, y - 1 + bw, 6, 3, look.hat); R(x + 2, y + 1 + bw, 6, 1, '#E0567A'); }
+    if (!o.lie && look.beret) { R(x + 1, y + bw, 8, 2, look.beret); R(x + 2, y - 1 + bw, 5, 1, look.beret); R(x + 4, y - 2 + bw, 1, 1, look.beret); }
   }
   var ICON = {
     heart: ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'],
@@ -1156,6 +1161,7 @@
   function themeOf() {
     var V = scene.shop;
     if (V && V !== 'ph') return branchTheme(V);
+    if (!V && S && opBranch()) return branchTheme(opBranch());
     if (!V && S && (S.style || S.persona)) return MAINTHEME[S.style || S.persona] || null;
     if (!S && scene.preview) return MAINTHEME[scene.preview.persona] || null;
     return null;
@@ -1383,6 +1389,29 @@
     var done = function (note) { mxpAdd(10); S.sevPending = false; S.sevNote = note; weekIntro(); };
     return SEASONCH[S.sevKey] ? SEASONCH[S.sevKey](null, done) : [{ label: 'つづける', go: function () { done(''); } }];
   }
+  // できごとの場面（ドット絵のアニメーション）
+  var EVPIC = { vip: 'v_vip', sponsor: 'v_vip', celeb: 'v_press', reporter: 'v_press', influencer: 'v_press', seminar: 'v_stage', contest: 'v_stage', award: 'v_party', ranking: 'v_party',
+    storm: 'v_storm', trouble: 'v_repair', bedbreak: 'v_repair', inspect: 'v_inspect', taxaudit: 'v_inspect', gift: 'v_gift', wholesale: 'v_gift', supplier: 'v_gift', campaign: 'v_gift',
+    lottery: 'v_party', collab: 'v_cafe', charity: 'v_charity', rival: 'v_rival', complaint: 'v_talk', review: 'v_talk', rumor: 'v_talk', claimer: 'v_talk', raise: 'v_talk', quitwarn: 'v_talk',
+    indep: 'v_talk', poach: 'v_talk', headhunt: 'v_talk', mentor: 'v_talk', couple: 'v_talk', leak: 'v_talk', mistake: 'v_talk', st_retire: 'v_talk', st_promo: 'v_party', graduate: 'v_cake',
+    sick: 'v_sick', growth: 'v_party', idea: 'v_idea', intern: 'v_idea', ekarte: 'v_idea', neighbor: 'v_idea', fx: 'v_fx', bridal: 'v_wedding', stray: 'v_cat', treat: 'v_cake', trip: 'v_onsen',
+    inbound: 'v_travel', st_marry: 'v_wedding', st_baby: 'v_baby',
+    s_sakura: 'v_sakura', s_mother: 'v_gift', s_summer: 'v_beach', s_halloween: 'v_halloween', s_xmas: 'v_xmas', s_newyear: 'v_newyear', s_valentine: 'v_valentine', s_white: 'v_valentine',
+    s_june: 'v_rain', s_obon: 'v_fireworks', s_moon: 'v_moon', s_bonus: 'v_party' };
+  var LIFEPIC = { meet: 'v_date', propose: 'v_wedding', quarrel: 'v_talk', baby: 'v_baby', dog: 'v_dog', dogbd: 'v_dog', parent: 'v_phone', reunion: 'v_cafe', hobby: 'v_idea', volunteer: 'v_charity' };
+  var HOLPIC = [[/いちご/, 'v_picnic'], [/花見|花冷え/, 'v_sakura'], [/ハイキング/, 'v_mountain'], [/紫陽花/, 'v_rain'], [/海|日焼け/, 'v_beach'], [/花火|人混み/, 'v_fireworks'], [/グランピング/, 'v_camp'],
+    [/芸術|美術/, 'v_museum'], [/温泉|雪見/, 'v_onsen'], [/クリスマス/, 'v_xmas'], [/スキー|転んで/, 'v_ski'], [/初詣/, 'v_newyear'], [/再会|マルチ|あやしい|お金が戻らない/, 'v_cafe'],
+    [/セミナー/, 'v_stage'], [/買い|お買い物/, 'v_shopping'], [/カフェ|集中/, 'v_cafe'], [/スパ|予約ミス/, 'v_spa'], [/ピラティス|筋肉痛/, 'v_gym'], [/推し|チケット|グッズ/, 'v_concert'],
+    [/犬/, 'v_dog'], [/デート/, 'v_date'], [/家族/, 'v_family'], [/おうち/, 'v_home']];
+  function holPic(title) { for (var i = 0; i < HOLPIC.length; i++) if (HOLPIC[i][0].test(title)) return HOLPIC[i][1]; return 'v_home'; }
+  function evScene(pics) {
+    pics = (pics || []).filter(Boolean);
+    if (!pics.length) { if (scene.story && scene.story.ev) scene.story = null; return; }
+    if (scene.story && scene.story.ev && scene.story.pics.join() === pics.join()) return;
+    scene.story = { ev: true, pics: pics, pic: pics[0], t0: performance.now() };
+  }
+  var DECLINE = /見送|断る|断って|やめ|しない|今回は|送り出す|あきらめ|無視|そっとして|行かない|参加しない/;
+  function declWrap(opts, flag) { return opts.map(function (o) { var g0 = o.go; if (!g0) return o; o.go = function () { S[flag] = DECLINE.test(o.label); S[flag + 'Alt'] = /バーベキュー|キャンプ/.test(o.label) ? 'v_camp' : null; return g0.apply(this, arguments); }; return o; }); }
   function seasonCut() { return { kicker: '季節のイベント', title: EV[S.sevKey].n, c1: '#7FC49A', c2: '#5FAE80', icon: EVICON[S.sevKey] || 'star' }; }
 
 
@@ -1848,7 +1877,7 @@
     var VS = scene.shop;
     scene.tod = todNow();
     g.clearRect(0, 0, SW, SH);
-    if (scene.story) { drawStory(now); return; }
+    if (scene.story) { if (scene.story.pics) scene.story.pic = scene.story.pics[Math.floor((now - scene.story.t0) / 5000) % scene.story.pics.length]; drawStory(now); return; }
     if (scene.shop === 'hq' && S && S.hq) { drawOffice(now); return; }
     var cu = closeKind();
     if (cu !== (scene.cuKind || null)) { scene.cuKind = cu; scene.cuAt = now; }
@@ -2226,7 +2255,7 @@
   function staffPick() { var a = S.staff.filter(function (st) { return !st.owner; }); return a.length ? pick(a) : null; }
   function priceOf(it) {
     if (it.cost || it.prod) return it.price;
-    var m = pm().mult * (S.disc && (it.sessions || it.member) ? 0.8 : 1);
+    var m = pm().mult * opMult() * (S.disc && (it.sessions || it.member) ? 0.8 : 1);
     return m === 1 ? it.price : Math.round(it.price * m / 100) * 100;
   }
   function needOf(it) { return it.need - (S.week <= (S.rankUntil || 0) && (it.sessions || it.member) ? 8 : 0) - (S.disc && (it.sessions || it.member) ? 12 : 0) - (S.gift && (it.cost || it.prod) ? 15 : 0) + (it.cost || it.prod ? 0 : pm().need); }
@@ -2706,9 +2735,32 @@
   /* =========================================================
      店とお客様
      ========================================================= */
-  function makeLook(male) {
-    return { hair: pick(HAIRS), skin: pick(SKINS), top: pick(TOPS), bottom: pick(BOTTOMS),
+  // 地域ごとの、肌・髪・服の色と小物（rg：地域の種類）
+  var REGION = {
+    jp: null,
+    ea: { skins: ['#F8DCC4', '#F4D0B4', '#EEC6A6'], hairs: ['#2B2626', '#3A2A26', '#5A3A28', '#8A5A3A', '#2B2B3A'], tops: ['#F4C2D4', '#C8D8F0', '#FFFFFF', '#2B2238', '#E8D8C0', '#B8A0D8'], bottoms: ['#2B2238', '#E8E0D4', '#5C6E9E', '#8A8090'] },
+    sea: { skins: ['#E8B890', '#D49A6A', '#B87A50', '#9A6040'], hairs: ['#1E1A1E', '#2B2238', '#3A2A26'], tops: ['#F2C230', '#3AC0C8', '#E0567A', '#7FC49A', '#F08A5D', '#FFFFFF'], bottoms: ['#C49A5A', '#5C6E9E', '#E0567A', '#2B4A7A'], flower: 0.35 },
+    pac: { skins: ['#F8D9BE', '#E8B890', '#C68A5A', '#9A6040'], hairs: ['#2B2238', '#A0703E', '#E8C878', '#5A3A28'], tops: ['#3AC0C8', '#F08A5D', '#FFFFFF', '#F7B5C8', '#7FC49A'], bottoms: ['#F2C230', '#5AA9E6', '#FFFFFF', '#3E5A78'], flower: 0.4, hat: 0.2 },
+    west: { skins: ['#FBE3D2', '#F2CFB0', '#D9A47A', '#9A6448', '#6E4630'], hairs: ['#E8C878', '#C79A50', '#A0482E', '#5A3A28', '#2B2238', '#8A6A4A'], tops: ['#2B2238', '#F7F3EE', '#B8344A', '#5C6E9E', '#C9A227', '#8E7CD8'], bottoms: ['#2B2238', '#3E5A78', '#6A5A48', '#E8E0D4'], glasses: 0.15 },
+    paris: { skins: ['#FBE3D2', '#F2CFB0', '#D9A47A', '#9A6448'], hairs: ['#C79A50', '#5A3A28', '#2B2238', '#A0482E', '#E8C878'], tops: ['#2B2238', '#F7F3EE', '#B8344A', '#3E5A78'], bottoms: ['#2B2238', '#E8E0D4', '#6A5A48'], beret: 0.3 },
+    latin: { skins: ['#E8B890', '#C68A5A', '#9A6040'], hairs: ['#1E1A1E', '#2B2238', '#5A3A28'], tops: ['#E0567A', '#F2C230', '#3AC0C8', '#F08A5D', '#FFFFFF'], bottoms: ['#2B4A7A', '#FFFFFF', '#7A4A5A'], flower: 0.3 },
+    med: { skins: ['#F2CFB0', '#E0B48A', '#C99A70'], hairs: ['#2B2238', '#3A2A26', '#5A3A28'], tops: ['#FFFFFF', '#3E7AC8', '#F7F3EE', '#9FD8F0'], bottoms: ['#3E5A78', '#FFFFFF', '#2B4A7A'], hat: 0.15 },
+    me: { skins: ['#E8C09A', '#C9966A', '#A0704A'], hairs: ['#1E1A1E', '#2B2238'], tops: ['#7A2E52', '#2E4A7A', '#C9A227', '#F4EDE0', '#3E6E5A'], bottoms: ['#2B2238', '#F4EDE0', '#4A3A5A'], scarf: 0.55, scarfs: ['#4A3A62', '#F4EDE0', '#8E4A5A', '#3E5A78', '#C9A227'] }
+  };
+  var AREAREG = { seoul: 'ea', shanghai: 'ea', taipei: 'ea', bangkok: 'sea', singapore: 'sea', bali: 'sea', phuket: 'sea', cebu: 'sea',
+    hawaii: 'pac', guam: 'pac', goldcoast: 'pac', london: 'west', newyork: 'west', la: 'west', paris: 'paris', cancun: 'latin', santorini: 'med', dubai: 'me', maldives: 'me' };
+  function makeLook(male, rg) {
+    var G = rg && REGION[rg];
+    var lk = { hair: pick(G ? G.hairs : HAIRS), skin: pick(G ? G.skins : SKINS), top: pick(G ? G.tops : TOPS), bottom: pick(G ? G.bottoms : BOTTOMS),
       style: male ? 'short' : pick(['long', 'bob', 'bun', 'pony', 'long']) };
+    if (G && !male) {
+      if (G.scarf && roll(G.scarf)) { lk.scarf = pick(G.scarfs); lk.style = 'bob'; }
+      else if (G.flower && roll(G.flower)) lk.flower = pick(['#FFFFFF', '#F7B5C8', '#F2C230', '#E0567A']);
+      if (!lk.scarf && G.hat && roll(G.hat)) lk.hat = pick(['#F4E2B8', '#FFFFFF']);
+      if (!lk.scarf && G.beret && roll(G.beret)) lk.beret = pick(['#B8344A', '#2B2238']);
+    }
+    if (G && G.glasses && roll(G.glasses)) lk.glasses = true;
+    return lk;
   }
   /* --- 開業までの道のり：数種類のストーリーを、ドット絵のアニメーションで見せる --- */
   var ORIGINS = {
@@ -2843,6 +2895,22 @@
       R(0, 0, SW, SH, '#F6EEF2'); R(0, 12, SW, 3, '#E7C9D6'); R(0, 56, SW, 28, '#E9DCCF');
       for (i = 0; i < 8; i++) R(i * 16, 56, 1, 28, '#DCCDBE');
     };
+    // ---- できごとの場面で使う部品 ----
+    var team = S ? allStaff().filter(function (x) { return !x.owner; }).slice(0, 5).map(staffLook) : [];
+    var tm = function (j) { return team.length ? team[j % team.length] : crew(j); };
+    var casual = function (lk, top, bottom) { return { hair: lk.hair, skin: lk.skin, top: top, bottom: bottom || '#4A4A68', style: lk.style }; };
+    var meC = casual(meU, '#F7B5C8', '#5C78B0');
+    var partner = { hair: '#2B2238', skin: '#F2CFB0', top: '#5C6E9E', bottom: '#3A3A50', style: 'short' };
+    var disc = function (cx, cy, r, col) { for (var dy = -r; dy <= r; dy++) { var w = Math.floor(Math.sqrt(r * r - dy * dy)); R(cx - w, cy + dy, w * 2 + 1, 1, col); } };
+    var pine = function (cx, y0, h, col) { for (var j = 0; j < h; j++) R(cx - Math.floor(j / 2), y0 + j, Math.floor(j / 2) * 2 + 1, 1, col); R(cx, y0 + h, 1, 3, '#6B4E3A'); };
+    var stars = function (n, h) { for (var j = 0; j < n; j++) if (reduce || (j + Math.floor(now / 500)) % 4) R((j * 37) % SW, (j * 23) % h, 1, 1, '#FFFFFF'); };
+    var rain = function (n, col, slant) { if (reduce) { for (var j = 0; j < n / 2; j++) R((j * 29) % SW, (j * 17) % SH, 1, 3, col); return; } for (var j = 0; j < n; j++) { var rx = (j * 29 + t * 30 * (slant || 0)) % SW, ry = (j * 17 + t * 90) % SH; R(rx, ry, 1, 3, col); } };
+    var confetti = function (n) { if (reduce) return; var cs = ['#E0567A', '#F2C230', '#5AA9E6', '#7FC49A', '#B48CFF']; for (var j = 0; j < n; j++) { var cx = (j * 31 + Math.sin(t * 2 + j) * 6) % SW, cy = (j * 19 + t * 20) % SH; R(cx, cy, 2, 1, cs[j % 5]); } };
+    var steam = function (x0, y0, n) { if (reduce) return; for (var j = 0; j < n; j++) { var sp = ((now / 1600) + j / n) % 1; g.globalAlpha = 0.55 - sp * 0.5; R(x0 + j * 5 + Math.sin(now / 400 + j) * 2, y0 - sp * 18, 3, 3, '#FFFFFF'); g.globalAlpha = 1; } };
+    var head = function (lk, x0, y0, face) { big(lk, x0, y0, 2, { rows: 8, face: face || 'smile' }); };
+    var table = function (x0, y0, w) { R(x0, y0, w, 4, '#8A6A50'); R(x0, y0, w, 1, '#A8866A'); R(x0 + 2, y0 + 4, 2, 12, '#6B4E3A'); R(x0 + w - 4, y0 + 4, 2, 12, '#6B4E3A'); };
+    var cup = function (x0, y0) { R(x0, y0, 4, 4, '#FFFFFF'); R(x0 + 4, y0 + 1, 1, 2, '#FFFFFF'); R(x0 + 1, y0, 2, 1, '#8A5A3A'); };
+    var mo = S ? monthOf() : 4;
     if (k === 'chain1') {
       salon();
       for (i = 0; i < 4; i++) { x = 4 + i * 31; bed(x, 44, 26); sprite(crew(i), x + 8 + Math.round(Math.sin(t * 2 + i) * 4), 26, { arms: (Math.floor(t * 2 + i) % 2) === 0 }); }
@@ -3110,6 +3178,259 @@
       big(me, 24, 34, 2, { face: 'bliss', arms: true });
       for (i = 0; i < 4; i++) floaty('heart', 56 + i * 16, 30 + (i % 2) * 6, now, i * 0.4, 1);
       floaty('coin', 46, 40, now, 0.2, 1);
+    } else if (k === 'v_onsen') {
+      var snowy = mo === 12 || mo <= 2, autumn = mo >= 9 && mo <= 11;
+      bands(snowy ? ['#2E3458', '#3E4670', '#56608A', '#7A84A8'] : ['#3A2E58', '#5A4478', '#8A5E8A', '#C8808A']);
+      stars(14, 30);
+      for (x = 0; x < SW; x++) { var mh = 30 + Math.round(Math.sin(x / 13) * 6 + Math.sin(x / 5) * 2); R(x, mh, 1, 56 - mh, snowy ? '#C8D0E0' : autumn ? '#B8483A' : '#3E6E5A'); }
+      if (autumn) for (i = 0; i < 20; i++) R((i * 13) % SW, 34 + (i * 7) % 14, 3, 2, ['#E87A3A', '#F2C230', '#C8402A'][i % 3]);
+      R(0, 50, SW, 34, '#5A5468'); for (i = 0; i < 9; i++) disc(6 + i * 15, 54 + (i % 2) * 2, 5, i % 2 ? '#6E687E' : '#4E485E');
+      for (i = 0; i < 4; i++) { x = 14 + i * 26; head(i === 0 ? meU : tm(i - 1), x, 44 + wob(800, i), 'bliss'); R(x + 6, 43 + wob(800, i), 10, 3, '#FFFFFF'); }
+      g.globalAlpha = 0.85; R(4, 58, 120, 22, '#7FC8D8'); g.globalAlpha = 1; R(4, 58, 120, 1, '#BFE8F0');
+      for (i = 0; i < 8; i++) R(((i * 17 + t * 6) % 116) + 6, 62 + (i % 3) * 5, 5, 1, '#BFE8F0');
+      steam(16, 56, 18);
+      if (snowy) fall(['#FFFFFF'], 22); else if (autumn) fall(['#E87A3A', '#F2C230'], 10);
+    } else if (k === 'v_beach') {
+      bands(['#7FC8F0', '#9DD6F4', '#BDE4F7', '#DDF1FA']); R(100, 8, 12, 12, '#FFF4C0');
+      icon('cloud', Math.round((t * 3) % (SW + 10)) - 10, 12, '#FFFFFF');
+      sea(46, '#2D8EC8', '#BFE8F4');
+      R(0, 62, SW, 22, '#F2DDB0'); for (i = 0; i < 10; i++) R((i * 13) % SW, 68 + (i % 3) * 5, 2, 1, '#E0C890');
+      R(30, 34, 1, 32, '#8A6A44'); for (i = 0; i < 6; i++) R(16 + i * 5, 32 + Math.abs(i - 2.5), 5, 4, i % 2 ? '#FFFFFF' : '#E0567A');
+      R(14, 66, 26, 3, '#3AC0C8');
+      big(casual(meU, '#3AC0C8', '#F2C230'), 52, 38, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 });
+      y = reduce ? 52 : 52 - Math.abs(Math.sin(t * 3)) * 14; disc(98, y, 4, '#FFFFFF'); R(95, y - 1, 7, 2, '#E0567A');
+      sprite(casual(tm(0), '#F7B5C8', '#5AA9E6'), 104, 50, { face: 'smile', arms: true });
+    } else if (k === 'v_ski') {
+      bands(['#9FD0F0', '#B8DCF4', '#D0E8F8', '#E6F2FB']);
+      for (x = 0; x < SW; x++) { var mh2 = 18 + Math.round(Math.sin(x / 17) * 5); R(x, mh2, 1, 20, '#E6ECF4'); R(x, mh2, 1, 2, '#FFFFFF'); }
+      for (x = 0; x < SW; x++) R(x, 34 + Math.round(x * 0.25), 1, SH, '#FFFFFF');
+      for (i = 0; i < 6; i++) pine(8 + i * 22, 26 + i * 5, 12, '#3E6E5A');
+      x = reduce ? 60 : ((t * 26) % (SW + 40)) - 20; y = 34 + x * 0.25 - 16;
+      sprite(casual(meU, '#E0567A', '#2B4A7A'), x, y, { face: 'smile', arms: true }); R(x - 3, y + 17, 16, 1, '#F2C230');
+      if (!reduce) for (i = 0; i < 4; i++) { g.globalAlpha = 0.6 - i * 0.12; R(x - 6 - i * 5, y + 16 - i, 3, 2, '#FFFFFF'); g.globalAlpha = 1; }
+      fall(['#FFFFFF'], 16);
+    } else if (k === 'v_xmas') {
+      bands(['#1E2246', '#252A55', '#2E3462', '#3A4070']); stars(12, 30);
+      R(0, 64, SW, 20, '#E6ECF4');
+      pine(64, 14, 46, '#2E7A4E'); for (i = 0; i < 14; i++) { var lx = 64 + ((i * 7) % 18) - 9 + Math.round((i % 4 - 1.5) * (i / 3)), ly = 24 + i * 2.6; if (reduce || (i + Math.floor(now / 300)) % 3) R(lx, ly, 2, 2, ['#E0567A', '#F2C230', '#5AA9E6'][i % 3]); }
+      R(62, 10, 5, 5, '#F2C230'); R(61, 12, 7, 1, '#FFE08A');
+      R(52, 58, 8, 6, '#E0567A'); R(55, 58, 2, 6, '#F2C230'); R(70, 59, 9, 5, '#5AA9E6'); R(74, 59, 1, 5, '#FFFFFF');
+      big(casual(meU, '#C8402A', '#FFFFFF'), 14, 34, 2, { face: 'smile' }); big(tm(0), 94, 34, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 });
+      fall(['#FFFFFF'], 18);
+    } else if (k === 'v_newyear') {
+      bands(['#FFD8A8', '#FFE4BC', '#FFF0D4', '#FFF8EA']); disc(64, 34, 10, '#FFB070');
+      R(0, 62, SW, 22, '#D8CCB8');
+      R(30, 22, 68, 4, '#C8402A'); R(26, 20, 76, 3, '#2B2238'); R(34, 30, 60, 3, '#C8402A'); R(38, 26, 4, 38, '#C8402A'); R(86, 26, 4, 38, '#C8402A');
+      [8, 112].forEach(function (px) { R(px, 50, 8, 14, '#3E8E4E'); R(px + 1, 46, 2, 6, '#7FC49A'); R(px + 5, 44, 2, 8, '#7FC49A'); R(px, 58, 8, 2, '#C9A227'); });
+      big(casual(meU, '#E0567A', '#8E3A5A'), 54, 40, 2, { face: 'bliss' });
+      floaty('star', 40, 36, now, 0, 1); floaty('spark', 84, 38, now, 0.6, 2);
+    } else if (k === 'v_sakura') {
+      bands(['#A8DAF2', '#BFE3F5', '#D6EDF8', '#E8F5FB']); R(0, 58, SW, 26, '#9ED68A');
+      R(20, 26, 6, 34, '#7A5A44'); R(14, 34, 6, 3, '#7A5A44'); disc(22, 22, 14, '#F7C8D8'); disc(8, 30, 8, '#F7B5C8'); disc(36, 28, 9, '#FAD0DC');
+      R(100, 30, 5, 30, '#7A5A44'); disc(102, 24, 12, '#F7C8D8');
+      for (i = 0; i < 8; i++) R(46 + (i % 4) * 9, 66 + Math.floor(i / 4) * 5, 9, 5, i % 2 ? '#FFFFFF' : '#5AA9E6');
+      head(meC, 48, 50); head(tm(0), 64, 50); head(tm(1), 80, 50);
+      R(56, 68, 10, 4, '#F2C230'); R(57, 69, 8, 2, '#E0567A');
+      fall(['#F7B5C8', '#FFFFFF', '#FAD0DC'], 24);
+    } else if (k === 'v_fireworks') {
+      bands(['#141238', '#1E1A48', '#262258', '#2E2A62']); stars(16, 40);
+      for (i = 0; i < 3; i++) {
+        var ph = reduce ? 0.6 : ((t / 2.2) + i / 3) % 1, cx = 26 + i * 38, cy = 20 + (i % 2) * 8, rr = ph * 16, cs = ['#F2C230', '#E0567A', '#5AE0FF'][i];
+        if (ph < 0.15 && !reduce) R(cx, 60 - ph * 260, 1, 3, '#FFE08A');
+        else { g.globalAlpha = 1 - ph * 0.8; for (var a = 0; a < 12; a++) R(cx + Math.cos(a / 12 * 6.283) * rr, cy + Math.sin(a / 12 * 6.283) * rr + ph * 4, 2, 2, cs); g.globalAlpha = 1; }
+      }
+      for (x = 0; x < SW; x += 8) R(x, 56 - ((x * 7) % 12), 8, 30, '#0E0C24');
+      R(0, 66, SW, 18, '#1E1A30');
+      sprite(casual(meU, '#5C78C8', '#5C78C8'), 50, 58, {}); sprite(casual(tm(0), '#E0567A', '#E0567A'), 64, 58, {});
+      for (i = 0; i < 6; i++) { R(6 + i * 20, 70, 10, 6, '#C8402A'); R(6 + i * 20, 68, 10, 2, '#FFE08A'); }
+    } else if (k === 'v_moon') {
+      bands(['#141E46', '#1E2A58', '#283668', '#324278']); stars(14, 50);
+      disc(92, 22, 12, '#FFF4C0'); disc(88, 19, 3, '#F2E6A8');
+      R(0, 62, SW, 22, '#2E3A30');
+      for (i = 0; i < 9; i++) { var sx = 4 + i * 6; R(sx, 44 + (i % 3) * 3, 1, 20, '#C8B890'); R(sx - 1, 42 + (i % 3) * 3 + wob(900, i), 3, 4, '#E8DCC0'); }
+      R(60, 56, 18, 3, '#8A6A50'); R(66, 59, 6, 6, '#8A6A50');
+      [[63, 52], [69, 52], [75, 52], [66, 48], [72, 48], [69, 44]].forEach(function (d) { disc(d[0], d[1], 2, '#FFFFFF'); });
+      head(casual(meU, '#5C4E8E', '#5C4E8E'), 86, 46, 'bliss'); R(86, 62, 20, 6, '#5C4E8E');
+    } else if (k === 'v_halloween') {
+      bands(['#2A1840', '#3A2050', '#4A2A5E', '#5A346E']); disc(100, 16, 9, '#FFE08A');
+      for (i = 0; i < 3; i++) { x = (reduce ? 20 + i * 30 : (t * 20 + i * 45) % (SW + 20) - 10); y = 14 + i * 7 + wob(300, i) * 2; R(x, y, 3, 2, '#141020'); R(x - 3, y - (Math.floor(t * 6 + i) % 2), 3, 1, '#141020'); R(x + 3, y - (Math.floor(t * 6 + i) % 2), 3, 1, '#141020'); }
+      R(0, 62, SW, 22, '#2A2034');
+      [[18, 64, 7], [40, 66, 5], [104, 64, 8]].forEach(function (p) { disc(p[0], p[1], p[2], '#F08A2A'); R(p[0], p[1] - p[2] - 2, 2, 3, '#3E6E3A'); var on = reduce || Math.floor(now / 400) % 3; R(p[0] - 3, p[1] - 2, 2, 2, on ? '#FFE08A' : '#5A3010'); R(p[0] + 2, p[1] - 2, 2, 2, on ? '#FFE08A' : '#5A3010'); R(p[0] - 2, p[1] + 2, 5, 1, on ? '#FFE08A' : '#5A3010'); });
+      [[52, meU], [76, tm(0)]].forEach(function (p, j) { big(casual(p[1], '#2B2238', '#5A346E'), p[0], 34, 2, { face: 'smile', arms: (Math.floor(t * 2 + j) % 2) === 0 }); R(p[0] + 2, 32, 16, 2, '#141020'); R(p[0] + 6, 26, 8, 6, '#141020'); R(p[0] + 8, 22, 4, 4, '#141020'); R(p[0] + 6, 30, 8, 1, '#B48CFF'); });
+    } else if (k === 'v_valentine') {
+      R(0, 0, SW, SH, '#FCE4EC'); R(0, 62, SW, 22, '#F4C8D4');
+      bigIco('heart', 50, 6 + wob(500), 4);
+      R(14, 54, 14, 10, '#6A3A2A'); R(14, 54, 14, 2, '#E0567A'); R(20, 54, 2, 10, '#E0567A'); R(100, 56, 12, 8, '#8A4A3A'); R(105, 56, 2, 8, '#F7B5C8');
+      big(meU, 30, 30, 2, { face: 'smile', arms: true }); big(tm(0), 78, 30, 2, { face: 'bliss' });
+      fall(['#E0567A', '#F7B5C8', '#FFFFFF'], 14); floaty('heart', 64, 40, now, 0.3, 1);
+    } else if (k === 'v_party' || k === 'v_cake') {
+      salon(); R(0, 4, SW, 2, '#9A93A8');
+      for (i = 0; i < 12; i++) { R(4 + i * 10, 6, 1, 2, '#9A93A8'); R(2 + i * 10, 8, 6, 5, ['#E0567A', '#F2C230', '#5AA9E6', '#7FC49A'][i % 4]); R(4 + i * 10, 13, 2, 1, ['#E0567A', '#F2C230', '#5AA9E6', '#7FC49A'][i % 4]); }
+      table(42, 54, 44);
+      if (k === 'v_cake') { R(52, 44, 24, 10, '#FFF4E8'); R(52, 44, 24, 2, '#F7B5C8'); R(55, 38, 18, 6, '#FFF4E8'); for (i = 0; i < 4; i++) { R(56 + i * 5, 36, 2, 2, '#E0304A'); R(57 + i * 5, 32, 1, 4, '#FFFFFF'); if (reduce || (i + Math.floor(now / 200)) % 2) R(57 + i * 5, 30, 1, 2, '#FFB040'); } }
+      else { R(58, 38, 12, 10, '#F2C230'); R(56, 38, 2, 5, '#F2C230'); R(70, 38, 2, 5, '#F2C230'); R(62, 48, 4, 4, '#C9A227'); R(58, 52, 12, 2, '#C9A227'); R(61, 41, 3, 3, '#FFF4C0'); }
+      big(meU, 14, 30, 2, { face: 'bliss', arms: (Math.floor(t * 2) % 2) === 0 });
+      for (i = 0; i < 3; i++) sprite(tm(i), 92 + i * 11, 40 + (i % 2) * 3, { face: 'smile', arms: (Math.floor(t * 3 + i) % 2) === 0 });
+      confetti(26);
+    } else if (k === 'v_stage') {
+      R(0, 0, SW, SH, '#1A1428'); R(0, 0, SW, 8, '#7A1E38'); for (i = 0; i < 16; i++) R(i * 8, 8, 4, 3, '#7A1E38');
+      g.globalAlpha = 0.22; for (i = 0; i < 26; i++) R(64 - 4 - i, 10 + i * 2, 8 + i * 2, 2, '#FFF4C0'); g.globalAlpha = 1;
+      R(0, 54, SW, 6, '#5A3E2E'); R(0, 54, SW, 1, '#8A6A50');
+      big(meU, 54, 20, 2, { face: 'smile', arms: (Math.floor(t * 1.5) % 2) === 0 }); R(76, 28, 2, 10, '#2B2238'); disc(77, 27, 2, '#9A93A8');
+      for (i = 0; i < 9; i++) { var hx = 4 + i * 14, hy = 66 + (i % 2) * 4 + (reduce ? 0 : (Math.floor(t * 4 + i) % 3 === 0 ? -1 : 0)); disc(hx + 4, hy, 4, '#2E2440'); R(hx, hy + 4, 9, 14, '#2E2440'); }
+      floaty('note', 30, 40, now, 0, 1); floaty('star', 100, 36, now, 0.7, 1);
+    } else if (k === 'v_press') {
+      salon();
+      big(k === 'v_press' && S && S.queue && S.queue[0] && S.queue[0].look ? S.queue[0].look : guest(2), 18, 30, 2, { face: 'smile' });
+      big(meU, 54, 30, 2, { face: 'smile', arms: true });
+      sprite({ hair: '#5A3A28', skin: '#F2CFB0', top: '#5C6E9E', bottom: '#3A3A50', style: 'short', glasses: true }, 100, 40, {}); R(96, 46, 8, 5, '#2B2238'); R(97, 47, 3, 3, '#7FC8E8');
+      if (!reduce && Math.floor(now / 350) % 4 === 0) { g.globalAlpha = 0.5; R(0, 0, SW, SH, '#FFFFFF'); g.globalAlpha = 1; R(94, 42, 4, 3, '#FFFFFF'); }
+      floaty('spark', 70, 28, now, 0, 2); floaty('star', 40, 26, now, 0.5, 1);
+    } else if (k === 'v_vip') {
+      bands(['#3A2C4A', '#4A3A5A', '#5A486A', '#6A567A']);
+      for (i = 0; i < 6; i++) R(8 + i * 20, 8, 12, 30, '#2A2038'); for (i = 0; i < 12; i++) if (reduce || (i + Math.floor(now / 600)) % 3) R(10 + (i * 11) % 110, 12 + (i * 7) % 24, 2, 2, '#FFE08A');
+      R(0, 58, SW, 26, '#5A5468'); R(40, 58, 48, 26, '#B8344A'); R(40, 58, 48, 1, '#C9A227');
+      R(4, 46, 40, 10, '#141020'); R(10, 40, 26, 7, '#141020'); R(12, 42, 9, 4, '#3A4A6A'); R(23, 42, 10, 4, '#3A4A6A'); disc(12, 57, 3, '#2B2238'); disc(36, 57, 3, '#2B2238');
+      big({ hair: '#E8D08A', skin: '#F8D9BE', top: '#C9A227', bottom: '#6A2A5A', style: 'bun', vip: true }, 54, 28, 2, { face: 'smile' });
+      big(meU, 90, 30, 2, { face: 'smile', bow: reduce ? 0 : (Math.floor(t / 1.4) % 2) });
+      floaty('spark', 50, 24, now, 0, 2); floaty('star', 76, 20, now, 0.5, 1);
+    } else if (k === 'v_storm' || k === 'v_rain') {
+      var hard = k === 'v_storm';
+      bands(hard ? ['#4A5068', '#5A6078', '#6A7088', '#7A8098'] : ['#9AA8C0', '#A8B4CA', '#B6C0D4', '#C4CCDE']);
+      R(0, 60, SW, 24, hard ? '#5A6070' : '#7A8698');
+      R(64, 20, 60, 40, '#F7EFE6'); R(64, 20, 60, 4, '#E0D4C6'); R(70, 30, 20, 22, '#BFE3F5'); R(98, 30, 18, 30, '#8A5A44');
+      if (hard) { R(20, 20, 3, 40, '#6B4E3A'); for (i = 0; i < 5; i++) R(10 + i * 4 + Math.sin(t * 3) * 4, 12 + i * 3, 14 - i, 4, '#3E6E4E'); if (!reduce && Math.floor(now / 1900) % 4 === 0 && (now % 1900) < 120) { g.globalAlpha = 0.7; R(0, 0, SW, SH, '#FFFFFF'); g.globalAlpha = 1; } }
+      else for (i = 0; i < 6; i++) disc(8 + i * 9, 62 + (i % 2) * 3, 4, ['#7A8AE0', '#B48CFF', '#9FB8F0'][i % 3]);
+      big(casual(meU, '#F2C230', '#4A4A68'), 34, 36, 2, { face: hard ? 'trouble' : 'smile' }); R(30, 30, 28, 3, hard ? '#E0567A' : '#5AA9E6'); R(34, 28, 20, 2, hard ? '#E0567A' : '#5AA9E6'); R(43, 33, 1, 10, '#2B2238');
+      rain(hard ? 60 : 30, hard ? '#C8D0E8' : '#E6ECF8', hard ? 1 : 0.2);
+    } else if (k === 'v_repair' || k === 'v_inspect') {
+      salon(); bed(70, 50, 50);
+      if (k === 'v_repair') { R(40, 0, 16, 3, '#9A93A8'); y = reduce ? 30 : 4 + (t * 40) % 44; R(47, y, 2, 3, '#7FC8E8'); R(42, 52, 12, 10, '#9A93A8'); R(43, 53, 10, 3, '#7FC8E8');
+        big(casual(meU, '#5C78B0', '#3A3A50'), 14, 30, 2, { face: 'trouble', arms: (Math.floor(t * 3) % 2) === 0 }); R(34, 40, 10, 2, '#9A93A8'); R(42, 38, 3, 6, '#9A93A8'); icon('sweat', 34, 30); }
+      else { big({ hair: '#5A5A5A', skin: '#F2CFB0', top: '#3A3A50', bottom: '#3A3A50', style: 'short', glasses: true }, 30, 30, 2, {}); R(50, 44, 8, 10, '#C8A57A'); R(51, 45, 6, 8, '#FFFFFF'); for (i = 0; i < 3; i++) R(52, 47 + i * 2, 4, 1, '#9A93A8');
+        big(meU, 74, 26, 2, { face: 'trouble', bow: reduce ? 0 : (Math.floor(t) % 2) }); icon('sweat', 94, 28); }
+    } else if (k === 'v_gift') {
+      salon(); R(8, 18, 112, 2, '#B8866A'); R(8, 34, 112, 2, '#B8866A');
+      for (i = 0; i < 10; i++) { var gx = 10 + i * 11, gc = ['#E0567A', '#5AA9E6', '#F2C230', '#7FC49A', '#B48CFF'][i % 5]; R(gx, 10 + (i % 2) * 2, 8, 8 - (i % 2) * 2, gc); R(gx + 3, 10 + (i % 2) * 2, 2, 8 - (i % 2) * 2, '#FFFFFF'); R(gx, 26, 8, 8, gc); R(gx, 29, 8, 2, '#FFFFFF'); }
+      table(36, 56, 56); R(54, 48, 14, 8, '#E0567A'); R(60, 48, 2, 8, '#F2C230'); R(56, 46, 10, 2, '#F2C230');
+      big(meU, 12, 34, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 }); big(tm(0), 96, 34, 2, { face: 'smile' });
+      floaty('coin', 40, 40, now, 0, 1); floaty('heart', 84, 36, now, 0.6, 1);
+    } else if (k === 'v_cafe' || k === 'v_talk' || k === 'v_date') {
+      var cafe = k !== 'v_talk', night2 = k === 'v_date';
+      R(0, 0, SW, SH, night2 ? '#3A2A3A' : cafe ? '#F4E6D8' : '#ECE6F0'); R(0, 60, SW, 24, night2 ? '#4A3438' : cafe ? '#C8A57A' : '#D8D0E0');
+      if (cafe) { for (y = 4; y < 40; y += 6) for (x = (y / 6 % 2) * 6; x < SW; x += 12) R(x, y, 11, 5, night2 ? '#4A3444' : '#E8CCB4'); R(46, 2, 1, 10, '#2B2238'); disc(46, 14, 3, '#F2C230'); g.globalAlpha = 0.18; disc(46, 26, 16, '#FFE08A'); g.globalAlpha = 1; }
+      else { R(8, 8, 30, 20, '#FFFFFF'); R(10, 10, 26, 16, '#E8F0F8'); R(96, 10, 22, 30, '#B8866A'); }
+      table(38, 52, 52); cup(48, 48); cup(76, 48); if (night2) { R(62, 44, 2, 8, '#FFFFFF'); R(62, 42, 2, 2, reduce || Math.floor(now / 250) % 2 ? '#FFB040' : '#FFE08A'); }
+      var who = k === 'v_date' ? partner : (S && S.evStaff ? staffLook(S.evStaff) : (k === 'v_cafe' ? guest(4) : tm(0)));
+      big(k === 'v_talk' ? meU : meC, 16, 30, 2, { face: 'smile' }); big(who, 92, 30, 2, { face: k === 'v_talk' ? 'trouble' : 'smile' });
+      if (k === 'v_date') { floaty('heart', 56, 30, now, 0, 1); floaty('heart', 70, 26, now, 0.7, 1); }
+      else { var tk = Math.floor(now / 1400) % 2; bigBubble(tk ? 74 : 34, 10, 1, now, k === 'v_talk' ? (tk ? 'sweat' : 'q') : 'note'); }
+    } else if (k === 'v_rival') {
+      bands(['#A8DAF2', '#BFE3F5', '#D6EDF8', '#E8F5FB']); R(0, 66, SW, 18, '#CFC6BC');
+      R(4, 20, 52, 46, '#F7EFE6'); R(10, 24, 40, 8, '#F08DAE'); R(12, 36, 18, 18, '#BFE3F5'); R(34, 36, 14, 30, '#8A5A44');
+      R(70, 16, 54, 50, '#E8E8F0'); R(74, 20, 46, 10, reduce || Math.floor(now / 300) % 2 ? '#E0304A' : '#F2C230'); for (i = 0; i < 4; i++) R(78 + i * 10, 23, 6, 4, '#FFFFFF'); R(76, 36, 42, 20, '#BFE3F5');
+      for (i = 0; i < 3; i++) sprite(guest(i), 78 + i * 12 + wob(500, i), 46, {});
+      big(meU, 36, 40, 2, { face: 'trouble' }); icon('sweat', 56, 40);
+    } else if (k === 'v_sick') {
+      R(0, 0, SW, SH, '#E8EEF4'); R(0, 60, SW, 24, '#C8D0DC'); R(90, 8, 26, 18, '#FFFFFF'); R(92, 10, 22, 14, '#BFE3F5');
+      bed(18, 50, 70, '#BFD8E0'); lying(24, 50, S && S.evStaff ? staffLook(S.evStaff) : tm(0)); R(24, 43, 6, 2, '#7FC8E8');
+      big(meU, 94, 28, 2, { face: 'smile' }); R(80, 54, 8, 5, '#E0304A'); R(83, 52, 2, 2, '#7FC49A');
+      floaty('zz', 30, 32, now, 0, 1);
+    } else if (k === 'v_idea') {
+      salon(); R(10, 10, 46, 30, '#FFFFFF'); R(10, 10, 46, 2, '#9A93A8'); for (i = 0; i < 4; i++) R(14, 16 + i * 5, 20 + (i * 7) % 18, 2, ['#5AA9E6', '#E0567A', '#7FC49A', '#F2C230'][i]);
+      big(meU, 70, 34, 2, { face: 'bliss', arms: true });
+      var gl = reduce ? 1 : 0.6 + Math.sin(now / 200) * 0.4; g.globalAlpha = 0.3 * gl; disc(80, 18, 10, '#FFF4C0'); g.globalAlpha = 1; disc(80, 18, 5, '#FFE08A'); R(78, 23, 5, 4, '#9A93A8');
+      big(tm(0), 100, 36, 2, { face: 'smile' }); floaty('spark', 92, 14, now, 0, 1);
+    } else if (k === 'v_fx') {
+      R(0, 0, SW, SH, '#1E2A40'); disc(36, 40, 22, '#3A7AC8'); for (i = 0; i < 6; i++) disc(28 + (i * 9) % 20, 30 + (i * 7) % 20, 4, '#5AB07A');
+      for (i = 0; i < 6; i++) { var bh = 10 + ((i * 13 + Math.floor(t * 2)) % 24); R(72 + i * 8, 70 - bh, 6, bh, i % 2 ? '#E0567A' : '#7FC49A'); }
+      R(70, 70, 52, 1, '#9A93A8'); floaty('coin', 60, 30, now, 0, 2);
+    } else if (k === 'v_wedding') {
+      bands(['#BFE3F5', '#D2ECF8', '#E4F4FA', '#F2FAFC']); R(0, 64, SW, 20, '#9ED68A');
+      R(44, 16, 40, 48, '#FFFFFF'); R(40, 14, 48, 3, '#E0D4C6'); R(58, 4, 12, 12, '#FFFFFF'); R(63, 0, 2, 4, '#C9A227'); R(54, 40, 20, 24, '#C8A0D8');
+      y = reduce ? 0 : Math.round(Math.sin(t * 4) * 2); R(62 + y, 8, 4, 4, '#F2C230');
+      big({ hair: meU.hair, skin: meU.skin, top: '#FFFFFF', bottom: '#FFFFFF', style: 'bun' }, 20, 36, 2, { face: 'bliss' }); R(20, 34, 20, 3, '#FFFFFF');
+      big(S && S.ev === 'st_marry' && S.evStaff ? staffLook(S.evStaff) : partner, 90, 36, 2, { face: 'smile' });
+      fall(['#F7B5C8', '#FFFFFF', '#FFE08A'], 18); floaty('heart', 64, 30, now, 0.4, 2);
+    } else if (k === 'v_baby') {
+      R(0, 0, SW, SH, '#FFF2F4'); R(0, 62, SW, 22, '#F4D8DC');
+      for (i = 0; i < 5; i++) { var mx = 64 + Math.cos(t + i * 1.25) * 12; R(mx, 12, 1, 6, '#9A93A8'); bigIco(['star', 'heart', 'note', 'star', 'heart'][i], mx - 2, 18, 1); }
+      R(44, 44, 40, 4, '#C8A57A'); for (i = 0; i < 9; i++) R(44 + i * 5, 34, 1, 10, '#C8A57A'); R(44, 34, 40, 1, '#C8A57A');
+      disc(64, 42, 4, '#F8D9BE'); R(58, 44, 12, 3, '#F7B5C8');
+      big(meU, 14, 30, 2, { face: 'bliss' }); big(partner, 92, 30, 2, { face: 'smile' });
+      floaty('heart', 40, 30, now, 0, 1); floaty('heart', 86, 26, now, 0.6, 1);
+    } else if (k === 'v_cat' || k === 'v_dog') {
+      var cat = k === 'v_cat';
+      bands(cat ? ['#9AA8C0', '#A8B4CA', '#B6C0D4', '#C4CCDE'] : ['#A8DAF2', '#BFE3F5', '#D6EDF8', '#E8F5FB']); R(0, 60, SW, 24, cat ? '#7A8698' : '#9ED68A');
+      if (!cat) { for (i = 0; i < 4; i++) { R(10 + i * 34, 30, 4, 30, '#7A5A44'); disc(12 + i * 34, 26, 9, '#5AA05A'); } }
+      else { R(70, 16, 54, 44, '#F7EFE6'); R(76, 26, 20, 20, '#BFE3F5'); R(100, 26, 16, 34, '#8A5A44'); }
+      if (cat) { R(30, 56, 22, 12, '#C8A060'); R(30, 56, 22, 2, '#A8804A'); disc(41, 54, 4, '#F2A050'); R(37, 49, 2, 3, '#F2A050'); R(43, 49, 2, 3, '#F2A050'); R(39, 53, 1, 1, '#2B2238'); R(42, 53, 1, 1, '#2B2238');
+        big(casual(meU, '#F2C230', '#4A4A68'), 52, 34, 2, { face: 'smile', arms: true }); R(56, 46, 12, 4, '#FFFFFF'); rain(26, '#E6ECF8', 0.2); }
+      else { x = reduce ? 50 : 20 + ((t * 10) % 80); big(meC, x, 32, 2, { face: 'smile', arms: (Math.floor(t * 3) % 2) === 0 }); var dx = x + 26;
+        R(dx, 58, 12, 6, '#B8865A'); R(dx + 10, 54, 6, 6, '#B8865A'); R(dx + 14, 53, 2, 3, '#7A5A3A'); R(dx + 13, 56, 1, 1, '#2B2238'); R(dx + 1, 64, 2, 3, '#B8865A'); R(dx + 9, 64, 2, 3, '#B8865A'); R(dx - 3, 56 + (Math.floor(t * 8) % 2), 3, 2, '#B8865A');
+        R(x + 18, 46, 1, 1, '#E0567A'); for (i = 0; i < 8; i++) R(x + 18 + i, 46 + i * 1.3, 1, 1, '#E0567A'); floaty('heart', dx + 6, 44, now, 0, 1); }
+    } else if (k === 'v_travel') {
+      bands(['#7FC8F0', '#9DD6F4', '#BDE4F7', '#DDF1FA']);
+      for (i = 0; i < 4; i++) icon('cloud', Math.round((t * (4 + i) + i * 40) % (SW + 10)) - 10, 10 + i * 12, '#FFFFFF');
+      x = reduce ? 50 : (t * 16) % (SW + 40) - 30; y = 24 + wob(700) * 2; R(x, y, 30, 6, '#FFFFFF'); R(x + 30, y + 1, 4, 4, '#FFFFFF'); R(x + 2, y - 5, 4, 6, '#E0567A'); R(x + 12, y + 4, 10, 2, '#D9DCE8'); R(x + 12, y - 2, 8, 2, '#D9DCE8'); for (i = 0; i < 6; i++) R(x + 8 + i * 3, y + 2, 1, 1, '#5AA9E6');
+      R(0, 64, SW, 20, '#CFC6BC'); sprite(S && S.queue && S.queue[0] ? S.queue[0].look : guest(1), 40, 48, { face: 'smile' }); R(52, 56, 8, 10, '#E0567A'); R(54, 54, 4, 2, '#2B2238');
+      big(meU, 80, 36, 2, { face: 'smile', bow: reduce ? 0 : (Math.floor(t / 1.5) % 2) });
+    } else if (k === 'v_phone' || k === 'v_home') {
+      R(0, 0, SW, SH, '#2E2A48'); R(8, 8, 30, 22, '#4A4470'); R(10, 10, 26, 18, '#1A1830'); disc(28, 16, 3, '#FFF4C0');
+      R(0, 60, SW, 24, '#5A4A40'); R(60, 46, 56, 14, '#8E6A9A'); R(60, 42, 56, 6, '#A87AB8'); R(112, 40, 6, 20, '#8E6A9A');
+      R(48, 10, 8, 6, '#F2C230'); R(51, 16, 2, 30, '#9A93A8'); g.globalAlpha = 0.12; disc(52, 14, 12, '#FFE08A'); g.globalAlpha = 1;
+      if (k === 'v_home') { lying(66, 48, casual(meU, '#BFE3F5', '#BFE3F5')); floaty('zz', 70, 30, now, 0, 2); R(14, 50, 22, 14, '#2B2238'); R(16, 52, 18, 10, reduce ? '#7FC8E8' : (Math.floor(now / 700) % 2 ? '#7FC8E8' : '#9FD8F0')); }
+      else { big(casual(meU, '#F7B5C8', '#5C78B0'), 70, 26, 2, { face: 'smile' }); R(84, 34, 3, 5, '#2B2238'); bigBubble(92, 12, 1, now, 'heart'); }
+    } else if (k === 'v_picnic' || k === 'v_mountain' || k === 'v_family') {
+      bands(['#A8DAF2', '#BFE3F5', '#D6EDF8', '#E8F5FB']);
+      if (k === 'v_mountain') { for (x = 0; x < SW; x++) { var h2 = 20 + Math.round(Math.abs(((x + 30) % 70) - 35) * 0.8); R(x, h2, 1, 60, x % 70 < 35 ? '#5AA05A' : '#4E9050'); } R(0, 60, SW, 24, '#7FC49A'); for (i = 0; i < 3; i++) { x = reduce ? 30 + i * 20 : (t * 10 + i * 40) % SW; R(x, 12 + i * 4, 2, 1, '#2B2238'); R(x + 2, 11 + i * 4 - (Math.floor(t * 5) % 2), 2, 1, '#2B2238'); } }
+      else R(0, 52, SW, 32, '#9ED68A');
+      if (k === 'v_picnic') { for (y = 56; y < 84; y += 7) { R(0, y, SW, 3, '#5AA05A'); for (x = (y % 14); x < SW; x += 9) R(x, y - 1, 2, 2, '#E0304A'); } R(80, 54, 14, 8, '#C8A060'); R(82, 52, 10, 2, '#A8804A'); for (i = 0; i < 4; i++) R(82 + i * 3, 53, 2, 2, '#E0304A'); }
+      if (k === 'v_family') { R(20, 20, 2, 40, '#7A5A44'); disc(21, 16, 10, '#5AA05A'); for (i = 0; i < 3; i++) { var bx = 96 + i * 8, by = 14 + i * 3 + wob(600, i); disc(bx, by, 3, ['#E0567A', '#F2C230', '#5AA9E6'][i]); R(bx, by + 3, 1, 14, '#9A93A8'); } }
+      big(k === 'v_mountain' ? casual(meU, '#E0567A', '#3E5A78') : meC, 44, 34, 2, { face: 'bliss', arms: (Math.floor(t * 2) % 2) === 0 });
+      if (k === 'v_mountain') { R(40, 42, 6, 10, '#C8604A'); }
+      if (k === 'v_family') { big(partner, 66, 34, 2, { face: 'smile' }); sprite({ hair: meU.hair, skin: meU.skin, top: '#F2C230', bottom: '#E0567A', style: 'pony' }, 90, 50 + (reduce ? 0 : -Math.abs(Math.round(Math.sin(t * 4) * 2))), { face: 'smile', arms: true }); }
+      floaty('heart', 30, 30, now, 0, 1); floaty('note', 80, 26, now, 0.5, 1);
+    } else if (k === 'v_camp') {
+      bands(['#0E1230', '#161A40', '#1E2250', '#262A5E']); stars(26, 50);
+      R(0, 62, SW, 22, '#1E2A20'); for (i = 0; i < 4; i++) pine(10 + i * 34, 34 + (i % 2) * 4, 26, '#142018');
+      for (i = 0; i < 12; i++) R(80 - i, 40 + i * 2, i * 2 + 1, 2, '#E8C878'); R(78, 54, 4, 10, '#A8884A');
+      R(46, 66, 14, 3, '#6B4E3A'); var fl2 = reduce ? 0 : Math.floor(now / 120) % 3; R(49, 58 - fl2, 8, 8 + fl2, '#F08A2A'); R(51, 60 - fl2, 4, 6, '#FFE08A');
+      g.globalAlpha = 0.25; disc(53, 62, 12, '#FFB040'); g.globalAlpha = 1;
+      head(casual(meU, '#5C78B0', '#3A3A50'), 22, 48, 'bliss'); R(22, 64, 20, 6, '#5C78B0');
+    } else if (k === 'v_museum') {
+      R(0, 0, SW, SH, '#F4F0EA'); R(0, 62, SW, 22, '#C8B8A2');
+      [[8, 14, 28, 22, '#5AA9E6'], [48, 10, 32, 28, '#E0567A'], [92, 16, 26, 20, '#7FC49A']].forEach(function (f, j) { R(f[0] - 2, f[1] - 2, f[2] + 4, f[3] + 4, '#C9A227'); R(f[0], f[1], f[2], f[3], f[4]); disc(f[0] + f[2] / 2, f[1] + f[3] / 2, 5, '#FFF4C0'); g.globalAlpha = 0.15; R(f[0] - 4, 0, f[2] + 8, f[1] + f[3] + 10, '#FFE08A'); g.globalAlpha = 1; });
+      big(meC, 52, 40, 2, { face: 'bliss' }); floaty('spark', 70, 34, now, 0, 2);
+    } else if (k === 'v_shopping') {
+      R(0, 0, SW, SH, '#FBEFF2'); R(0, 64, SW, 20, '#E0D4D8');
+      for (i = 0; i < 3; i++) { x = 6 + i * 42; R(x, 8, 36, 42, '#FFFFFF'); R(x, 8, 36, 4, ['#E0567A', '#5AA9E6', '#2B2238'][i]); sprite({ hair: '#E8E0D4', skin: '#E8E0D4', top: ['#F2C230', '#B48CFF', '#7FC49A'][i], bottom: '#4A4A68', style: 'bob' }, x + 13, 22, {}); }
+      big(meC, 50, 34, 2, { face: 'bliss', arms: true }); R(42, 52, 8, 10, '#E0567A'); R(44, 50, 4, 2, '#2B2238'); R(72, 52, 8, 10, '#5AA9E6'); R(74, 50, 4, 2, '#2B2238');
+      floaty('heart', 64, 26, now, 0, 1);
+    } else if (k === 'v_spa') {
+      R(0, 0, SW, SH, '#EFE6DA'); R(0, 60, SW, 24, '#C8B090'); for (i = 0; i < 3; i++) { R(10 + i * 8, 52, 4, 6, '#FFFFFF'); R(11 + i * 8, 49 - (reduce ? 0 : Math.floor(now / 200 + i) % 2), 2, 3, '#FFB040'); }
+      R(96, 10, 22, 30, '#9ED68A'); R(98, 12, 18, 26, '#7FC49A');
+      bed(30, 50, 66); lying(36, 50, meU); R(50, 46, 30, 5, '#FFFFFF');
+      big({ hair: '#2B2238', skin: '#E0B48A', top: '#FFFFFF', bottom: '#C49A5A', style: 'bun', uniform: true }, 66, 20, 2, { arms: (Math.floor(t * 2) % 2) === 0, face: 'smile' });
+      steam(20, 46, 3); floaty('heart', 40, 32, now, 0, 1);
+    } else if (k === 'v_gym') {
+      R(0, 0, SW, SH, '#F4F0EA'); R(0, 56, SW, 28, '#D8B88A'); for (i = 0; i < 8; i++) R(i * 16, 56, 1, 28, '#C8A87A'); R(70, 8, 50, 44, '#D8E8F0'); R(72, 10, 46, 40, '#E8F4F8');
+      R(20, 66, 44, 4, '#B48CFF');
+      big(casual(meU, '#7FC49A', '#2B2238'), 30, 32 + (reduce ? 0 : Math.round(Math.sin(t * 2) * 2)), 2, { face: 'smile', arms: (Math.floor(t) % 2) === 0 });
+      big(casual(meU, '#7FC49A', '#2B2238'), 86, 14 + (reduce ? 0 : Math.round(Math.sin(t * 2) * 2)), 2, { arms: (Math.floor(t) % 2) === 0 });
+      icon('sweat', 50, 34);
+    } else if (k === 'v_concert') {
+      R(0, 0, SW, SH, '#140E28');
+      for (i = 0; i < 5; i++) { g.globalAlpha = 0.18; var bxx = 64 + Math.sin(t + i) * 40; for (var j2 = 0; j2 < 20; j2++) R(bxx - j2 / 2, j2 * 2, j2 + 1, 2, ['#E0567A', '#5AE0FF', '#F2C230', '#B48CFF', '#7FC49A'][i]); g.globalAlpha = 1; }
+      R(20, 40, 88, 6, '#3A2E58'); big({ hair: '#F2C230', skin: '#F8D9BE', top: '#E0567A', bottom: '#FFFFFF', style: 'pony' }, 54, 6, 2, { face: 'smile', arms: (Math.floor(t * 3) % 2) === 0 });
+      for (i = 0; i < 10; i++) { var cxx = 4 + i * 12; disc(cxx + 4, 64, 4, '#2E2440'); R(cxx, 68, 9, 16, '#2E2440'); var up = reduce ? 0 : (Math.floor(t * 4 + i) % 2) * 3; R(cxx + 8, 52 - up, 1, 8, ['#E0567A', '#5AE0FF', '#F2C230'][i % 3]); }
+      floaty('note', 30, 20, now, 0, 1); floaty('heart', 96, 18, now, 0.5, 1);
+    } else if (k === 'v_charity') {
+      bands(['#A8DAF2', '#BFE3F5', '#D6EDF8', '#E8F5FB']); R(0, 60, SW, 24, '#CFC6BC');
+      R(20, 14, 88, 6, '#F08DAE'); for (i = 0; i < 11; i++) R(20 + i * 8, 20, 8, 4, i % 2 ? '#FFFFFF' : '#F08DAE'); R(22, 24, 2, 36, '#9A93A8'); R(104, 24, 2, 36, '#9A93A8');
+      table(36, 50, 56);
+      big({ hair: '#C8C4CC', skin: '#F2CFB0', top: '#8E6A9A', bottom: '#6A5A78', style: 'bun' }, 24, 30, 2, { face: 'bliss' }); big(meU, 80, 30, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 });
+      R(58, 46, 12, 4, '#F2CFB0'); floaty('heart', 60, 30, now, 0, 2);
     } else if (k === 'bali3') {
       bands(['#FFC48A', '#FFB07A', '#F79A86', '#E08AA0']);
       R(56, 40, 16, 16, '#FFE08A');
@@ -3331,21 +3652,23 @@
     S.heroTrust = P.trust || 0;
   }
   function makeCustomer(used, ref) {
-    var name, tries = 0;
-    do { name = pick(NAMES); } while (used[name] && ++tries < 60);
+    var name, tries = 0, OA = opArea(), rg = opBranch() ? AREAREG[opBranch().area] : null;
+    do { name = pick(OA && OA.names ? OA.names : NAMES); } while (used[name] && ++tries < 60);
     used[name] = true;
     var sq = S.sns ? snsQ() : 0, pers = pick(Object.keys(PERS)), r = rnd() + (S.rep - 40) / 400 + sq * 0.3, male = roll(0.15), fromSns = roll(sq * 0.6);
     var pf = fromSns ? pfPick() : null, age = pf ? pick(SNSPF[pf].ages) : pick([20, 30, 30, 40, 40, 50, 60]);
     if (pf) r += SNSPF[pf].bud;
     if (S.concept && CONCEPTS[S.concept]) r += CONCEPTS[S.concept].bud || 0;
-    return { id: S.uid++, name: name, age: age, male: male, look: makeLook(male),
+    if (rg && !OA.names) male = male && roll(0.6);
+    return { id: S.uid++, name: name, age: age, male: male, look: makeLook(male, rg),
       concern: newConcern(), pref: pick(Object.keys(PRESS)), pers: pers, budget: r < 0.33 ? 0 : (r < 0.78 ? 1 : 2),
       grd: clamp(PERS[pers].guard + (50 - S.rep) * 0.2 + rnd() * 10 - 5 - (ref ? 18 : 0) - (S.storm ? 10 : 0) - (S.hum - 30) * 0.2 - sq * 12 - (fromSns ? 6 : 0) - (pf ? SNSPF[pf].grd : 0), 5, 95), int: (ref ? 8 : 0) + (fromSns ? 6 : 0) + (S.snsTech === S.week ? 6 : 0), sat: 0, sns: pf || false,
       known: {}, asked: [], used: {}, turns: 0, pushed: false, log: [], revenue: 0, ref: ref, isNew: true,
       loy: ref ? 15 : 0, visits: 0, active: false, plan: null, member: false, booked: 0, last: 0, phase: 'meet' };
   }
   function startWeek() {
-    scene.shop = null;
+    scene.shop = null; evScene([]); S.holPic = null; S.lifeDecl = S.sevDecl = S.evDecl = false; S.evDeclAlt = null;
+    if (S.opNext && !S.shops.some(function (x) { return x.id === S.opNext; })) S.opNext = null;
     S.wk = { trial: 0, course: 0, prod: 0, opt: 0, fee: 0, refund: 0, sold: [], closed: false, stLife: [] };
     S.news = []; S.cands = null;
     S.staff.forEach(function (st) { st.used = 0; });
@@ -3379,6 +3702,8 @@
         S.news.push({ good: true, t: '会費（4か月ごと） ' + yen(stay * FEE) + ' が入った（' + stay + '人）。' + (left ? left + '人が退会した。' : '') });
       }
     }
+    opEnter();
+    S.staff.forEach(function (st) { st.used = 0; });
     autoRestock();
     var launched = devTick();
     rollEvent();
@@ -3402,6 +3727,7 @@
     var newN = 1 + Math.floor(S.rep / 25) + adOf().n + webN() + S.ad + (roll(0.5) ? 1 : 0) - (S.storm ? 2 : 0) - (S.week <= S.rivalUntil ? 1 : 0) + (S.week <= S.buzz.until ? S.buzz.n : 0);
     if (S.sns && S.sns.f) newN += Math.round(snsQ() * snsFix().mix.tt * 3);
     if (S.concept && CONCEPTS[S.concept]) newN += CONCEPTS[S.concept].cnt || 0;
+    if (opArea()) newN += opArea().demand - 2 + fitOf(opBranch().area, S.concept);
     newN = Math.max(1, newN + pm().newAdj);
     S.ad = 0;
     var cap = totalCap(), keep = Math.max(0, cap - (S.special ? 1 : 0));
@@ -3457,11 +3783,12 @@
     var lf = S.lifeKey ? lifeOf(S.lifeKey) : null;
     var life = lf ? '<div class="event life box"><span class="badge">あなたの暮らし</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
-    var head = '<h1>' + calOf(S.week) + '</h1>' + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
-    if (S.holPending) return holidayView();
-    if (S.lifePending) return view(head + stepHtml('どうする？'), lifeChoices());
-    if (S.sevPending) return view(head + stepHtml('どうする？'), noDeadEnd(seasonChoices(), function () { S.sevPending = false; S.sevNote = '今はお金の余裕がないので、見送った。'; weekIntro(); }));
-    if (S.evPending) return view(head + stepHtml('どうする？'), noDeadEnd(evChoices(), function () { S.evPending = false; S.evNote = '今はお金の余裕がないので、見送った。'; weekIntro(); }));
+    var head = '<h1>' + calOf(S.week) + '</h1>' + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
+    if (S.holPending) { evScene([]); return holidayView(); }
+    if (S.lifePending) { evScene([LIFEPIC[S.lifeKey]]); return view(head + stepHtml('どうする？'), declWrap(lifeChoices(), 'lifeDecl')); }
+    if (S.sevPending) { evScene([EVPIC[S.sevKey]]); return view(head + stepHtml('どうする？'), noDeadEnd(declWrap(seasonChoices(), 'sevDecl'), function () { S.sevDecl = true; S.sevPending = false; S.sevNote = '今はお金の余裕がないので、見送った。'; weekIntro(); })); }
+    if (S.evPending) { evScene([EVPIC[S.ev]]); return view(head + stepHtml('どうする？'), noDeadEnd(declWrap(evChoices(), 'evDecl'), function () { S.evDecl = true; S.evPending = false; S.evNote = '今はお金の余裕がないので、見送った。'; weekIntro(); })); }
+    evScene([S.holPic, S.lifeKey && !S.lifeDecl ? LIFEPIC[S.lifeKey] : null, S.sevKey && !S.sevDecl ? EVPIC[S.sevKey] : null, S.ev && !S.evDecl ? S.evDeclAlt || EVPIC[S.ev] : null]);
     var opts = [{ main: true, label: S.queue.length ? (S.autoMode ? '営業を始める（おまかせ）' : '最初のお客様を迎える') : '今月の営業を終える',
       sub: S.queue.length && S.autoMode ? '特別なお客様だけ、あなたが接客する' : '', go: S.queue.length ? nextCust : night }];
     if (S.queue.length) opts.push({ label: S.autoMode ? 'ひとりずつ自分で迎えるモードにする' : 'スタッフにおまかせにする',
@@ -3472,6 +3799,7 @@
 
   /* --- 来店と担当決め --- */
   function nextCust() {
+    evScene([]);
     if (S.autoMode) return autoBatch();
     var c = S.queue[S.idx];
     if (c.sp) return showCut(spCut(c), manualCust);
@@ -4099,7 +4427,7 @@
       holOpts().map(function (a) {
         return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: a.sub, off: a.cost > 0 && S.cash < a.cost, go: function () {
           if (a.cost) pay(a.cost);
-          var res = a.r(); S.holPending = false; S.holInv = null; SFX.good();
+          var res = a.r(); S.holPending = false; S.holInv = null; SFX.good(); S.holPic = holPic(res[0]); evScene([S.holPic]);
           bar();
           view('<h1>今日のできごと</h1><div class="event life box"><span class="badge">あなたの休日</span><h2>' + res[0] + '</h2><p>' + res[1] + '</p></div>' + fatigueBars(),
             [{ main: true, label: 'お店へ', go: weekIntro }]);
@@ -4237,7 +4565,65 @@
   function freeAreas(t) { var o = S.shops.map(function (b) { return b.area; }); return Object.keys(AREAS).filter(function (k) { return o.indexOf(k) < 0 && (!t || AREAS[k].tier === t); }); }
   function renoCost(sh) { var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0); return INTCOST[lv] * (sh ? TIER[AREAS[sh.area].tier].m : 1); }
   var MAXBRANCH = 2;
-  function allStaff() { var a = S.staff.slice(); S.shops.forEach(function (b) { a = a.concat(b.staff); }); return a; }
+  function allStaff() { var a = S.staff.slice(); S.shops.forEach(function (b) { a = a.concat(b.staff); }); if (S.opHome) a = a.concat(S.opHome.staff); return a; }
+  // いま自分が営業している支店（本店なら null）
+  function opBranch() { return S && S.opShop ? S.shops.filter(function (b) { return b.id === S.opShop; })[0] || null : null; }
+  function opArea() { var b = opBranch(); return b ? AREAS[b.area] : null; }
+  function opMult() { var A = opArea(); return A ? A.mult : 1; }
+  function curRent() { var A = opArea(); return A ? A.rent : RENT; }
+  var HOMEA = { n: '本店', tier: 'local', rent: RENT, demand: 2, mult: 1 };
+  // 月のはじめ：選んだ支店に、あなた（オーナー）が入る。本店はスタッフにおまかせになる
+  function opEnter() {
+    var b = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
+    if (!b || S.opShop) return;
+    var owner = S.staff[0];
+    S.opHome = { staff: S.staff.slice(1), clients: S.clients, rep: S.rep, concept: S.concept, interiorLv: S.interiorLv, interior: S.interior };
+    S.staff = [owner].concat(b.staff); b.staff = [];
+    // 支店の常連を、接客できるお客様にする
+    if (!b.clients) b.clients = [];
+    var keep = [], used = {}; b.clients.forEach(function (c) { used[c.name] = true; });
+    b.regs.forEach(function (g) {
+      if (g.cid) { var c = b.clients.filter(function (x) { return x.id === g.cid; })[0]; if (c) { c.last = g.last; if (c.plan) c.plan.left = g.left; c.member = !!g.mem; c.active = !!(c.member || (c.plan && c.plan.left > 0)); } return; }
+      if (b.clients.length >= 8) { keep.push(g); return; }
+      S.opShop = b.id;  // 名前と見た目を、その街のものにするため
+      var c2 = makeCustomer(used, false); c2.isNew = false; c2.active = true; c2.visits = 2; c2.loy = 40; c2.last = g.last || S.week - 1;
+      if (g.mem) c2.member = true; else c2.plan = { k: 'c5', left: Math.max(1, g.left) };
+      b.clients.push(c2);
+    });
+    b.regs = keep;
+    S.opShop = b.id;
+    S.clients = b.clients; S.rep = b.rep; S.concept = b.concept; S.interiorLv = b.interiorLv || 0; S.interior = !!b.interior;
+  }
+  // 本店を、支店と同じように自動で計算するための仮の店
+  function homeSim() {
+    var H = S.opHome;
+    var regs = H.clients.filter(function (c) { return c.active && (c.member || (c.plan && c.plan.left > 0)); }).map(function (c) { return { mem: !!c.member, left: c.plan ? c.plan.left : 0, last: c.last, c: c }; });
+    return { id: 'home', home: true, area: null, name: (S.brand ? S.brand + ' ' : '') + '本店（スタッフにおまかせ）', staff: H.staff, rep: H.rep, regs: regs, concept: H.concept, interiorLv: H.interiorLv, interior: H.interior, last: null };
+  }
+  // 月末：支店の結果をしまい、本店にもどる
+  function opLeave(hb) {
+    var b = opBranch(); if (!b) { S.opShop = null; S.opHome = null; return; }
+    var owner = S.staff[0], H = S.opHome;
+    b.staff = S.staff.slice(1); b.clients = S.clients; b.rep = S.rep; b.concept = S.concept; b.interiorLv = S.interiorLv; b.interior = S.interior;
+    b.regs = b.regs.concat(b.clients.filter(function (c) { return c.active && (c.member || (c.plan && c.plan.left > 0)); }).map(function (c) { return { mem: !!c.member, left: c.plan ? c.plan.left : 0, last: c.last, cid: c.id }; }));
+    b.last = { name: b.name, sales: S.wk.sales, refund: S.wk.refund, cost: S.wk.cost, net: S.wk.sales - S.wk.refund - S.wk.cost, served: S.wk.served || S.queue.length, sold: 0, turned: 0, op: true };
+    S.staff = [owner].concat(H.staff); S.clients = H.clients; S.concept = H.concept; S.interiorLv = H.interiorLv; S.interior = H.interior;
+    S.rep = hb ? hb.rep : H.rep;
+    if (hb) hb.regs.forEach(function (g) { if (g.c) { g.c.last = g.last; if (g.c.plan) g.c.plan.left = g.left; if (g.c.plan && g.c.plan.left <= 0 && !g.c.member) g.c.active = !!g.c.booked; } });
+    S.opDone = b.name; S.opShop = null; S.opHome = null;
+  }
+  // 来月、どの店舗で営業するか
+  function opView() {
+    bar();
+    var cur = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
+    view('<h1>来月の営業店舗</h1><p class="lead">あなたが店に立つ店舗を選ぶ。選んだ店舗のお客様を、自分で接客できる。そのあいだ、本店はスタッフにおまかせで自動で営業する。</p>' +
+      '<p class="lead">いまの予定：<b>' + (cur ? cur.name : '本店') + '</b></p>' + (S.staff.length <= 1 ? '<div class="news bad">本店にあなた以外のスタッフがいない。支店で営業すると、そのあいだ本店はお休みになる（家賃はかかる）。</div>' : ''),
+      [{ label: '本店で営業する', sub: '今までどおり', go: function () { S.opNext = null; investView(); } }].concat(S.shops.map(function (b) {
+        var A = AREAS[b.area], r = b.last;
+        return { label: b.name + 'で営業する', sub: (CONCEPTS[b.concept] ? CONCEPTS[b.concept].n + '　' : '') + 'スタッフ' + b.staff.length + '人　評判' + Math.round(b.rep) + '　家賃 月' + yen(A.rent) + '　単価×' + A.mult + (r ? '　先月の収支 ' + yen(r.net) : ''),
+          go: function () { S.opNext = b.id; investView(); } };
+      })).concat([{ label: '月末の画面にもどる', go: investView }]));
+  }
   function shopOf(st) { return S.shops.filter(function (b) { return b.staff.indexOf(st) >= 0; })[0] || null; }
   function shopCap(b) { return b.staff.reduce(function (a, st) { return a + capOf(st); }, 0); }
   function stars(r) { var f = Math.round(r / 20); return '★★★★★'.slice(0, f) + '☆☆☆☆☆'.slice(0, 5 - f); }
@@ -4264,7 +4650,7 @@
   }
   // 支店の1か月。お客様をまとめて計算する
   function simBranch(b) {
-    var A = AREAS[b.area], i = 0, slots = shopCap(b);
+    var A = b.home ? HOMEA : AREAS[b.area], i = 0, slots = shopCap(b);
     var r = { name: b.name, sales: 0, refund: 0, served: 0, sold: 0, turned: 0, cost: A.rent + b.staff.reduce(function (a, st) { return a + payOf(st); }, 0) };
     var work = b.staff.filter(function (st) { return capOf(st) > 0; });
     if (!work.length) { r.net = -r.cost; r.turned = 2 + A.demand; b.last = r; return r; }
@@ -4275,7 +4661,7 @@
     if (S.week > 1 && (S.week - 1) % 4 === 0) {
       b.regs = b.regs.filter(function (g) { return !g.mem || roll(0.72 + S.hum / 400); });
       var m = b.regs.filter(function (g) { return g.mem; }).length;
-      r.sales += m * FEE;
+      if (!b.home) r.sales += m * FEE;
     }
     b.regs.forEach(function (g) {
       if (slots <= 0) return;
@@ -5253,14 +5639,16 @@
   function stSale(st, v) { if (st && !st.owner) st.ms = (st.ms || 0) + v; return v; }
   function wages() { return S.staff.reduce(function (a, st) { return a + payOf(st); }, 0); }
   function night() {
+    evScene([]);
     if (!S.wk.closed) {
       S.wk.closed = true;
       S.wk.wage = wages();
-      S.wk.base = baseOps(S.staff, S.rep, 1);
+      S.wk.base = baseOps(S.staff, S.rep, opMult());
       S.cash += S.wk.base.sales;
       S.wk.incList = []; S.wk.inc = incPay(S.staff, S.wk.incList);
       S.wk.adCost = adCost(); S.wk.hqCost = hqMonth(); S.wk.loan = loanMonth();
-      S.wk.cost = RENT + S.wk.wage + S.wk.inc + S.wk.base.cost + S.wk.adCost + S.wk.hqCost + S.wk.loan.interest;
+      S.wk.rent = curRent();
+      S.wk.cost = S.wk.rent + S.wk.wage + S.wk.inc + S.wk.base.cost + S.wk.adCost + S.wk.hqCost + S.wk.loan.interest;
       S.cash -= S.wk.cost;
       S.wk.roy = S.royalty || 0; S.cash += S.wk.roy;
       stratMonth();
@@ -5268,10 +5656,13 @@
       S.wk.sales = S.wk.trial + S.wk.course + S.wk.prod + S.wk.opt + S.wk.fee + S.wk.roy + (S.wk.fcRoy || 0) + (S.wk.biz || 0) + (S.wk.extra || 0) + S.wk.base.sales;
       S.total.sales += S.wk.sales - S.wk.refund; S.total.cost += S.wk.cost;
       if (hasTier('world') || hasTier('resort')) S.fx = clamp(Math.round(((S.fx || 1) + (1 - (S.fx || 1)) * 0.15 + (rnd() - 0.5) * 0.08) * 100) / 100, 0.75, 1.35);
-      S.wk.branch = S.shops.map(simBranch);
+      var hb = S.opHome ? homeSim() : null;
+      S.wk.branch = S.shops.filter(function (b) { return b.id !== S.opShop; }).map(simBranch).concat(hb ? [simBranch(hb)] : []);
       S.wk.ph = phWeek();
       if (S.wk.ph) { S.cash += S.wk.ph.net; S.total.sales += S.wk.ph.sales; S.total.cost += S.wk.ph.cost; }
       S.wk.branch.forEach(function (r) { S.cash += r.net; S.total.sales += r.sales - r.refund; S.total.cost += r.cost; S.total.served += r.served; S.total.sold += r.sold; });
+      S.wk.opName = S.opShop && opBranch() ? opBranch().name : null;
+      if (S.opShop) opLeave(hb);
       if (C) setScene('leave'); else setScene('idle');
       C = null;
       SFX.fanfare(false);
@@ -5325,7 +5716,7 @@
       (w.biz ? '<dt>買収した事業の利益</dt><dd>' + yen(w.biz) + '</dd>' : '') +
       (w.extra ? '<dt>賞金など</dt><dd>' + yen(w.extra) + '</dd>' : '') +
       (w.refund ? '<dt>解約の返金</dt><dd class="minus">' + yen(-w.refund) + '</dd>' : '') +
-      '<dt>家賃・固定費</dt><dd class="minus">' + yen(-RENT) + '</dd>' +
+      '<dt>家賃・固定費' + (w.opName ? '（' + w.opName + '）' : '') + '</dt><dd class="minus">' + yen(-(w.rent || RENT)) + '</dd>' +
       (w.wage ? '<dt>スタッフ給与（役職手当込み）</dt><dd class="minus">' + yen(-w.wage) + '</dd>' : '') +
       (w.inc ? '<dt>インセンティブ</dt><dd class="minus">' + yen(-w.inc) + '</dd>' : '') +
       (w.loan && w.loan.interest ? '<dt>借入金の利息</dt><dd class="minus">' + yen(-w.loan.interest) + '</dd>' : '') +
@@ -5481,10 +5872,12 @@
     };
     if (curCat && CAT[curCat]) return catView(curCat);
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
-    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', go: function () { curCat = null; S.week++; startWeek(); } },
+    var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
+    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + (nx ? nx.name : '本店') : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(
+      S.shops.length ? [{ label: '来月の営業店舗：' + (nx ? nx.name : '本店'), sub: 'あなたが店に立つ店舗を切り替える。選んだ店舗のお客様を自分で接客し、本店はスタッフにおまかせになる', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
-      { label: '発信・記録・そのほか', sub: 'SNS（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]);
+      { label: '発信・記録・そのほか', sub: 'SNS（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]));
     taskBind(TK); shopSwBind();
   }
   var curCat = null;
