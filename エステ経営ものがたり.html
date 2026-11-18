@@ -107,6 +107,7 @@
   .stk-n b { font-size: 1.15rem; }
   .stk-n.low b { color: var(--accent); }
   .stk-sub { margin: 2px 0 8px 22px; font-size: .78rem; color: var(--sub); }
+  .stk-fit { color: var(--good); font-weight: 700; }
   .stk-buy { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .stk-buy button { margin: 0; padding: 6px 8px; text-align: center; font-size: .92rem; box-shadow: 2px 2px 0 var(--ink); }
   .stk-auto { display: flex; align-items: center; gap: 8px; margin: 10px 0 0 14px; padding: 6px 10px; background: var(--chip); border-left: 4px solid var(--gold); font-size: .85rem; }
@@ -612,11 +613,12 @@
     { k: 'one', n: '次回の予約（都度払い）', price: 9000, need: 30, tier: 0, booking: true, note: '来月また来店する' }
   ];
   var PRODUCTS = [
-    { k: 'set',   n: 'ホームケアセット', cost: 2200, price: 16500, need: 36, tier: 0, col: '#F08DAE', cap: '#B8466E' },
-    { k: 'serum', n: '美容液',           cost: 4200, price: 29400, need: 48, tier: 1, col: '#7FC8E8', cap: '#2D6E9E' },
-    { k: 'device', n: '家庭用美顔器',   cost: 18000, price: 59800, need: 52, tier: 2, col: '#E8E8F0', cap: '#E0567A', unlock: 'devFace' },
-    { k: 'ems',   n: '家庭用EMS',        cost: 12000, price: 39800, need: 48, tier: 1, col: '#5C6E9E', cap: '#3AC0C8', unlock: 'devEms' },
-    { k: 'bath',  n: 'アロマ入浴剤',     cost: 700,  price: 6600, need: 22, tier: 0, col: '#9ED68A', cap: '#3E7E33' }
+    { k: 'set',   n: 'スキンケアセット', d: '洗顔・化粧水・クリーム', cost: 2200, price: 16500, need: 36, tier: 0, col: '#F08DAE', cap: '#B8466E' },
+    { k: 'bodyc', n: '引きしめボディクリーム', d: 'お腹や脚に塗ってマッサージ', cost: 1500, price: 12800, need: 32, tier: 0, col: '#F4C07A', cap: '#B8772E' },
+    { k: 'serum', n: '美容液', d: '肌の悩みに集中ケア', cost: 4200, price: 29400, need: 48, tier: 1, col: '#7FC8E8', cap: '#2D6E9E' },
+    { k: 'device', n: '家庭用美顔器', d: 'お家でサロンのような肌ケア', cost: 18000, price: 59800, need: 52, tier: 2, col: '#E8E8F0', cap: '#E0567A', unlock: 'devFace' },
+    { k: 'ems',   n: '家庭用EMS', d: '貼るだけで筋肉を動かす', cost: 12000, price: 39800, need: 48, tier: 1, col: '#5C6E9E', cap: '#3AC0C8', unlock: 'devEms' },
+    { k: 'bath',  n: 'アロマ入浴剤', d: 'お風呂で香りと温まり', cost: 700,  price: 6600, need: 22, tier: 0, col: '#9ED68A', cap: '#3E7E33' }
   ];
   var OPTION = { k: 'opt', n: 'オプション（ヘッド10分）', price: 3500, need: 28, tier: 0 };
   var TRAITS = {
@@ -2187,8 +2189,10 @@
   function inStock() { return prods().filter(function (p) { return S.stock[p.k] > 0; }); }
   // 商品とお悩みの相性
   var F3 = ['pore', 'bright', 'aging'], H3 = ['dry', 'scalp'];
-  var PFIT = { set: F3.concat(['slim']), serum: F3, bath: ['aroma', 'lymph'].concat(H3), device: F3, ems: ['slim', 'lymph'],
+  var PFIT = { set: F3, bodyc: ['slim', 'lymph'], serum: F3, bath: ['aroma', 'lymph'].concat(H3), device: F3, ems: ['slim', 'lymph'],
     skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['scalp', 'dry', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], oil: ['aroma', 'lymph', 'dry'], mask: F3.concat(['aroma']) };
+  var CSHORT = { pore: '毛穴', bright: 'くすみ', aging: 'ハリ', dry: '頭と目の疲れ', scalp: '頭皮', lymph: 'むくみ', slim: 'お腹まわり', aroma: '疲れ・ストレス' };
+  function fitText2(cat) { return (PFIT[cat] || []).map(function (k) { return CSHORT[k]; }).join('・'); }
   function pcat(p) {
     if (!p.mine) return p.k;
     if (p.cat) return p.cat;
@@ -2199,7 +2203,7 @@
   function pickProd(c, list, maxTier) {
     var best = null, bs = -1e9;
     list.filter(function (p) { return p.cost && p.tier <= maxTier; }).forEach(function (p) {
-      var sc = (fits(p, c) ? 3 : 0) + (c.oilLiked === p.k ? 4 : 0) + (p.tier === maxTier ? 0.8 : 0) + (p.mine ? 0.4 + p.q * 0.1 : 0) + Math.min(S.stock[p.k], 10) / 25 + rnd() * 1.6;
+      var sc = (fits(p, c) ? 3 : 0) + (c.oilLiked === p.k ? 4 : 0) + (p.tier === maxTier ? 0.8 : 0) + (p.mine ? (fits(p, c) ? 1.2 + p.q * 0.2 : 0.4 + p.q * 0.1) : 0) + Math.min(S.stock[p.k], 10) / 25 + rnd() * 1.6;
       if (sc > bs) { bs = sc; best = p; }
     });
     return best;
@@ -3473,7 +3477,7 @@
   function newGame(hero) {
     S = { endless: true, px3: true, week: 1, cash: START, rep: 40, ad: 0, headSpa: false, slimMachine: false, interior: false,
       staff: [{ id: 0, owner: true, name: 'あなた', trait: null, sk: { tech: 2, know: 2, word: 2, emp: 2, listen: 2, care: 2 }, tech: 2, talk: 2, wage: 0, cap: 3, used: 0, look: OWNER_LOOK }],
-      clients: [], stock: { set: 3, serum: 0, bath: 4 }, refunds: [], queue: [], idx: 0, wk: null, cands: null,
+      clients: [], stock: { set: 3, bodyc: 2, serum: 0, bath: 4 }, refunds: [], queue: [], idx: 0, wk: null, cands: null,
       total: { sales: 0, cost: 0, served: 0, sold: 0 }, news: [], uid: 1,
       autoMode: false, priceMode: 'std', autoStock: {}, myProds: [], dev: null,
       mxp: 0, wage2: true, hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
@@ -5319,7 +5323,7 @@
     hair:  { n: 'ヘアケア',     cost: 1500, price: 14800, need: 32, tier: 0, col: '#C8A0E8', cap: '#7A4AA8' },
     uv:    { n: '日焼け止め',   cost: 1200, price: 12800, need: 30, tier: 0, col: '#FFFFFF', cap: '#5AA9E6' },
     eye:   { n: 'アイケア',     cost: 2400, price: 22000, need: 40, tier: 1, col: '#BFE6F5', cap: '#2D6E9E' },
-    scent: { n: 'フレグランス', cost: 3000, price: 32000, need: 46, tier: 1, col: '#F7B8C8', cap: '#C9A227' },
+    scent: { n: 'フレグランス', cost: 3000, price: 32000, need: 46, tier: 1, col: '#F7B8C8', cap: '#C9A227', gone: true },
     mask:  { n: 'シートマスク', cost: 800,  price: 8800, need: 24, tier: 0, col: '#F4EDE0', cap: '#E0567A' },
     oil:   { n: 'エッセンシャルオイル', cost: 1600, price: 16500, need: 34, tier: 0, col: '#9ED68A', cap: '#3E7A4E', d: 'アロマトリートメントのオリジナルブレンドにも使える' }
   };
@@ -5349,7 +5353,7 @@
     if (!S.dev && S.myProds.length >= MAXMINE) return view('<h1>商品開発</h1><p class="lead">オリジナル商品は' + MAXMINE + '品まで。新しく作るには、どれかを廃番にする。</p>', S.myProds.map(function (p) { return { label: '「' + p.n + '」を廃番にする', sub: '品質' + p.q + '　在庫' + S.stock[p.k] + '個（仕入れ値で引き取る）', go: function () { S.cash += (S.stock[p.k] || 0) * p.cost; S.myProds.splice(S.myProds.indexOf(p), 1); delete S.stock[p.k]; if (S.autoStock) delete S.autoStock[p.k]; devView(); } }; }).concat([{ main: true, label: 'もどる', go: investView }]));
     if (S.dev) return view('<h1>商品開発</h1><p class="lead">「' + S.dev.name + '」（' + DEVCAT[S.dev.cat].n + '）を開発中。あと' + S.dev.left + 'か月で完成する。</p>',
       [{ main: true, label: 'もどる', go: investView }]);
-    var opts = Object.keys(DEVCAT).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '（売値の目安 ' + yen(DEVCAT[k].price) + (DEVCAT[k].d ? '・アロマのブレンドにも使える' : '') + '）</option>'; }).join('');
+    var opts = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone; }).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '（' + fitText2(k) + '・売値の目安 ' + yen(DEVCAT[k].price) + (DEVCAT[k].d ? '・アロマのブレンドにも使える' : '') + '）</option>'; }).join('');
     view('<h1>商品開発</h1><p class="lead">店のオリジナル商品を作る。完成まで2か月。品質はスタッフの施術の腕と、あなたの人間力で決まる。良い品はよく売れ、話題にもなる。最大' + MAXMINE + '品。</p>' +
       '<div class="form"><label>商品名<input id="dvName" type="text" maxlength="12" autocomplete="off"></label>' +
       '<label>種類<select id="dvCat">' + opts + '</select></label></div>' + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
@@ -6058,7 +6062,8 @@
       var t = S.autoStock[p.k] || 0, n = S.stock[p.k] || 0, c5 = costOf(p) * 5, c20 = costOf(p) * 20;
       return '<div class="stk"><div class="stk-h"><span class="stk-sw" style="background:' + p.col + '"></span><b class="stk-nm">' + p.n + '</b>' +
         '<span class="stk-n' + (n <= 1 ? ' low' : '') + '">在庫 <b>' + n + '</b>個</span></div>' +
-        '<div class="stk-sub">売値 ' + yen(p.price) + '・仕入れ ' + yen(costOf(p)) + '／個' + (p.mine ? '・オリジナル 品質' + p.q : '') + (p.cat === 'oil' ? '・アロマのブレンドに使える' : '') + '</div>' +
+        '<div class="stk-sub">' + (p.d ? p.d + '<br>' : (p.mine && DEVCAT[p.cat] ? DEVCAT[p.cat].n + (p.cat === 'oil' ? '（アロマのブレンドに使える）' : '') + '<br>' : '')) +
+        '<span class="stk-fit">合うお悩み：' + fitText2(pcat(p)) + '</span><br>売値 ' + yen(p.price) + '・仕入れ ' + yen(costOf(p)) + '／個' + (p.mine ? '・オリジナル 品質' + p.q : '') + '</div>' +
         '<div class="stk-buy"><button type="button" data-buy="' + i + ':5"' + (S.cash < c5 ? ' disabled' : '') + '>＋5個<small>' + yen(c5) + half + '</small></button>' +
         '<button type="button" data-buy="' + i + ':20"' + (S.cash < c20 ? ' disabled' : '') + '>＋20個 まとめて<small>' + yen(c20) + half + '</small></button></div>' +
         '<div class="stk-auto"><span>自動補充</span><button type="button" aria-label="自動補充を減らす" data-auto="' + i + ':-1"' + (t ? '' : ' disabled') + '>−</button>' +
@@ -6675,6 +6680,7 @@
     if (S.fatigue === undefined) S.fatigue = 20;
     if (S.stamina === undefined) S.stamina = 40;
     if (!S.life) S.life = { partner: 'none', since: 0, dog: false, baby: false, done: {} };
+    PRODUCTS.forEach(function (p) { if (S.stock && S.stock[p.k] === undefined) S.stock[p.k] = 0; });
     if (!S.shops) S.shops = [];
     if (!S.priceMode) S.priceMode = 'std';
     if (S.interiorLv === undefined) S.interiorLv = S.interior ? 1 : 0;
