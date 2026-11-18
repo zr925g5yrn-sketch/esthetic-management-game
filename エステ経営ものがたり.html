@@ -5855,7 +5855,7 @@
         pay(v.price); S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
       } });
     });
-    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（Fumichatなど）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
+    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（Pingloなど）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
     if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
     // メニューを3つにまとめて、月末画面を短くする
     var CAT = { staff: [], shop: [], other: [] };
@@ -6514,7 +6514,7 @@
     if (!raw) return slotView(n);
     encodeSave(raw).then(function (code) {
       bar();
-      view('<h1>セーブコード</h1><p class="lead">下の文字列をまるごとコピーして、メモ帳やFumichatの自分用メモなどに残しておく。別の端末やブラウザで「セーブコードを読み込む」に貼りつけると、つづきから遊べる。</p>' +
+      view('<h1>セーブコード</h1><p class="lead">下の文字列をまるごとコピーして、メモ帳やPingloの自分用メモなどに残しておく。別の端末やブラウザで「セーブコードを読み込む」に貼りつけると、つづきから遊べる。</p>' +
         '<textarea id="code" readonly rows="6" style="width:100%;font-size:11px;word-break:break-all;border:2px solid var(--line);background:var(--panel);color:inherit;padding:6px">' + code + '</textarea><p class="lead" id="cmsg">' + code.length + '文字</p>',
         [{ main: true, label: 'コピーする', go: function () {
           var t = $('code'), ok = function () { $('cmsg').textContent = 'コピーした。'; };
