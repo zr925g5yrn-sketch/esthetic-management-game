@@ -1448,7 +1448,9 @@
     scene.story = { ev: true, pics: pics, pic: pics[0], t0: performance.now() };
   }
   var DECLINE = /見送|断る|断って|やめ|しない|今回は|送り出す|あきらめ|無視|そっとして|行かない|参加しない/;
-  function declWrap(opts, flag) { return opts.map(function (o) { var g0 = o.go; if (!g0) return o; o.go = function () { S[flag] = DECLINE.test(o.label); S[flag + 'Alt'] = /バーベキュー|キャンプ/.test(o.label) ? 'v_camp' : null; return g0.apply(this, arguments); }; return o; }); }
+  var EFFECTRE = /(やる気|信頼|評判|疲れ|人間力|体力|経験値|フォロワー|満足度)[^。]*[+＋−\-]\d/;
+  function declWrap(opts, flag) { var key = flag === 'lifeDecl' ? 'l_' + S.lifeKey : flag === 'sevDecl' ? 's_' + S.sevKey : 'e_' + S.ev; S.evSeen = S.evSeen || {}; var seen = S.evSeen[key];
+    return opts.map(function (o) { var g0 = o.go; if (!g0) return o; if (!seen && o.sub && !o.off && EFFECTRE.test(o.sub) && !/%|か月|回で/.test(o.sub)) o.sub = '？（やってみると分かる）'; o.go = function () { S.evSeen[key] = true; S[flag] = DECLINE.test(o.label); S[flag + 'Alt'] = /バーベキュー|キャンプ/.test(o.label) ? 'v_camp' : null; return g0.apply(this, arguments); }; return o; }); }
   function seasonCut() { return { kicker: '季節のイベント', title: EV[S.sevKey].n, c1: '#7FC49A', c2: '#5FAE80', icon: EVICON[S.sevKey] || 'star' }; }
 
 
@@ -2190,6 +2192,14 @@
     if (who !== 'note') { scene.talkAt = performance.now(); scene.talker = who; }
     if (who === 'you' && (tone2 === 'good' || tone2 === 'bad')) { scene.react = tone2; scene.reactAt = performance.now(); }
     if (tone2 === 'good') SFX.good(); else if (tone2 === 'bad') SFX.bad();
+  }
+  // コツ（ヒント）は、その場面を3回経験すると見えるようになる。数えるのはお客様ごとに1回
+  function tip(key, text) {
+    if (!S) return text;
+    S.hx = S.hx || {}; S.hxC = S.hxC || {};
+    var ok = (S.hx[key] || 0) >= 3, who = C ? C.id : S.week;
+    if (S.hxC[key] !== who) { S.hxC[key] = who; S.hx[key] = (S.hx[key] || 0) + 1; }
+    return ok ? 'コツ：' + text : '';
   }
   function stepHtml(title, sub) { return '<p class="step">' + title + (sub ? '<small>' + sub + '</small>' : '') + '</p>'; }
   function courseOf(k) { return COURSES.concat([BRIDAL]).filter(function (c) { return c.k === k; })[0]; }
@@ -3907,7 +3917,7 @@
     view(karte() + talkHtml() + stepHtml('カウンセリング', (qmax === 3 && C.asked.length === 0 ? (helper ? helper.name + '（聞き上手）が同席して、聞き取りを手伝ってくれる。' : 'あなたは聞き上手。') : '') + (left ? 'あと' + left + 'つ質問できる。' : '聞き取りはここまで。')),
       QUESTIONS.map(function (q) {
         var done = C.asked.indexOf(q.k) >= 0;
-        return { label: q.n, sub: q.d, picked: done, off: done || left === 0, go: function () { ask(q); } };
+        return { label: q.n, sub: tip('q_' + q.k, q.d).replace('コツ：', ''), picked: done, off: done || left === 0, go: function () { ask(q); } };
       }).concat(left === 0 ? [{ main: true, label: '施術に入る', go: treatMenu }] : []));
   }
   function ask(q) {
@@ -3932,7 +3942,7 @@
   /* --- 施術（新規と常連で共通） --- */
   function treatMenu() {
     bar(); setScene('talk');
-    view(karte() + talkHtml() + stepHtml('施術メニューを選ぶ', '選んだあとに、もう一段くわしく聞いてケアを決める。'),
+    view(karte() + talkHtml() + stepHtml('施術メニューを選ぶ', tip('menu', '選んだあとに、もう一段くわしく聞いてケアを決める。')),
       Object.keys(MENU).map(function (k) {
         var m = MENU[k], locked = m.need && !S[m.need];
         return { label: m.n, sub: locked ? '設備がないので提供できない' : m.subs.map(function (x) { return SUBMENU[x].n; }).join('・'), off: locked, go: function () { C.menu = k; treatSub(); } };
@@ -3952,7 +3962,7 @@
       else say('you', 'うーん、そこは特に気になっていなくて…。', 'bad');
     }
     bar();
-    view(karte() + talkHtml() + stepHtml(m.n + '　ケアを選ぶ', 'お悩みにぴったり合うほど満足度が上がる。' + (C.isNew && !C.known.concern ? 'お悩みを掘り下げていないので、どのケアが合うかは、来店時のひとことから考える。' : '')),
+    view(karte() + talkHtml() + stepHtml(m.n + '　ケアを選ぶ', tip('care', 'お悩みにぴったり合うほど満足度が上がる。' + (C.isNew && !C.known.concern ? 'お悩みを掘り下げていないときは、来店時のひとことから考える。' : ''))),
       m.subs.map(function (k) {
         var locked = !subOk(k);
         return { label: SUBMENU[k].n, sub: locked ? '設備がないので提供できない' : '', off: locked, go: function () { C.sub = k; C.blend = null; if (k === 'aroma') treatBlend(); else treatPress(); } };
@@ -3960,7 +3970,7 @@
   }
   function treatBlend() {
     bar();
-    view(karte() + talkHtml() + stepHtml('アロマのブレンドを選ぶ', '高いブレンドほど満足度が上がる。お財布にきびしいお客様には逆効果。'),
+    view(karte() + talkHtml() + stepHtml('アロマのブレンドを選ぶ', tip('blend', '高いブレンドほど満足度が上がる。お財布にきびしいお客様には逆効果。')),
       Object.keys(BLEND).map(function (k) {
         var x = BLEND[k], locked = x.need && !S[x.need];
         return { label: x.n + '　' + (x.price ? '+' + yen(x.price) : '追加料金なし'), sub: locked ? '仕入れ契約がないので出せない' : '', off: locked, go: function () { C.blend = k; treatPress(); } };
@@ -3970,7 +3980,7 @@
       })).concat([{ label: 'ケア選びにもどる', go: treatSub }]));
   }
   function treatPress() {
-    view(karte() + stepHtml(subName(C.sub, C.blend) + '　圧の強さを決める', '好みに合うほど満足度が上がる。'),
+    view(karte() + stepHtml(subName(C.sub, C.blend) + '　圧の強さを決める', tip('press', '好みに合うほど満足度が上がる。')),
       Object.keys(PRESS).map(function (k) { return { label: PRESS[k], go: function () { doTreat(k); } }; }));
   }
   // 施術後の感想（とても良い／ふつうに良い）。ケアごとに変える
@@ -4064,7 +4074,7 @@
     bar();
     var left = 3 - C.turns;
     if (left === 0) return offer();
-    view(karte() + talkHtml() + stepHtml('クロージング', 'あと' + left + '回話せる。興味を上げ、警戒心を下げてから提案する。'),
+    view(karte() + talkHtml() + stepHtml('クロージング', 'あと' + left + '回話せる。' + tip('close', '興味を上げ、警戒心を下げてから提案する。')),
       TALKS.map(function (t) {
         return { label: t.n, sub: talkSub(t), off: !!C.used[t.k], picked: !!C.used[t.k], go: function () { doTalk(t); } };
       }).concat([{ main: true, label: 'もう提案に進む', go: offer }]));
@@ -4090,7 +4100,7 @@
     bar();
     var items = (C.vip ? VIPITEMS : []).concat(C.bride ? [BRIDAL] : []).concat(COURSES).concat(inStock());
     view(karte() + talkHtml() +
-      stepHtml(second === true ? '別の提案をする' : '提案するものを選ぶ', second === true ? 'これが最後の提案になる。' : '高いものほど、強い気持ちと予算が要る。断られても、もう一度だけ別の提案ができる。'),
+      stepHtml(second === true ? '別の提案をする' : '提案するものを選ぶ', second === true ? 'これが最後の提案になる。' : tip('offer', '高いものほど、強い気持ちと予算が要る。') + '断られても、もう一度だけ別の提案ができる。'),
       items.map(function (it) {
         return { label: it.n + '　' + yen(priceOf(it)) + (priceOf(it) < it.price ? '（2割引き）' : ''), sub: it.cost ? '物販　在庫' + S.stock[it.k] + '個' : (it.note || ''),
           off: C.tried === it.k, go: function () { propose(it, second === true); } };
@@ -4125,7 +4135,7 @@
   }
   function upsell() {
     bar();
-    view(karte() + talkHtml() + stepHtml('ついでに物販をすすめる', '気分が良いときは買ってもらいやすい。1回だけ。'),
+    view(karte() + talkHtml() + stepHtml('ついでに物販をすすめる', '1回だけ。' + tip('upsell', '気分が良いときは買ってもらいやすい。')),
       inStock().map(function (p) {
         return { label: p.n + '　' + yen(p.price), sub: '在庫' + S.stock[p.k] + '個', go: function () {
           say('me', 'ご自宅用に、' + p.n + 'もいかがですか。');
@@ -4221,7 +4231,7 @@
   function regNeed(it) { var n = needOf(it); return it.sessions || it.member ? n - C.loy * 0.3 : n; }
   function regOffer() {
     bar();
-    view(karte() + talkHtml() + stepHtml('お会計のときのひとこと', '提案は1回だけ。信頼が高いほど受け入れられやすい。'),
+    view(karte() + talkHtml() + stepHtml('お会計のときのひとこと', '提案は1回だけ。' + tip('reg', '信頼が高いほど受け入れられやすい。')),
       regItems().map(function (it) {
         return { label: it.n + '　' + yen(priceOf(it)), sub: it.cost ? '物販　在庫' + S.stock[it.k] + '個' : (it.sessions ? '継続の提案' : (it.note || '')),
           go: function () { regTry(it); } };
@@ -4502,7 +4512,9 @@
     bar();
     view('<h1>今日は何する？</h1><p class="lead">お店のお休みの日。疲れが70をこえると施術の質が落ち、90をこえると寝こんで1か月お店に立てない。体力が高いほど疲れがたまりにくい。</p>' + fatigueBars(),
       holOpts().map(function (a) {
-        return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: a.sub, off: a.cost > 0 && S.cash < a.cost, go: function () {
+        S.holSeen = S.holSeen || {};
+        return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: S.holSeen[a.label] ? a.sub : '？（やってみると分かる）', off: a.cost > 0 && S.cash < a.cost, go: function () {
+          S.holSeen[a.label] = true;
           if (a.cost) pay(a.cost);
           var res = a.r(); S.holPending = false; S.holInv = null; SFX.good(); S.holPic = holPic(res[0]); evScene([S.holPic]);
           bar();
@@ -6052,14 +6064,20 @@
     // 先月届いた種類は、今月は少し出にくくする（毎月同じお誘いばかりにならないように）
     var last = S.dotLast || {};
     C2.forEach(function (m) { if (last[m.kind] && S.week - last[m.kind] <= 1) m.w = m.w * 0.25; });
-    // 重みをつけて3〜4件選ぶ。返信できるのは2通まで
-    var out = [], n = Math.min(C2.length, 3 + (roll(0.5) ? 1 : 0));
-    while (out.length < n && C2.length) { var tot = C2.reduce(function (x, m) { return x + m.w; }, 0), r = rnd() * tot, i = 0;
-      while (i < C2.length - 1 && (r -= C2[i].w) > 0) i++; var got = C2.splice(i, 1)[0]; out.push(got);
-      if (/^group/.test(got.kind)) C2 = C2.filter(function (m) { return !/^group/.test(m.kind); }); }
-    out.forEach(function (m, i) { m.id = S.week * 10 + i; m.done = -1; last[m.kind] = S.week; });
-    S.dotLast = last;
-    return out;
+    // お客様と取引先からの連絡は、お店の「公式dot.」に届く。個人のdot.には、スタッフや家族・友だちから
+    var choose = function (pool, n) {
+      var out = [];
+      while (out.length < n && pool.length) { var tot = pool.reduce(function (x, m) { return x + m.w; }, 0), r = rnd() * tot, i = 0;
+        while (i < pool.length - 1 && (r -= pool[i].w) > 0) i++; var got = pool.splice(i, 1)[0]; out.push(got);
+        if (/^group/.test(got.kind)) pool = pool.filter(function (m) { return !/^group/.test(m.kind); }); }
+      return out;
+    };
+    var mine = choose(C2.filter(function (m) { return !DOTOFF[m.kind]; }), 2 + (roll(0.5) ? 1 : 0));
+    var off = choose(C2.filter(function (m) { return DOTOFF[m.kind]; }), 1 + (roll(0.6) ? 1 : 0) + (roll(0.3) ? 1 : 0));
+    mine.forEach(function (m, i) { m.id = S.week * 10 + i; m.done = -1; last[m.kind] = S.week; });
+    off.forEach(function (m, i) { m.id = S.week * 10 + 5 + i; m.done = -1; m.off = true; last[m.kind] = S.week; });
+    S.dotLast = last; S.odot = off;
+    return mine;
   }
   function dotFx(m, rp) {
     var st = m.sid ? dotStaff(m.sid) : null, c = m.cid ? dotClient(m.cid) : null;
@@ -6086,36 +6104,37 @@
     }
     return '';
   }
-  var DOTMAX = 2;
-  function dotSent() { return (S.dot || []).filter(function (m) { return m.done >= 0; }).length; }
-  function dotLeft() { return Math.max(0, DOTMAX - dotSent()); }
-  function dotUnread() { return dotLeft() ? (S.dot || []).filter(function (m) { return m.done < 0; }).length : 0; }
-  function dotView() {
+  var DOTOFF = { reg: 1, review: 1, resched: 1, vip: 1, maker: 1 };
+  function dotList(off) { return (off ? S.odot : S.dot) || []; }
+  function dotUnread(off) { return dotList(off).filter(function (m) { return m.done < 0; }).length; }
+  function dotHead(off, sub) { return '<h1>' + (off ? 'お店の公式アカウント' : 'メッセージ') + '</h1><div class="dotbar"><b>' + (off ? '公式dot.' : 'dot.') + '</b><span>' + sub + '</span></div>'; }
+  function dotView(off) {
     bar();
-    var list = S.dot || [];
-    view('<h1>メッセージ</h1><div class="dotbar"><b>dot.</b><span>メッセージ ' + list.length + '件</span></div><p class="lead">' + (dotLeft() ? '今月、返信できるのは<b>あと' + dotLeft() + '通</b>。だれに返すか選ぼう。' : '今月の返信（' + DOTMAX + '通）は終わった。') + '</p>' +
+    var list = dotList(off);
+    view(dotHead(off, (off ? (S.brand || 'お店') + '　' : '') + 'メッセージ ' + list.length + '件' + (dotUnread(off) ? '（未返信 ' + dotUnread(off) + '）' : '')) +
       (list.length ? '' : '<p class="lead">新しいメッセージはない。</p>'),
       list.map(function (m) {
-        return { label: (m.done >= 0 ? '✓ ' : dotLeft() ? '● ' : '　') + m.from, sub: m.lines[m.lines.length - 1].t.slice(0, 34) + (m.done < 0 && !dotLeft() ? '（今月は返信できない）' : ''), go: function () { dotThread(m); } };
+        return { label: (m.done >= 0 ? '✓ ' : '● ') + m.from, sub: m.lines[m.lines.length - 1].t.slice(0, 34), go: function () { dotThread(m); } };
       }).concat([{ main: true, label: '月末の画面にもどる', go: investView }]));
   }
   function dotThread(m, note) {
     bar();
-    var h = '<h1>メッセージ</h1><div class="dotbar"><b>dot.</b><span>' + m.from + '</span></div><div class="talk">' +
+    var back = function () { dotView(!!m.off); };
+    var h = dotHead(m.off, m.from) + '<div class="talk">' +
       m.lines.map(function (l) { return '<div class="say you">' + (l.who ? '<span class="who">' + l.who + '</span>' : '') + l.t + '</div>'; }).join('');
     if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="say me">' + rp.t + '</div><div class="say you">' + rp.res + '</div>' + (note || m.note ? '<div class="say note">' + (note || m.note) + '</div>' : ''); }
     h += '</div>';
-    if (m.done < 0 && !dotLeft()) return view(h + '<p class="lead">今月の返信は' + DOTMAX + '通まで。このメッセージには返信できない。</p>', [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }]);
-    view(h + (m.done < 0 ? '<p class="lead">返信できるのは、あと' + dotLeft() + '通。</p>' : ''), m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: dotView }] :
+    view(h, m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: back }] :
       m.reps.map(function (rp, i) {
         return { label: rp.t, off: !!rp.cost && S.cash < rp.cost, go: function () { m.done = i; m.note = dotFx(m, rp); if (rp.fx === 'party') dinnerScene(crewAll()); if (rp.fx === 'bday') evScene(['v_cake']); SFX.good(); saveGame('night'); dotThread(m); } };
-      }).concat([{ label: 'あとで返信する', go: dotView }]));
+      }).concat([{ label: 'あとで返信する', go: back }]));
   }
   // 今月できること。まだのものは ○、すんだものは ✓。押すとその画面へ
   function monthTasks() {
     var T = [], P = snsFix(), left = snsLeft();
     var team = allStaff().filter(function (st) { return !st.owner; });
-    if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: 'メッセージ ' + S.dot.length + '件・あと' + dotLeft() + '通返せる', go: dotView } : { t: 'dot.のメッセージ', s: '今月の返信はおしまい', done: true });
+    if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: '未返信 ' + dotUnread() + '件', go: function () { dotView(false); } } : { t: 'dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
+    if (S.odot && S.odot.length) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
     T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
     if (P.f >= LIVEMIN) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
     var tg = tGroups().filter(function (g2) { return g2.mem.length; });
