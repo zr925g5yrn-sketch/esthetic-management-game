@@ -115,6 +115,7 @@
   .stk-auto span { flex: 1; }
   .stk-auto button { flex: none; width: 44px; height: 36px; margin: 0; padding: 0; text-align: center; font-size: 1.1rem; box-shadow: 2px 2px 0 var(--ink); }
   .stk-auto b { min-width: 4.5em; text-align: center; }
+  .karte .first { margin-top: 6px; padding: 4px 8px; font-size: .8rem; line-height: 1.5; color: var(--ink); background: var(--chip); border-left: 4px solid var(--accent); }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
   .say.bad { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -2168,6 +2169,7 @@
     h += k.pers ? '<span>' + PERS[c.pers].n + '</span>' : '<span class="q">性格：？</span>';
     h += k.budget ? '<span>予算：' + BUDGET[c.budget] + '</span>' : '<span class="q">予算：？</span>';
     h += '</div>';
+    if (c.isNew && !k.concern && CONCERN[c.concern]) h += '<div class="first">来店時のひとこと：「' + CONCERN[c.concern].vague + '」</div>';
     var gs = '';
     if (!c.isNew) gs += '<span>信頼</span><i><u class="loy" style="width:' + c.loy + '%"></u></i><b>' + Math.round(c.loy) + '</b>';
     if (c.sat) gs += '<span>満足度</span><i><u style="width:' + c.sat + '%"></u></i><b>' + c.sat + '</b>';
@@ -3929,11 +3931,14 @@
     if (!C.subAsked[C.menu]) {
       C.subAsked[C.menu] = true;
       say('me', m.ask);
-      if (catOf(need) === C.menu) { say('you', cLine(need, 'pick')); C.known.concern = true; }
+      if (catOf(need) === C.menu) {
+        if (!C.isNew || C.known.concern) { say('you', cLine(need, 'pick')); C.known.concern = true; }
+        else say('you', { face: 'お顔まわりが、全体的になんとなく気になっていて…。', head: '頭のあたりが、なんとなく重たい感じで…。', body: '体が、なんとなく重たい感じで…。' }[C.menu] || 'なんとなく、全体的に…。');
+      }
       else say('you', 'うーん、そこは特に気になっていなくて…。', 'bad');
     }
     bar();
-    view(karte() + talkHtml() + stepHtml(m.n + '　ケアを選ぶ', 'お悩みにぴったり合うほど満足度が上がる。'),
+    view(karte() + talkHtml() + stepHtml(m.n + '　ケアを選ぶ', 'お悩みにぴったり合うほど満足度が上がる。' + (C.isNew && !C.known.concern ? 'お悩みを掘り下げていないので、どのケアが合うかは、来店時のひとことから考える。' : '')),
       m.subs.map(function (k) {
         var locked = !subOk(k);
         return { label: SUBMENU[k].n, sub: locked ? '設備がないので提供できない' : '', off: locked, go: function () { C.sub = k; C.blend = null; if (k === 'aroma') treatBlend(); else treatPress(); } };
