@@ -97,6 +97,22 @@
   .dotbar { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; padding: 6px 10px; background: var(--ink); color: var(--bg); font-size: .9rem; }
   .dotbar b { font-size: 1.05rem; letter-spacing: .04em; }
   .say .who { display: block; font-size: .72rem; color: var(--sub); }
+  /* 仕入れ：商品ごとのカード */
+  .stkgrp { margin: 14px 0 6px; font-size: .95rem; color: var(--sub); border-bottom: 2px solid var(--line); padding-bottom: 2px; }
+  .stk { margin: 8px 0; padding: 10px 12px; background: var(--panel); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  .stk-h { display: flex; align-items: center; gap: 8px; }
+  .stk-sw { flex: none; width: 14px; height: 18px; border: 2px solid var(--ink); }
+  .stk-nm { flex: 1; min-width: 0; font-size: 1.02rem; color: var(--accent); }
+  .stk-n { flex: none; font-size: .85rem; }
+  .stk-n b { font-size: 1.15rem; }
+  .stk-n.low b { color: var(--accent); }
+  .stk-sub { margin: 2px 0 8px 22px; font-size: .78rem; color: var(--sub); }
+  .stk-buy { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stk-buy button { margin: 0; padding: 6px 8px; text-align: center; font-size: .92rem; box-shadow: 2px 2px 0 var(--ink); }
+  .stk-auto { display: flex; align-items: center; gap: 8px; margin: 10px 0 0 14px; padding: 6px 10px; background: var(--chip); border-left: 4px solid var(--gold); font-size: .85rem; }
+  .stk-auto span { flex: 1; }
+  .stk-auto button { flex: none; width: 44px; height: 36px; margin: 0; padding: 0; text-align: center; font-size: 1.1rem; box-shadow: 2px 2px 0 var(--ink); }
+  .stk-auto b { min-width: 4.5em; text-align: center; }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
   .say.bad { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -6037,20 +6053,31 @@
   // keep が true のときは、続けて押せるように画面の位置を保つ
   function stockView(keep) {
     bar();
-    var opts = [], y = window.scrollY;
-    prods().forEach(function (p) {
-      opts.push({ grp: p.mine ? 'オリジナル商品' : '定番の商品', label: p.n + '　5個 ' + yen(costOf(p) * 5) + (S.sale ? '（半額）' : ''), sub: '売値' + yen(p.price) + '　いま' + S.stock[p.k] + '個' + (p.mine ? '　オリジナル・品質' + p.q : ''),
-        off: S.cash < costOf(p) * 5, go: function () { pay(costOf(p) * 5); S.stock[p.k] += 5; SFX.coin(); stockView(true); } });
-      opts.push({ grp: p.mine ? 'オリジナル商品' : '定番の商品', label: p.n + '　20個まとめて ' + yen(costOf(p) * 20) + (S.sale ? '（半額）' : ''), sub: 'いま' + S.stock[p.k] + '個',
-        off: S.cash < costOf(p) * 20, go: function () { pay(costOf(p) * 20); S.stock[p.k] += 20; SFX.coin(); stockView(true); } });
-      var t = S.autoStock[p.k] || 0;
-      opts.push({ grp: p.mine ? 'オリジナル商品' : '定番の商品', label: '自動補充（' + p.n + '）：' + (t ? t + '個を保つ' : 'しない'), sub: '毎月はじめに足りない分を仕入れ値で買い足す。押すたびに増える（最大100個。その次は「しない」）', picked: !!t,
-        go: function () { S.autoStock[p.k] = AUTOSTEP[(AUTOSTEP.indexOf(t) + 1) % AUTOSTEP.length]; stockView(true); } });
-      if (t) opts.push({ grp: p.mine ? 'オリジナル商品' : '定番の商品', label: '自動補充（' + p.n + '）を減らす', sub: t + '個 → ' + (AUTOSTEP[AUTOSTEP.indexOf(t) - 1] ? AUTOSTEP[AUTOSTEP.indexOf(t) - 1] + '個' : 'しない'),
-        go: function () { var i = AUTOSTEP.indexOf(t); S.autoStock[p.k] = i > 0 ? AUTOSTEP[i - 1] : 0; stockView(true); } });
+    var y = window.scrollY, list = prods(), half = S.sale ? '（半額）' : '';
+    var card = function (p, i) {
+      var t = S.autoStock[p.k] || 0, n = S.stock[p.k] || 0, c5 = costOf(p) * 5, c20 = costOf(p) * 20;
+      return '<div class="stk"><div class="stk-h"><span class="stk-sw" style="background:' + p.col + '"></span><b class="stk-nm">' + p.n + '</b>' +
+        '<span class="stk-n' + (n <= 1 ? ' low' : '') + '">在庫 <b>' + n + '</b>個</span></div>' +
+        '<div class="stk-sub">売値 ' + yen(p.price) + '・仕入れ ' + yen(costOf(p)) + '／個' + (p.mine ? '・オリジナル 品質' + p.q : '') + (p.cat === 'oil' ? '・アロマのブレンドに使える' : '') + '</div>' +
+        '<div class="stk-buy"><button type="button" data-buy="' + i + ':5"' + (S.cash < c5 ? ' disabled' : '') + '>＋5個<small>' + yen(c5) + half + '</small></button>' +
+        '<button type="button" data-buy="' + i + ':20"' + (S.cash < c20 ? ' disabled' : '') + '>＋20個 まとめて<small>' + yen(c20) + half + '</small></button></div>' +
+        '<div class="stk-auto"><span>自動補充</span><button type="button" aria-label="自動補充を減らす" data-auto="' + i + ':-1"' + (t ? '' : ' disabled') + '>−</button>' +
+        '<b>' + (t ? t + '個を保つ' : 'しない') + '</b><button type="button" aria-label="自動補充を増やす" data-auto="' + i + ':1"' + (t >= AUTOSTEP[AUTOSTEP.length - 1] ? ' disabled' : '') + '>＋</button></div></div>';
+    };
+    var html = '', std = [], mine = [];
+    list.forEach(function (p, i) { (p.mine ? mine : std).push(card(p, i)); });
+    html += '<h2 class="stkgrp">定番の商品</h2>' + std.join('');
+    if (mine.length) html += '<h2 class="stkgrp">オリジナル商品</h2>' + mine.join('');
+    view('<h1>仕入れ</h1><p class="lead">5個ずつ、または20個まとめて仕入れる。自動補充は、毎月はじめに足りない分を仕入れ値で買い足す。売れ残っても、最後に仕入れ値で資産に数える。' + (S.sale ? '<br>今月は卸の特売で半額。' : '') + '</p>' + html,
+      [{ main: true, label: 'もどる', go: investView }]);
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-buy]'), function (bt) {
+      bt.addEventListener('click', function () { var a = bt.getAttribute('data-buy').split(':'), p = list[+a[0]], n = +a[1], c = costOf(p) * n;
+        if (S.cash < c) return; pay(c); S.stock[p.k] = (S.stock[p.k] || 0) + n; SFX.coin(); stockView(true); });
     });
-    view('<h1>仕入れ</h1><p class="lead">5個ずつか20個まとめて仕入れるか、自動補充にする。売れ残っても、最後に仕入れ値で資産に数える。' + (S.sale ? '<br>今月は卸の特売で半額。' : '') + '</p>',
-      opts.concat([{ main: true, label: 'もどる', go: investView }]));
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-auto]'), function (bt) {
+      bt.addEventListener('click', function () { var a = bt.getAttribute('data-auto').split(':'), p = list[+a[0]], d = +a[1], t = S.autoStock[p.k] || 0, i = AUTOSTEP.indexOf(t);
+        if (i < 0) i = 0; S.autoStock[p.k] = AUTOSTEP[clamp(i + d, 0, AUTOSTEP.length - 1)]; SFX.click(); stockView(true); });
+    });
     if (keep) window.scrollTo(0, y);
   }
   /* --- 研修と、6つの力。神技・神対応 --- */
