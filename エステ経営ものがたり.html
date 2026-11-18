@@ -2797,15 +2797,75 @@
       mxp: 0, wage2: true, hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
       lifeKey: null, lifePending: false, lifeNote: '', evClientId: null,
       ev: null, evLast: {}, vipCount: 0, vipSeen: false, vipNext: 0, rivalUntil: 0, buzz: { until: 0, n: 0 }, special: null, quitRisk: null };
-    if (hero) { applyHero(hero); if (hero.origin) applyOrigin(hero.origin); return openConcept(); }
+    if (hero) { applyHero(hero); if (hero.origin) applyOrigin(hero.origin); return openFund(); }
     startWeek();
   }
   /* --- 開業の準備：コンセプト → 内装 → スタッフ候補3人から1人だけ雇える → 設備投資を選べる → 営業開始 --- */
+  /* --- 資金調達と返済 --- */
+  // n：返済回数（月）、r：年利、grace：元金の返済を待ってもらえる月数
+  var FUNDS = {
+    bank:   { n: '銀行融資', amt: 3000000, rate: 0.02, months: 60, d: '◯まとまった額を借りられる　×毎月の返済が重い（年2.0%・5年）' },
+    jfc:    { n: '日本政策金融公庫（創業融資）', amt: 2000000, rate: 0.01, months: 84, grace: 6, d: '◯金利が低く、最初の6か月は利息だけでいい　×借りられる額は控えめ（年1.0%・7年）' },
+    vc:     { n: 'ベンチャーキャピタル（出資）', amt: 5000000, d: '◯返済はいらない、いちばん大きな額　×会社の株を3割わたす。毎年、税引き後の利益の3割を配当し、成長が遅いと催促される' },
+    family: { n: '身内からの借入', amt: 1000000, rate: 0, months: 50, d: '◯利息なし。苦しい月は返済を待ってもらえる　×額は小さい。待ってもらうと気まずい（人間力−1）' }
+  };
+  function loanAdd(k, amt, rate, months, grace) {
+    S.loans = S.loans || [];
+    S.loans.push({ k: k, n: FUNDS[k] ? FUNDS[k].n : '銀行融資', rest: amt, r: rate / 12, left: months, grace: grace || 0 });
+    S.cash += amt;
+  }
+  function loanRest() { return (S.loans || []).reduce(function (a, l) { return a + l.rest; }, 0); }
+  // 毎月の返済。利息は経費、元金は所持金から引く
+  function loanMonth() {
+    var it = 0, pr = 0, notes = [];
+    (S.loans || []).forEach(function (l) {
+      if (l.rest <= 0) return;
+      var i = Math.round(l.rest * l.r), p = 0;
+      if (l.grace > 0) l.grace--;
+      else { var r = l.r, n = Math.max(1, l.left), pay = r ? l.rest * r / (1 - Math.pow(1 + r, -n)) : l.rest / n; p = Math.min(l.rest, Math.round(pay - i)); l.left--; }
+      if (l.k === 'family' && S.cash < p) { notes.push('今月は苦しいので、身内への返済を待ってもらった（人間力−1）'); hum(-1); l.left++; return; }
+      it += i; pr += p; l.rest -= p;
+    });
+    S.loans = (S.loans || []).filter(function (l) { return l.rest > 0; });
+    S.cash -= pr;
+    return { interest: it, principal: pr, notes: notes };
+  }
+  function openFund(note) {
+    bar(); setScene('idle');
+    var got = S.funds || {};
+    view('<h1>開業の準備　資金調達</h1><p class="lead">元手は' + yen(START) + '。開業資金をどう集める？ いくつ選んでもいいし、借りなくてもいい。借りたお金は毎月返していく。</p>' +
+      (note ? '<div class="news good">' + note + '</div>' : '') + '<p class="lead">いまの所持金 ' + yen(S.cash) + '</p>',
+      Object.keys(FUNDS).map(function (k) {
+        var F = FUNDS[k];
+        return { label: F.n + '　' + yen(F.amt) + (got[k] ? '　調達ずみ' : ''), sub: F.d, off: !!got[k], go: function () {
+          got[k] = true; S.funds = got;
+          if (k === 'vc') { S.cash += F.amt; S.vc = { share: 0.3, since: S.week }; }
+          else loanAdd(k, F.amt, F.rate, F.months, F.grace);
+          SFX.coin(); openFund(F.n + 'で' + yen(F.amt) + 'を調達した。');
+        } };
+      }).concat([{ main: true, label: Object.keys(got).length ? '次へ（コンセプトを決める）' : '借りずに、自己資金だけで始める', go: openConcept }]));
+  }
+  function fundView(note) {
+    bar();
+    var L = mlv(), max = 1000000 * (1 + Math.floor(L / 10)), rate = Math.max(0.01, 0.025 - S.rep * 0.0001);
+    view('<h1>資金調達と返済</h1><p class="lead">借入の残り ' + yen(loanRest()) + (S.vc ? '　ベンチャーキャピタルの持ち分 ' + Math.round(S.vc.share * 100) + '%' : '') +
+      '<br>銀行から追加で借りられるのは、経営者レベルに応じて最大' + yen(max) + '（いまの金利 年' + (rate * 100).toFixed(1) + '%・5年）。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+      '<ul class="who-list">' + (S.loans || []).map(function (l) { return '<li><span>' + l.n + '</span><span>残り' + yen(l.rest) + (l.grace ? '（元金の返済まであと' + l.grace + 'か月）' : '　あと' + l.left + '回') + '</span></li>'; }).join('') + '</ul>',
+      [1000000, 3000000, 5000000, 10000000].filter(function (a) { return a <= max; }).map(function (a) {
+        return { label: '銀行から' + yen(a) + '借りる', sub: '年' + (rate * 100).toFixed(1) + '%・60回払い（毎月約' + yen(Math.round(a * (rate / 12) / (1 - Math.pow(1 + rate / 12, -60)) / 1000) * 1000) + '）',
+          go: function () { loanAdd('bank', a, rate, 60, 0); SFX.coin(); fundView('銀行から' + yen(a) + 'を借りた。'); } };
+      }).concat((S.loans || []).map(function (l) {
+        return { label: l.n + 'を繰り上げ返済する　' + yen(l.rest), sub: '残りを一度に返す。この先の利息がかからなくなる', off: S.cash < l.rest, go: function () {
+          S.cash -= l.rest; l.rest = 0; S.loans = S.loans.filter(function (x) { return x.rest > 0; }); SFX.good(); fundView(l.n + 'を返し終えた。'); } };
+      })).concat([{ main: true, label: 'もどる', go: investView }]));
+  }
   function openConcept() {
     bar(); setScene('idle');
-    view('<h1>開業の準備　コンセプト</h1><p class="lead">どんなお店にする？ コンセプトで、来てくれるお客様が変わる。</p>',
+    var def = S.brand || ('サロン・' + (S.ownerName || 'ルミエ'));
+    view('<h1>開業の準備　コンセプト</h1><div class="form"><label>お店の名前（12文字まで）<input id="brandName" type="text" maxlength="12" autocomplete="off" value="' + clean(def) + '"></label></div>' +
+      '<p class="lead">どんなお店にする？ コンセプトで、来てくれるお客様が変わる。</p>',
       Object.keys(CONCEPTS).map(function (c) {
-        return { label: CONCEPTS[c].n, sub: CONCEPTS[c].d, go: function () { S.concept = c; openStyle(); } };
+        return { label: CONCEPTS[c].n, sub: CONCEPTS[c].d, go: function () { S.brand = clean($('brandName').value) || clean(def); S.concept = c; openStyle(); } };
       }));
   }
   function openStyle() {
@@ -3842,7 +3902,7 @@
     if (!free) pay(A.cost);
     var taken = {};
     allStaff().forEach(function (st) { taken[st.name] = true; });
-    var b = { id: 'b' + (S.uid++), area: k, name: A.n, staff: [], rep: Math.max(30, S.rep - 10), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free, concept: concept || ((AREAFIT[k] || {}).g || ['relax'])[0] };
+    var b = { id: 'b' + (S.uid++), area: k, name: (S.brand ? S.brand + ' ' : '') + A.n, staff: [], rep: Math.max(30, S.rep - 10), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free, concept: concept || ((AREAFIT[k] || {}).g || ['relax'])[0] };
     S.shops.push(b);
     var cd = genCand(taken, A.names, k);
     if (A.tier !== 'local') { Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = Math.max(cd.sk[k], 3); }); skFix(cd); cd.wage = baseWage(cd) + 20000; }
@@ -4280,16 +4340,19 @@
     }
     return cost;
   }
+  function coClean(v) { return String(v || '').replace(/[<>&"'\\]/g, '').trim().slice(0, 16); }
   function presidentView() {
     bar(); setScene('idle');
     var cands = S.staff.filter(function (st) { return !st.owner && !onLeave(st); });
     view('<h1>社長に就任する</h1><div class="event box"><span class="badge">3店舗目</span><h2>会社として、次の一歩へ</h2><p>' +
       '店舗が3つになった。これからは社長として本社に移り、会社全体を見る。本店は、信頼できるスタッフに店長を任せよう。<br>' +
-      '本社の家賃は月' + yen(HQLV[0].rent) + '。本社には部署（オンライン販売・SNS・経理・エンジニア）を置ける。社長になると、あなたが接客するのは月1人まで（セレブや取材などの特別なお客様向け）。</p></div>',
+      '本社の家賃は月' + yen(HQLV[0].rent) + '。本社には部署（オンライン販売・SNS・経理・エンジニア）を置ける。社長になると、あなたが接客するのは月1人まで（セレブや取材などの特別なお客様向け）。</p></div>' +
+      '<div class="form"><label>会社の名前（16文字まで）<input id="coName" type="text" maxlength="16" autocomplete="off" value="' + coClean(S.company || ('株式会社' + (S.brand || 'サロン'))) + '"></label></div>',
       cands.map(function (st) {
         return { label: st.name + 'を本店の店長にする', sub: TRAITS[st.trait].n + '　' + statText(st) + '　店長手当 月+' + yen(MGRPAY), go: function () {
+          S.company = coClean($('coName').value) || coClean('株式会社' + (S.brand || 'サロン'));
           S.hq = { lv: 1, staff: [], since: S.week }; S.mainMgr = st.id; S.hqLater = 0; moodUp(st, 20, 10); mxpAdd(80);
-          showCut({ kicker: '就任', title: '社長に就任', sub: '本店の店長は' + st.name, icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, investView);
+          showCut({ kicker: S.company, title: '社長に就任', sub: '本店の店長は' + st.name, icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, investView);
         } };
       }).concat([{ label: cands.length ? 'まだ決めない（3か月後にまた考える）' : '本店を任せられるスタッフがいない（採用してから）', sub: 'これまでどおり、本店の店長も続ける', go: function () { S.hqLater = S.week + 3; investView(); } }]));
   }
@@ -4297,7 +4360,7 @@
     bar(); scene.shop = 'hq'; setScene('idle');
     var H = S.hq, L = HQLV[H.lv - 1], nx = HQLV[H.lv], hs = hqStaff(), need = disNeed(), have = disHave();
     var mgr = S.staff.filter(function (st) { return st.id === S.mainMgr; })[0];
-    view('<h1>本社　' + L.n + '</h1>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+    view('<h1>' + (S.company ? S.company + ' ' : '') + '本社</h1><p class="lead">' + L.n + '</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<p class="lead">家賃 月' + yen(L.rent) + '　本社のスタッフ ' + hs.length + '／' + L.cap + '人　本店の店長：' + (mgr ? mgr.name : 'なし') +
       '<br>社員 ' + employees() + '人　障害者雇用 ' + have + '人' + (need ? '（必要 ' + need + '人' + (have < need ? '。足りない分、毎月' + yen((need - have) * 50000) + 'の納付金' : '') + '）' : '（社員40人から必要。いまは任意）') + '</p>' +
       '<ul class="who-list">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name + (st.dis ? '♿' : ''); }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul>',
@@ -4770,8 +4833,8 @@
       S.wk.base = baseOps(S.staff, S.rep, 1);
       S.cash += S.wk.base.sales;
       S.wk.incList = []; S.wk.inc = incPay(S.staff, S.wk.incList);
-      S.wk.adCost = adCost(); S.wk.hqCost = hqMonth();
-      S.wk.cost = RENT + S.wk.wage + S.wk.inc + S.wk.base.cost + S.wk.adCost + S.wk.hqCost;
+      S.wk.adCost = adCost(); S.wk.hqCost = hqMonth(); S.wk.loan = loanMonth();
+      S.wk.cost = RENT + S.wk.wage + S.wk.inc + S.wk.base.cost + S.wk.adCost + S.wk.hqCost + S.wk.loan.interest;
       S.cash -= S.wk.cost;
       S.wk.roy = S.royalty || 0; S.cash += S.wk.roy;
       S.wk.eshop = S.eshop ? eshopMonth() : null;
@@ -4835,6 +4898,7 @@
       '<dt>家賃・固定費</dt><dd class="minus">' + yen(-RENT) + '</dd>' +
       (w.wage ? '<dt>スタッフ給与（役職手当込み）</dt><dd class="minus">' + yen(-w.wage) + '</dd>' : '') +
       (w.inc ? '<dt>インセンティブ</dt><dd class="minus">' + yen(-w.inc) + '</dd>' : '') +
+      (w.loan && w.loan.interest ? '<dt>借入金の利息</dt><dd class="minus">' + yen(-w.loan.interest) + '</dd>' : '') +
       (w.adCost ? '<dt>広告費（' + ADLV[S.adLv || 0].n + '）</dt><dd class="minus">' + yen(-w.adCost) + '</dd>' : '') +
       (w.hqCost ? '<dt>本社（家賃・給与' + (w.levy ? '・障害者雇用納付金' : '') + '）</dt><dd class="minus">' + yen(-w.hqCost) + '</dd>' : '') +
       (w.base ? '<dt>材料・光熱費</dt><dd class="minus">' + yen(-w.base.cost) + '</dd>' : '') +
@@ -4879,7 +4943,11 @@
     var D = S.taxDue, p = D.profit, tax = taxOf(p), crew = allStaff().filter(function (st) { return !st.owner; });
     var bonus = crew.length ? Math.min(Math.round(p * 0.2 / 1000) * 1000, 100000 * crew.length) : 0, taxB = taxOf(p - bonus);
     var fee = Math.max(50000, Math.round(tax * 0.08 / 1000) * 1000), taxP = Math.round(taxOf(p - fee) * 0.85 / 1000) * 1000;
-    var finish = function (paid, note) { S.taxDue = null; S.taxPaid = (S.taxPaid || 0) + paid; S.wk.taxNote = { bad: true, t: note }; SFX.coin(); investView(); };
+    var finish = function (paid, note) {
+      S.taxDue = null; S.taxPaid = (S.taxPaid || 0) + paid;
+      if (S.vc) { var div = Math.max(0, Math.round((p - paid) * S.vc.share / 1000) * 1000); if (div) { pay(div); note += '<br>ベンチャーキャピタルに配当' + yen(div) + 'を払った。'; }
+        if (yearOf() >= 2 && S.shops.length < yearOf() - 1) { hum(-2); note += '<br>ベンチャーキャピタルから「もっと店舗を増やしてほしい」と催促された（人間力−2）。'; } }
+      S.wk.taxNote = { bad: true, t: note }; SFX.coin(); investView(); };
     bar(); setScene('idle');
     view('<h1>' + D.y + '年目の決算</h1><p class="lead">1年間（4月〜3月）の利益に、税金がかかる。利益800万円までは25%、こえた分は35%。</p>' +
       '<div class="slip box"><dl><dt>今年度の利益</dt><dd>' + yen(p) + '</dd><dt>税金</dt><dd class="minus">' + yen(-tax) + '</dd><dt>所持金</dt><dd>' + yen(S.cash) + '</dd></dl></div>',
@@ -4914,6 +4982,7 @@
     (S.wk.left || []).forEach(function (n) { var why = S.wk.leftWhy && S.wk.leftWhy[n]; h += '<div class="news bad">' + n + (why ? 'が、' + why + '。引き止めることはできなかった。' : 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。') + '</div>'; });
     if ((S.wk.stLife || []).length) h += '<details class="fold"' + (S.wk.stLife.some(function (x) { return !x.good; }) ? ' open' : '') + '><summary>スタッフの近況（' + S.wk.stLife.length + '）</summary>' + S.wk.stLife.map(function (x) { return '<div class="news' + (x.good ? ' good' : ' bad') + '">' + x.t + '</div>'; }).join('') + '</details>';
     if ((S.wk.incList || []).length) h += '<div class="news good">インセンティブ（コースと商品の売上に応じて）：' + S.wk.incList.join('、') + '</div>';
+    if (S.wk.loan && (S.wk.loan.principal || S.wk.loan.notes.length)) h += '<div class="news">借入金の返済（元金）' + yen(S.wk.loan.principal) + '。残り ' + yen(loanRest()) + (S.wk.loan.notes.length ? '<br>' + S.wk.loan.notes.join('<br>') : '') + '</div>';
     if ((S.wk.hqNote || []).length) h += '<div class="news good">本社：' + S.wk.hqNote.join('<br>') + '</div>';
     if (S.wk.levy) h += '<div class="news bad">障害者雇用が足りず、納付金' + yen(S.wk.levy) + 'を払った。本社で採用できる。</div>';
     if (S.wk.taxNote) h += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
@@ -4937,6 +5006,7 @@
         off: !roomAny() || S.cash < HIRE, go: hireView }
     ];
     opts.push({ label: '料金の方針：' + pm().n, sub: pm().d, go: priceView });
+    opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); } });
     opts.push({ label: '広告：' + ADLV[S.adLv || 0].n, sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView });
     if (S.hq) opts.unshift({ label: '本社（' + HQLV[S.hq.lv - 1].n + '）', sub: '部署・本社のスタッフ・障害者雇用・本社の移転・本店の店長', go: function () { hqView(); } });
     opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : (S.myProds.length >= MAXMINE ? '枠がいっぱい（廃番にすると作れる）' : 'オリジナル商品を作る（' + S.myProds.length + '／' + MAXMINE + '）'),
@@ -4965,7 +5035,7 @@
     opts.forEach(function (o) {
       var l = o.label;
       if (/研修|採用|スタッフと過ごす/.test(l)) CAT.staff.push(o);
-      else if (/仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|本社/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
+      else if (/仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|本社|資金調達/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
       else CAT.other.push(o);
     });
     var TITLES = { staff: 'スタッフ', shop: 'お店づくり', other: '発信・記録・そのほか' };
@@ -5418,7 +5488,7 @@
     var over = S.cash < -200000, final = over || S.endless;
     if (final) clearGame();
     bar(); setScene('idle');
-    var sv = stockValue(), profit = S.cash - START + sv, wks = Math.max(S.week, 1), sc = Math.max(1, wks / WEEKS);
+    var sv = stockValue(), profit = S.cash - START - loanRest() + sv, wks = Math.max(S.week, 1), sc = Math.max(1, wks / WEEKS);
     var rank = over ? 'E' : (profit >= RANKS[0] * sc ? 'S' : profit >= RANKS[1] * sc ? 'A' : profit >= RANKS[2] * sc ? 'B' : profit >= RANKS[3] * sc ? 'C' : 'D');
     var L = S.life, story = [];
     if (L.partner === 'married') story.push('結婚した'); else if (L.partner === 'dating') story.push('恋人がいる');
