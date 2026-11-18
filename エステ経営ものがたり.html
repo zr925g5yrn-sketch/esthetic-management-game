@@ -332,21 +332,21 @@
   // 曲は8分音符のマス目。- は休み。roots は小節ごとのベース音、bass は小節内のベースの動き（-1 は休み）
   function song(bpm, lead, roots, bass, o) { o = o || {}; return { bpm: bpm, lead: lead.split(/\s+/), roots: roots, bass: bass, wave: o.wave || 'triangle', dur: o.dur || 1.6, hat: o.hat || 2 }; }
   var SONGS = {
-    // タイトル：これまでのラウンジ風の曲
-    title: song(96, 'A4 - C5 E5 - C5 A4 - G4 - B4 D5 - B4 G4 - F4 - A4 C5 - A4 F4 E4 E4 - G4 - C5 - - - ' +
-      'A4 C5 E5 F5 E5 - C5 - B4 D5 E5 G5 - E5 D5 - C5 - A4 - F4 - A4 C5 B4 - D5 - G4 - - -', ['F2', 'E2', 'D2', 'C2', 'F2', 'E2', 'D2', 'G2'], [0, -1, 7, -1, 12, -1, 7, -1]),
+    // タイトル：明るく落ち着いたピアノの曲
+    title: song(92, 'C5 - F5 - G5 - A5 - G5 - - - E5 - C5 - D5 - F5 - A5 - G5 - F5 - - - D5 - - - ' +
+      'C5 - F5 - G5 - A5 - C6 - - - A5 - G5 - F5 - G5 - A5 - D5 - E5 - - - - - - -', ['F2', 'C3', 'D2', 'A#2', 'F2', 'C3', 'A#2', 'C3'], [0, -1, 7, -1, 12, -1, 7, -1]),
     // 開業までのストーリー：前向きな曲
     story: song(92, 'D5 - E5 - F#5 - A5 - G5 - F#5 - E5 - - - B4 - D5 - E5 - F#5 - E5 - - - - - - - ' +
       'G4 - B4 - D5 - G5 - F#5 - E5 - D5 - - - E5 - F#5 - G5 - E5 - D5 - - - - - - -', ['D3', 'D3', 'B2', 'A2', 'G2', 'D3', 'A2', 'D3'], [0, -1, 7, -1, 12, -1, 7, -1]),
     // 施術中：ゆっくりの癒やしの曲
     treat: song(66, 'C5 - - - G4 - - - E5 - - - - - - - A4 - - - E4 - - - C5 - - - - - - - ' +
       'F4 - - - C5 - - - A4 - - - - - - - G4 - - - D5 - - - B4 - - - - - - -', ['C3', 'C3', 'A2', 'A2', 'F2', 'F2', 'G2', 'G2'], [0, -1, -1, -1, -1, -1, -1, -1], { wave: 'sine', dur: 3, hat: 0 }),
-    // 月末：落ち着いた夜の曲
-    night: song(80, 'E5 - - D5 C5 - A4 - - - - - - - - - D5 - - C5 B4 - G4 - - - - - - - - - ' +
-      'C5 - - B4 A4 - F4 - - - A4 - C5 - - - B4 - - - G#4 - - - A4 - - - - - - -', ['A2', 'A2', 'G2', 'G2', 'F2', 'F2', 'E2', 'A2'], [0, -1, 7, -1, 12, -1, 7, -1], { wave: 'sine' }),
+    // 月末：あたたかい夜の曲
+    night: song(76, 'A5 - - G5 F5 - C5 - E5 - - - - - - - D5 - - C5 D5 - F5 - G5 - - - - - - - ' +
+      'A5 - - G5 F5 - A5 - C6 - - A5 F5 - - - G5 - - F5 D5 - E5 - F5 - - - - - - -', ['F2', 'A2', 'A#2', 'C3', 'F2', 'D2', 'A#2', 'C3'], [0, -1, 7, -1, 12, -1, 7, -1], { wave: 'sine' }),
     // 営業中：お店のコンセプトごと
-    relax: song(72, 'E5 - - - G5 - - - D5 - - - - - - - C5 - - - E5 - - - A4 - - - - - - - ' +
-      'F4 - - - A4 - C5 - B4 - - - G4 - - - E5 - - - D5 - - - C5 - - - - - - -', ['C3', 'A2', 'F2', 'G2', 'F2', 'G2', 'A2', 'C3'], [0, -1, -1, -1, 7, -1, -1, -1], { dur: 2.4, hat: 0 }),
+    relax: song(80, 'E5 - - - G5 - - - D5 - - - B4 - D5 - C5 - - - E5 - - - B4 - - - G4 - - - ' +
+      'A4 - - - C5 - F5 - E5 - - - G5 - - - F5 - - - E5 - D5 - D5 - - - - - - -', ['C3', 'G2', 'A2', 'E2', 'F2', 'C3', 'D2', 'G2'], [0, -1, -1, -1, 7, -1, -1, -1], { dur: 2.4, hat: 0 }),
     skin: song(84, 'F5 - E5 - D5 - C5 - A4 - - - C5 - - - D5 - C5 - A#4 - A4 - G4 - - - - - - - ' +
       'A4 - C5 - F5 - E5 - D5 - - - A#4 - - - C5 - A4 - G4 - E4 - F4 - - - - - - -', ['F2', 'D2', 'A#2', 'C3', 'F2', 'A#2', 'C3', 'F2'], [0, -1, 7, -1, 12, -1, 7, -1]),
     body: song(118, 'A4 A4 C5 - A4 - E5 - D5 - C5 - A4 - G4 - A4 A4 C5 - E5 - G5 - E5 - D5 - C5 - - - ' +
@@ -361,9 +361,9 @@
   };
   // 小節ごとの和音の種類と、曲の編成のタイプ（lounge：ラウンジ、elegant：上品、active：元気、resort：南国、calm：静か）
   var SONGQ = {
-    title: ['M7', 'm7', 'm7', 'M7', 'M7', 'm7', 'm7', '7'], story: ['M7', 'M7', 'm7', '7', 'M7', 'M7', '7', 'M7'],
-    treat: ['M7', 'M7', 'm7', 'm7', 'M7', 'M7', 'sus', '7'], night: ['m7', 'm7', 'M', 'M', 'M7', 'M7', '7', 'm7'],
-    relax: ['M7', 'm7', 'M7', '7', 'M7', 'sus', 'm7', 'M7'], skin: ['M7', 'm7', 'M7', '7', 'M7', 'M7', '7', 'M7'],
+    title: ['M7', 'M', 'm7', 'M7', 'M7', 'M', 'M7', 'sus'], story: ['M7', 'M7', 'm7', '7', 'M7', 'M7', '7', 'M7'],
+    treat: ['M7', 'M7', 'm7', 'm7', 'M7', 'M7', 'sus', '7'], night: ['M7', 'm7', 'M7', 'sus', 'M7', 'm7', 'M7', '7'],
+    relax: ['M7', 'M', 'm7', 'm7', 'M7', 'M7', 'm7', 'sus'], skin: ['M7', 'm7', 'M7', '7', 'M7', 'M7', '7', 'M7'],
     body: ['m7', 'm7', 'm7', 'm7', 'M7', 'M7', '7', '7'], luxe: ['m7', 'm7', '7', '7', 'M7', 'M7', '7', 'm7'],
     casual: ['M', 'M', 'M', 'm', 'M', '7', 'M', 'M'], tropical: ['M', 'm', 'M', '7', 'M', 'M', '7', 'M']
   };
@@ -373,7 +373,7 @@
   function chordOf(root, q) { var f = nf(root) * 2; return (QINT[q] || QINT.M7).map(function (iv) { return f * Math.pow(2, iv / 12); }); }
   // 本店の内装で、営業中のメロディの楽器が変わる
   var STYLELEAD = { kind: 'epiano', logic: 'piano', hot: 'pluck', roman: 'piano', steady: 'epiano', chat: 'epiano', shrewd: 'epiano', mypace: 'marimba', lucky: 'pluck' };
-  var SONGLEAD = { lounge: 'epiano', elegant: 'piano', active: 'pluck', resort: 'marimba', calm: 'bell' };
+  var SONGLEAD = { lounge: 'epiano', elegant: 'piano', active: 'pluck', resort: 'marimba', calm: 'piano' };
   function songKey() {
     if (scene.story) return 'story';
     if (!S) return 'title';
@@ -391,7 +391,7 @@
     return STYLELEAD[S.style || S.persona] || SONGLEAD[SG.style];
   }
   // 会社の成長度合い：1 開業したて、2 支店がある、3 社長（本社）、4 上場
-  function bgmStage() { if (!S) return 2; if (scene.story) return 2; return S.ipo ? 4 : S.hq ? 3 : S.shops.length ? 2 : 1; }
+  function bgmStage() { if (!S) return 1; if (scene.story) return 1; return S.ipo ? 4 : S.hq ? 3 : S.shops.length ? 2 : 1; }
   // ---- BGMの楽器（その場で合成）----
   function bOut(node, wet) { node.connect(bgm.gain); if (wet && bgm.rev) { var w = AC.createGain(); w.gain.value = wet; node.connect(w); w.connect(bgm.rev); } }
   function bEnv(gn, t, a, peak, d, sus, rel, end) { gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(peak, t + a); gn.gain.setTargetAtTime(peak * sus, t + a, d); gn.gain.setTargetAtTime(0.0001, end, rel); }
@@ -414,13 +414,13 @@
   function bKick(t, vol) { var o = AC.createOscillator(), gn = AC.createGain(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14); gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.3); o.connect(gn); bOut(gn, 0); o.start(t); o.stop(t + 0.32); }
   // 1マス（8分音符）ぶんを鳴らす。場面の曲、内装の楽器、会社の成長で編成が変わる
   function bgmStep(SG, key, i, t, d) {
-    var stg = bgmStage(), k = i % SG.lead.length, pos = k % 8, bar = Math.floor(k / 8) % SG.roots.length, tok = SG.lead[k], st = SG.style, lead = INST[songLead(key, SG)] || INST.epiano;
+    var stg = bgmStage(), k = i % SG.lead.length, pos = k % 8, bar = Math.floor(k / 8) % SG.roots.length, tok = SG.lead[k], st = SG.style, lead = INST[stg === 1 && st !== 'active' ? 'piano' : songLead(key, SG)] || INST.epiano;
     var ch = chordOf(SG.roots[bar], SG.q[bar]), root = nf(SG.roots[bar]);
     if (tok !== '-') { var len = 1; while (SG.lead[(k + len) % SG.lead.length] === '-' && len < 6) len++; lead(nf(tok), t, d * len * 0.95, st === 'calm' ? 0.09 : 0.11); }
     var b = SG.bass[pos]; if (b >= 0) bBass(root * Math.pow(2, b / 12), t, d * 1.5, st === 'calm' ? 0.14 : 0.2);
-    // 伴奏：開業したては軽く、成長すると和音やストリングスが加わる
+    // 伴奏：開業したてはピアノの分散和音、成長すると和音やストリングスが加わる
+    if (stg <= 2 && st !== 'active' && st !== 'resort') { var arp = [ch[0], ch[2], ch[3], ch[1] * 2, ch[2] * 2, ch[1] * 2, ch[3], ch[2]][pos]; INST.piano(arp, t, d * 2.2, (pos === 0 ? 0.045 : 0.03) * (st === 'calm' ? 0.8 : 1) * (stg === 2 ? 0.8 : 1)); }
     if (pos === 0) {
-      if (stg === 1 && st !== 'active') ch.slice(1).forEach(function (f, j) { (st === 'elegant' ? INST.piano : INST.epiano)(f, t + j * 0.03, d * 3, 0.03); });
       if (stg >= 2 || st === 'calm') { if (st === 'elegant') bStrings(ch, t, d * 8, 0.02); else bPad(ch, t, d * 8, st === 'calm' ? 0.03 : 0.035, stg >= 4 ? 1300 : 900); }
       if (stg >= 4 && st !== 'calm') bStrings(ch.map(function (f) { return f * 2; }), t, d * 8, 0.016);
     }
