@@ -3,7 +3,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>エステ経営ものがたり</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
 <style>
@@ -40,7 +40,9 @@
     font-family: "DotGothic16", "Hiragino Kaku Gothic ProN", "Yu Gothic", monospace;
     font-size: 15px; line-height: 1.6;
     -webkit-user-select: none; user-select: none;
+    touch-action: manipulation;  /* ダブルタップで拡大しない */
   }
+  html, button, a, input, select, canvas { touch-action: manipulation; }
   .wrap { max-width: 440px; margin: 0 auto; padding: 0 16px 28px; }
 
   /* 上の帯と店内の絵（いつも見えるように固定） */
@@ -6201,6 +6203,19 @@
       }));
     onTitle = true;
   }
+  (function () {
+    var lastTap = 0;
+    document.addEventListener('touchend', function (e) {
+      var now = Date.now();
+      if (now - lastTap < 350 && e.touches.length === 0 && e.changedTouches.length === 1) {
+        var el = e.target, tag = el && el.tagName;
+        if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') { e.preventDefault(); if (el && el.click) el.click(); }
+      }
+      lastTap = now;
+    }, { passive: false });
+    document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+  })();
   title();
 })();
 </script>
