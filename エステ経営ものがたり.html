@@ -576,6 +576,7 @@
   // 以前のセーブの悩み（肌・頭・癒やし）を、新しい細かい悩みに置きかえる
   var OLDC = { face: ['pore', 'bright', 'aging'], head: ['dry', 'scalp'], hair: ['dry', 'scalp'], relax: ['aroma'] };
   // お悩みを話すときの言い回し。ask＝質問に答える、pick＝メニューの中で選ぶ、today＝常連のその日の悩み
+  function concern2(c) { if (!c.concern2) { var ks = Object.keys(CONCERN).filter(function (k) { return k !== c.concern && k !== c.today; }); c.concern2 = pick(ks); } return c.concern2; }
   function cLine(k, kind) {
     var c = CONCERN[k];
     if (c.say) return c.say[kind];
@@ -597,7 +598,7 @@
     }
     return BLEND[bl] || BLEND.relax;
   }
-  function subName(k, bl) { return SUBMENU[k].n + (bl ? '・' + blendOf(bl).n : ''); }
+  function subName(k, bl) { if (C && C.vipN && C.vipSubs && C.vipSubs.length >= C.vipN && C.vipSubs.indexOf(k) >= 0) return 'VIPコース（' + C.vipSubs.map(function (x) { return SUBMENU[x].n; }).join('＋') + (bl ? '・' + blendOf(bl).n : '') + '）'; return SUBMENU[k].n + (bl ? '・' + blendOf(bl).n : ''); }
   function blendSat(bl) {
     var x = blendOf(bl);
     if (x.my && (C.budget === 0 || C.pers === 'price')) return 3;
@@ -2199,11 +2200,12 @@
     var h = '<section class="karte box"><div class="kh"><b>' + c.name + (c.vip ? ' さま' : ' さん') + '</b><span>' + c.age + '代 ' + (c.male ? '男性' : '女性') + '</span></div>' +
       '<div class="ag">' + tag + (c.st ? '　担当 ' + stName(c.st) : '') + '</div><div class="chips">';
     var today = !c.isNew && c.today && c.phase !== 'meet0';
-    h += k.concern ? '<span>' + (today ? '今日' : '悩み') + '：' + CONCERN[today ? c.today : c.concern].n + '</span>' : '<span class="q">悩み：？</span>';
+    h += k.concern ? '<span>' + (today ? '今日' : '悩み') + '：' + CONCERN[today ? c.today : c.concern].n + (k.c2 && c.concern2 ? '（ほかに' + CONCERN[c.concern2].n + '）' : '') + '</span>' : '<span class="q">悩み：？</span>';
     h += k.pref ? '<span>圧：' + PRESS[c.pref] + '</span>' : '<span class="q">圧の好み：？</span>';
     h += k.pers ? '<span>' + PERS[c.pers].n + '</span>' : '<span class="q">性格：？</span>';
     h += k.budget ? '<span>予算：' + BUDGET[c.budget] + '</span>' : '<span class="q">予算：？</span>';
     h += '</div>';
+    if (c.royal) h += '<div class="first">ロイヤル会員の特典：施術はすべてパスに込み・商品は2割引・VIPルームでおもてなし</div>';
     if (c.isNew && !k.concern && CONCERN[c.concern]) h += '<div class="first">来店時のひとこと：「' + CONCERN[c.concern].vague + '」</div>';
     var gs = '';
     if (!c.isNew) gs += '<span>信頼</span><i><u class="loy" style="width:' + c.loy + '%"></u></i><b>' + Math.round(c.loy) + '</b>';
@@ -2261,7 +2263,7 @@
      できごと（3か月目から、毎月なにかが起こる）
      ========================================================= */
   var VIPITEMS = [
-    { k: 'royal', n: 'ロイヤル年間パス', price: 480000, need: 72, tier: 3, royal: true, big: true, note: '3か月ごとに通ってくる' },
+    { k: 'royal', n: 'ロイヤル年間パス', price: 480000, need: 72, tier: 3, royal: true, big: true, note: '1年間、施術はすべてパスに込み。商品は2割引、VIPルームでおもてなし' },
     { k: 'plat',  n: 'プラチナ美容液セット', price: 60000, need: 50, tier: 3, prod: true, note: '特別な取り寄せ品' }
   ];
   var VIPNAMES = ['白金院', '綾小路', '九重院', '鳳'];
@@ -2334,8 +2336,9 @@
   function capOf(st) { if (st.owner && S.hq && !st.sick) return boss() === 'field' ? 2 : 1; return st.sick || (st.leaveUntil && st.leaveUntil > S.week) ? 0 : Math.max(0, st.cap + (has(st, 'tough') ? 1 : 0) - (st.pracWeek === S.week ? 1 : 0) - ((st.hurtUntil || 0) > S.week ? 2 : 0)); }
   function totalCap() { return S.staff.reduce(function (a, st) { return a + capOf(st); }, 0); }
   function staffPick() { var a = S.staff.filter(function (st) { return !st.owner; }); return a.length ? pick(a) : null; }
+  var ROYALOFF = 0.8;
   function priceOf(it) {
-    if (it.cost || it.prod) return it.price;
+    if (it.cost || it.prod) return C && C.royal ? Math.round(it.price * ROYALOFF / 100) * 100 : it.price;
     var m = pm().mult * opMult() * (S.disc && (it.sessions || it.member) ? 0.8 : 1);
     return m === 1 ? it.price : Math.round(it.price * m / 100) * 100;
   }
@@ -3867,7 +3870,7 @@
       if (c.booked === S.week) return true;
       if (c.plan && c.plan.left > 0) return roll(0.6);
       if (c.member) return S.week - c.last >= 2;
-      if (c.royal) return S.week - c.last >= 3;
+      if (c.royal) return S.week - c.last >= 2;
       if (c.celebReg) return S.week - c.last >= 2;
       return false;
     }));
@@ -3988,7 +3991,7 @@
     expAdd(st, 2);
     if (has(st, 'aura') && C.isNew) C.grd = clamp(C.grd - 14, 0, 100);
     if (has(st, 'machine') && C.isNew) C.int += 14;
-    C.sat = 0; C.used = {}; C.turns = 0; C.revenue = 0; C.pushed = false; C.sub = null; C.blend = null; C.oilLiked = null; C.subAsked = {}; C.split = false; C.tried = null; C.log = []; C.got = [];
+    C.sat = 0; C.used = {}; C.turns = 0; C.revenue = 0; C.pushed = false; C.sub = null; C.blend = null; C.oilLiked = null; C.vipN = 0; C.vipSubs = []; C.vipTried = false; C.vipDone = false; C.subAsked = {}; C.split = false; C.tried = null; C.log = []; C.got = [];
     if (!C.isNew) {
       if (C.plan) C.plan.left--;
       C.today = roll(0.7) ? C.concern : newConcern();
@@ -4018,7 +4021,7 @@
   }
   function ask(q) {
     C.asked.push(q.k); C.known[q.k] = true;
-    if (q.k === 'concern') { say('me', 'いちばん気になるのは、どのあたりですか。'); say('you', cLine(C.concern, 'ask')); C.int += 5; }
+    if (q.k === 'concern') { say('me', 'いちばん気になるのは、どのあたりですか。'); say('you', cLine(C.concern, 'ask')); say('you', 'それと、' + CONCERN[concern2(C)].n + 'も少し気になっていて。'); C.known.c2 = true; C.int += 5; }
     if (q.k === 'pref') { say('me', '圧の強さはどのくらいがお好みですか。'); say('you', '「' + PRESS[C.pref] + '」がいいです。'); }
     if (q.k === 'pers') {
       say('me', 'お仕事帰りですか。今日は冷えますね。');
@@ -4038,12 +4041,17 @@
   /* --- 施術（新規と常連で共通） --- */
   function treatMenu() {
     bar(); setScene('talk');
-    view(karte() + talkHtml() + stepHtml('施術メニューを選ぶ', tip('menu', '選んだあとに、もう一段くわしく聞いてケアを決める。')),
+    view(karte() + talkHtml() + stepHtml(C.vipN ? 'VIPコース　' + (C.vipSubs.length + 1) + '／' + C.vipN + 'か所目のメニュー' : '施術メニューを選ぶ', tip('menu', '選んだあとに、もう一段くわしく聞いてケアを決める。')),
       Object.keys(MENU).map(function (k) {
         var m = MENU[k], locked = m.need && !S[m.need];
         return { label: m.n, sub: locked ? '設備がないので提供できない' : m.subs.map(function (x) { return SUBMENU[x].n; }).join('・'), off: locked, go: function () { C.menu = k; treatSub(); } };
-      }));
+      }).concat(C.vipN ? [{ label: 'VIPコースをやめる', go: function () { C.vipN = 0; C.vipSubs = []; treatMenu(); } }] : [2, 3].map(function (n) {
+        return { label: 'VIPコース（' + n + 'か所）　+' + yen(vipAdd(n)), sub: '一度に' + n + 'か所の悩みをケアする', go: function () {
+          if (C.budget === 0) { say('me', 'よろしければ、' + n + 'か所まとめてケアするVIPコースもございます。'); say('you', 'ごめんなさい、今日はそこまでは…。', 'bad'); C.vipTried = true; return treatMenu(); }
+          C.vipN = n; C.vipSubs = []; say('me', '今日は' + n + 'か所、まとめてケアしていきますね。'); say('you', 'ぜいたく…！ お願いします。', 'good'); treatMenu(); } };
+      }).filter(function () { return !C.vipTried; })));
   }
+  function vipAdd(n) { return (C && C.isNew ? TRIAL : 6000) * (n - 1); }
   // 2段目のカウンセリング：メニューの中で、いちばん気になることを聞く
   function treatSub() {
     var m = MENU[C.menu], need = C.isNew ? C.concern : C.today;
@@ -4061,7 +4069,9 @@
     view(karte() + talkHtml() + stepHtml(m.n + '　ケアを選ぶ', tip('care', 'お悩みにぴったり合うほど満足度が上がる。' + (C.isNew && !C.known.concern ? 'お悩みを掘り下げていないときは、来店時のひとことから考える。' : ''))),
       m.subs.map(function (k) {
         var locked = !subOk(k);
-        return { label: SUBMENU[k].n, sub: locked ? '設備がないので提供できない' : '', off: locked, go: function () { C.sub = k; C.blend = null; if (k === 'aroma') treatBlend(); else treatPress(); } };
+        return { label: SUBMENU[k].n, sub: locked ? '設備がないので提供できない' : '', off: locked, go: function () {
+          if (C.vipN) { if (C.vipSubs.indexOf(k) < 0) C.vipSubs.push(k); if (C.vipSubs.length < C.vipN) return treatMenu(); C.sub = C.vipSubs[0]; C.blend = null; if (C.vipSubs.indexOf('aroma') >= 0) treatBlend(); else treatPress(); return; }
+          C.sub = k; C.blend = null; if (k === 'aroma') treatBlend(); else treatPress(); } };
       }).concat([{ label: 'メニュー選びにもどる', go: treatMenu }]));
   }
   function treatBlend() {
@@ -4102,13 +4112,20 @@
     var match = menu === need ? 45 : (catOf(menu) === catOf(need) ? 30 : (NEAR[catOf(need)].indexOf(catOf(menu)) >= 0 ? 22 : 12));
     var order = ['soft', 'mid', 'strong'], gap = Math.abs(order.indexOf(press) - order.indexOf(C.pref));
     var p = gap === 0 ? 25 : (gap === 1 ? 12 : 0);
-    var sat = clamp(Math.round(4 + (st.owner && boss() === 'field' ? 5 : 0) + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
+    var sat = clamp(Math.round(4 + (C.royal ? 6 : 0) + (st.owner && boss() === 'field' ? 5 : 0) + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
     if (bl) sat = sat + blendSat(bl);
     sat = clamp(Math.round(softSat(sat)), 5, 100);
     return { sat: sat, match: match, gap: gap };
   }
   function doTreat(press) {
     var r = satCalc(C.sub, press, C.st, C.blend);
+    if (C.vipN && C.vipSubs && C.vipSubs.length) {
+      var need = C.isNew ? C.concern : C.today, c2 = concern2(C), best = null, bonus = 0;
+      C.vipSubs.forEach(function (k) { var x = satCalc(k, press, C.st, k === 'aroma' ? C.blend : null); if (!best || x.sat > best.sat) { best = x; C.sub = k; } });
+      C.vipSubs.forEach(function (k) { if (k === C.sub) return; bonus += k === c2 ? 10 : (k === need ? 0 : catOf(k) === catOf(need) ? 3 : 1); });
+      r = best; r.sat = clamp(r.sat + bonus, 5, 100);
+      var add = vipAdd(C.vipN); S.cash += add; S.wk.opt += add; C.revenue += add; C.vipDone = C.vipSubs.indexOf(c2) >= 0;
+    }
     pressLoad(C.st, press);
     C.sat = r.sat;
     C.log = [];
@@ -4119,6 +4136,7 @@
     else if (C.sat >= 50) say('you', vo[1]);
     else say('you', r.match < 40 ? 'うーん、気になっていた所とは少し違ったかも…。' : (r.gap === 2 ? '圧がちょっと合わなかったです…。' : 'うーん…。思っていたほどではなかったかも。'), 'bad');
     if (C.oilLiked && C.sat >= 60) say('you', 'この香り、すごく好きです…。お家でも使いたいな。');
+    if (C.vipDone && C.sat >= 60) say('you', CONCERN[C.concern2].n + 'まで見てもらえて、うれしいです！', 'good');
     reputeBySat();
     if (C.isNew) { C.int = clamp(C.int + 15 + C.sat * 0.5, 0, 100); S.cash += TRIAL; S.wk.trial += TRIAL; C.revenue += TRIAL; }
     setScene('treat', { sat: C.sat });
@@ -4312,7 +4330,7 @@
   /* --- 常連 --- */
   function meetReg() {
     C.known.concern = true; C.known.pref = true;
-    var line = C.royal ? 'いつものをお願いね。' : C.plan ? 'いつものコースでお願いします。' : (C.member ? '今月もよろしくお願いします。' : '予約していた' + C.name + 'です。');
+    var line = C.royal ? 'いつものをお願いね。VIPルームって、やっぱり落ち着くわ。' : C.plan ? 'いつものコースでお願いします。' : (C.member ? '今月もよろしくお願いします。' : '予約していた' + C.name + 'です。');
     if (C.today !== C.concern) line += cLine(C.today, 'today');
     say('you', line);
     treatMenu();
@@ -4320,6 +4338,7 @@
   function regScore(st) { return (S.ekarte ? 4 : 0) + C.sat * 0.45 + C.loy * 0.35 + (st.talk - 1) * 4 - C.grd * 0.3 + (S.hum - 30) * 0.1; }
   function regItems() {
     var items = [OPTION].concat(C.vip ? [VIPITEMS[1]] : []).concat(inStock());
+    if (C.royal) return items.filter(function (it) { return it.cost || it.prod; });
     if (!C.member && (!C.plan || C.plan.left <= 1)) items = items.concat(COURSES.filter(function (c) { return c.k !== 'one'; }));
     if (!C.plan && !C.member && !C.booked) items.push(courseOf('one'));
     return items;
@@ -4338,7 +4357,7 @@
   function regTry(it) {
     say('me', it.n + '（' + yen(priceOf(it)) + '）はいかがですか。');
     var tier = C.budget + (C.loy >= 60 ? 1 : 0);
-    var ok = tier >= it.tier && roll(clamp(0.5 + (regScore(C.st) - regNeed(it)) / 40, 0.05, 0.95));
+    var ok = (tier >= it.tier || (C.royal && it.cost)) && roll(clamp(0.5 + (regScore(C.st) - regNeed(it)) / 40 + (C.royal && it.cost ? 0.2 : 0), 0.05, 0.95));
     if (ok) { say('you', pick(['じゃあ、お願いします。', 'それもいいですね。', '続けます。']), 'good'); applySale(C, it); setScene('sold'); }
     else { say('you', pick(['今日は大丈夫です。', 'また今度にします。']), 'bad'); C.loy = clamp(C.loy - 3, 0, 100); }
     regDone(ok);
