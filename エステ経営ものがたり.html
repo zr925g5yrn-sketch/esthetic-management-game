@@ -6577,6 +6577,7 @@
       } });
     });
     opts.push({ label: 'お店と会社の名前を変える', sub: 'いま：' + (S.brand || '（未設定）') + (S.company ? '／' + S.company : '') + '　支店の名前もまとめて変わる', go: nameView });
+    opts.push({ label: '公式dot.を見る', sub: 'お客様と取引先からの連絡。AIの返信：' + (S.dotAI !== false ? 'オン' : 'オフ'), go: function () { dotView(true); } });
     opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（dot.など）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
     if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
     // メニューを3つにまとめて、月末画面を短くする
@@ -6672,11 +6673,13 @@
         if (/^group/.test(got.kind)) pool = pool.filter(function (m) { return !/^group/.test(m.kind); }); }
       return out;
     };
-    var mine = (S.romMsg || []).concat(choose(C2.filter(function (m) { return !DOTOFF[m.kind]; }), 2 + (roll(0.5) ? 1 : 0))); S.romMsg = null;
+    var mine = (S.romMsg || []).concat(C2.filter(function (m) { return m.kind === 'staffLow'; }).slice(0, 1))
+      .concat(roll(0.6) ? choose(C2.filter(function (m) { return /^group/.test(m.kind); }), 1) : []); S.romMsg = null;
     var off = choose(C2.filter(function (m) { return DOTOFF[m.kind]; }), 1 + (roll(0.6) ? 1 : 0) + (roll(0.3) ? 1 : 0));
     mine.forEach(function (m, i) { m.id = S.week * 10 + i; m.done = -1; last[m.kind] = S.week; });
     off.forEach(function (m, i) { m.id = S.week * 10 + 5 + i; m.done = -1; m.off = true; last[m.kind] = S.week; });
     S.dotLast = last; S.odot = off;
+    if (S.dotAI !== false) off.forEach(function (m) { m.done = 0; m.ai = true; m.note = dotFx(m, m.reps[0]); });
     return mine;
   }
   function dotFx(m, rp) {
@@ -6722,12 +6725,14 @@
         return '<button type="button" class="dotrow" data-dot="' + i + '">' + dav(m.from) + '<span><span class="nm">' + m.from + '</span><span class="pv">' + last + '</span></span>' +
           '<span class="st' + (m.done < 0 ? ' new' : '') + '">' + (m.done < 0 ? '未返信' : '返信ずみ') + '</span></button>';
       }).join('') : '<p class="lead" style="padding:12px">新しいメッセージはない。</p>') + '</div>',
-      [{ main: true, label: '月末の画面にもどる', go: investView }]);
+      [{ main: true, label: '月末の画面にもどる', go: investView }].concat(off ? [{ label: 'AIに返信を任せる：' + (S.dotAI !== false ? 'オン' : 'オフ'), sub: S.dotAI !== false ? 'お客様と取引先への返信は、AIがしてくれる。オフにすると自分で返信する' : 'オンにすると、来月からAIが返信してくれる',
+        go: function () { S.dotAI = S.dotAI === false; dotView(true); } }] : []));
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-dot]'), function (bt) { bt.addEventListener('click', function () { SFX.click(); dotThread(list[+bt.getAttribute('data-dot')]); }); });
   }
   function dotThread(m, note) {
     bar();
     var back = function () { dotView(!!m.off); };
+    if (m.ai && !note) note = 'AIが返信した。' + (m.note || '');
     var h = '<h1>' + (m.off ? 'お店の公式アカウント' : 'メッセージ') + '</h1><div class="dotapp' + (m.off ? ' off' : '') + '">' + dotHead(m.off, '‹ ' + m.from) + '<div class="dchat">' +
       m.lines.map(function (l) { var w = l.who || m.from; return '<div class="dmsg">' + dav(w) + '<div class="bb">' + (l.who || m.from.indexOf('・') >= 0 ? '<span class="who">' + w + '</span>' : '') + l.t + '</div></div>'; }).join('');
     if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="dmsg me"><div class="bb">' + rp.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</div></div><div class="dmsg">' + dav(m.from) + '<div class="bb">' + rp.res + '</div></div>' + (note || m.note ? '<div class="dnote">' + (note || m.note) + '</div>' : ''); }
@@ -6749,7 +6754,8 @@
     var T = [], P = snsFix(), left = snsLeft();
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: '未返信 ' + dotUnread() + '件', go: function () { dotView(false); } } : { t: 'dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
-    if (S.odot && S.odot.length) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
+    if (S.odot && S.odot.length && S.odot.every(function (m) { return m.ai; })) T.push({ t: '公式dot.はAIが返信した', s: S.odot.length + '件（「発信・記録・そのほか」から見られる）', done: true, go: function () { dotView(true); } });
+    else if (S.odot && S.odot.length) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
     var rl = renoLeftList();
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
       T.push(S.renoWeek === S.week ? { t: '内装リニューアル', s: '今月はリニューアルした', done: true } : { t: '内装をリニューアルする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
