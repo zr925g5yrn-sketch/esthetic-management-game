@@ -7452,6 +7452,9 @@
       var a = bt.getAttribute('data-fin').split('|'), st = allStaff().concat(hqStaff()).filter(function (x) { return x.id === a[0]; })[0]; if (!st) return;
       var c = epiSet(st)[3][+a[1]]; epiApply(st, c); SFX.fanfare(false);
       heard.push({ id: st.id, name: st.name, n: 3, t: EPIEND[c[1]] + '　→ ' + EPIUP[c[1]] }); epiBulk(heard);
+      // 画面のいちばん上にもどさず、次に言葉をかける人（いなければ、いま選んだ結果）のところを見せる
+      var nx = document.querySelector('#app .esfin') || [].slice.call(document.querySelectorAll('#app .epsum .es')).pop();
+      if (nx) nx.scrollIntoView({ block: 'center' });
     }); });
   }
   function epiReady(st) { var e = epiNext(st); return !!(e && e.ok); }
