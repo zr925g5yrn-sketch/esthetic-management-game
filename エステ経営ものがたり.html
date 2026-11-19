@@ -70,6 +70,8 @@
   .bar .sub { flex-wrap: wrap; justify-content: flex-start; gap: 2px 12px; }
   .bar .sub span { white-space: nowrap; }
   .ver { margin: 14px 0 0; text-align: center; font-size: .72rem; color: var(--sub); }
+  .qlist .si { display: block; margin-top: 2px; font-weight: 400; font-size: .78rem; color: var(--accent); }
+  .qlist .who-list { margin: 0 10px 10px; }
   .tgl { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 10px 12px; }
   .tgl b { display: block; font-size: .95rem; }
   .tgl small { display: block; font-size: .76rem; color: var(--sub); line-height: 1.45; }
@@ -4103,7 +4105,10 @@
     var news = S.news.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : (x.good ? ' good' : '')) + '">' + x.t + '</div>'; }).join('');
     var ev = S.ev ? '<div class="event box"><span class="badge">今月のできごと</span><h2>' + S.evTitle + '</h2><p>' + S.evText + '</p>' +
       (S.evNote ? '<p class="evnote">' + S.evNote + '</p>' : '') + '</div>' : '';
-    var list = '<ul class="who-list">' + S.queue.map(function (c) { return '<li><span>' + c.name + (c.vip ? 'さま' : 'さん') + '</span><span>' + tagOf(c) + '</span></li>'; }).join('') + '</ul>';
+    // 今月のお客様の一覧は、ふだんは閉じておく（特別なお客様だけ、見出しに出す）
+    var spQ = S.queue.filter(function (c) { return c.sp; });
+    var list = S.queue.length ? '<details class="fold qlist"><summary>今月のお客様（' + S.queue.length + '人）' + (spQ.length ? '<span class="si">' + spQ.map(function (c) { return tagOf(c); }).join('・') + '</span>' : '') + '</summary><ul class="who-list">' +
+      S.queue.map(function (c) { return '<li><span>' + c.name + (c.vip ? 'さま' : c.hotel ? ' 支配人' : 'さん') + '</span><span>' + tagOf(c) + '</span></li>'; }).join('') + '</ul></details>' : '';
     var lf = S.lifeKey ? lifeOf(S.lifeKey) : null;
     var life = lf ? '<div class="event life box"><span class="badge">あなたの暮らし</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
