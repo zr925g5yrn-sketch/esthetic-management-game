@@ -1603,7 +1603,7 @@
   function r10k(v) { return Math.max(10000, Math.round(v / 10000) * 10000); }
   function newMission() {
     var L = S.lastWk || {}, list = [];
-    list.push({ k: 'prod', t: r10k(Math.max(60000, (L.prod || 0) * 1.2)), d: function (t) { return '物販で' + yen(t) + '売る'; }, v: function () { return S.wk.prod; } });
+    list.push({ k: 'prod', t: r10k(Math.max(60000, (L.prod || 0) * 1.2)), d: function (t) { return '物販で' + yen(t) + '売る'; }, v: function () { return S.wk.prod + (S.wk.brProd || 0); } });
     list.push({ k: 'course', t: r10k(Math.max(100000, (L.course || 0) * 1.2)), d: function (t) { return 'コース・会員を' + yen(t) + '分成約する'; }, v: function () { return S.wk.course; } });
     if (S.queue.length >= 2) list.push({ k: 'happy', t: Math.max(1, Math.round(S.queue.length * 0.6)), d: function (t) { return '満足度80以上のお客様を' + t + '人つくる'; }, v: function () { return S.wk.happy || 0; } });
     if (L.all !== undefined) list.push({ k: 'net', t: r10k(Math.max(50000, L.all * 1.1)), d: function (t) { return '全店の収支で' + yen(t) + '以上を出す'; }, v: function () { return S.wk.all || 0; } });
@@ -1613,7 +1613,7 @@
     S.mission = { k: m.k, t: m.t, f0: m.f0, reward: Math.min(200000, 20000 + S.week * 2000), done: null };
   }
   function missionDef(k) {
-    return { prod: ['物販で', 'yen', function () { return S.wk.prod; }], course: ['コース・会員を', 'yen', function () { return S.wk.course; }],
+    return { prod: ['物販で', 'yen', function () { return S.wk.prod + (S.wk.brProd || 0); }], course: ['コース・会員を', 'yen', function () { return S.wk.course; }],
       happy: ['満足度80以上のお客様を', 'n', function () { return S.wk.happy || 0; }], net: ['全店の収支で', 'yen', function () { return S.wk.all || 0; }],
       sns: ['SNSのフォロワーを', 'f', function (m) { return S.sns.f - m.f0; }], mood: ['月末に全スタッフのやる気を', 'mood', function () { return crewAll().reduce(function (a, x) { return Math.min(a, x.mot || 0); }, 100); }] }[k];
   }
@@ -5147,10 +5147,13 @@
   // 支店の1か月。お客様をまとめて計算する
   function simBranch(b) {
     var A = b.home ? homeA() : AREAS[b.area], i = 0, slots = shopCap(b);
-    var r = { name: b.name, sales: 0, refund: 0, served: 0, sold: 0, turned: 0, cost: A.rent + b.staff.reduce(function (a, st) { return a + payOf(st); }, 0) };
+    var r = { name: b.name, sales: 0, refund: 0, served: 0, sold: 0, prod: 0, turned: 0, cost: A.rent + b.staff.reduce(function (a, st) { return a + payOf(st); }, 0) };
     var work = b.staff.filter(function (st) { return capOf(st) > 0; });
     if (!work.length) { r.net = -r.cost; r.turned = 2 + A.demand; b.last = r; return r; }
     var next = function () { return work[(i++) % work.length]; };
+    // 物販：いまの商品（自社商品も）を、その街の値段で売る。在庫は支店ごとに取り寄せるので、仕入れ値がかかる
+    var brSell = function (st) { var L = prods(); if (!L.length) return; var it = pick(L), pr = Math.round(it.price * (b.home ? 1 : A.mult) / 100) * 100;
+      r.sales += stSale(st, pr); r.cost += costOf(it); r.prod += pr; r.sold++; };
     var keep = function (st) { return S.hum / 400 + (st.trait === 'heal' ? 0.04 : 0); };
     // 常連
     b.regs = b.regs.filter(function (g) { return g.mem || g.left > 0; });
@@ -5165,7 +5168,7 @@
       slots--; r.served++; g.last = S.week; if (!g.mem) g.left--;
       var st = next(); expAdd(st, 1);
       if (A.tier !== 'local') r.sales += Math.round(8000 * A.mult);
-      if (roll(clamp(0.2 + st.talk * 0.05 + (st.trait === 'shop' ? 0.2 : 0) + keep(st), 0.05, 0.8))) { r.sales += stSale(st, Math.round(pick([3500, 16500, 29400, 6600].concat(S.devFace ? [59800] : []).concat(S.devEms ? [39800] : [])) * A.mult)); r.sold++; }
+      if (roll(clamp(0.2 + st.talk * 0.05 + (st.trait === 'shop' ? 0.2 : 0) + (has(st, 'seller') ? 0.15 : 0) + keep(st), 0.05, 0.8))) brSell(st);
       if (!g.mem && g.left === 0 && roll(0.25 + st.talk * 0.05 + keep(st))) { g.left = 5; r.sales += stSale(st, Math.round(courseOf('c5').price * A.mult)); r.sold++; }
     });
     // 新規
@@ -5181,6 +5184,8 @@
       if (sat >= 75) b.rep = clamp(b.rep + 1.5 + (fit > 0 ? 0.8 : 0), 0, 100); else if (sat < 45) b.rep = clamp(b.rep - 2, 0, 100);
       if (st.trait === 'mood') b.rep = clamp(b.rep + 1, 0, 100);
       var p = clamp(0.15 + st.talk * 0.08 + (has(st, 'machine') ? 0.15 : 0) + (sat - 55) / 90 + (st.trait === 'talk' ? 0.1 : 0) + (st.trait === 'push' ? 0.12 : 0) + (S.hum - 30) / 300 + moodBonus(st) / 100, 0.04, 0.85);
+      // 新規のお客様も、満足したら商品を買って帰ることがある
+      if (roll(clamp(0.1 + st.talk * 0.04 + (st.trait === 'shop' ? 0.15 : 0) + (has(st, 'seller') ? 0.1 : 0) + (sat - 55) / 200, 0.03, 0.6))) brSell(st);
       if (!roll(p)) continue;
       var x = rnd(), it = courseOf(x < 0.03 ? 'total' : x < 0.08 ? 'w10' : x < 0.16 ? 'c10' : x < 0.47 ? 'c5' : x < 0.75 ? 'mem' : 'one');
       var v = Math.round(it.price * A.mult * pm().mult);
@@ -6520,6 +6525,7 @@
       if (hasTier('world') || hasTier('resort')) S.fx = clamp(Math.round(((S.fx || 1) + (1 - (S.fx || 1)) * 0.15 + (rnd() - 0.5) * 0.08) * 100) / 100, 0.75, 1.35);
       var hb = S.opHome ? homeSim() : null;
       S.wk.branch = S.shops.filter(function (b) { return b.id !== S.opShop; }).map(simBranch).concat(hb ? [simBranch(hb)] : []);
+      S.wk.brProd = S.wk.branch.reduce(function (a, r) { return a + (r.prod || 0); }, 0);
       S.wk.ph = phWeek();
       if (S.wk.ph) { S.cash += S.wk.ph.net; S.total.sales += S.wk.ph.sales; S.total.cost += S.wk.ph.cost; }
       S.wk.branch.forEach(function (r) { S.cash += r.net; S.total.sales += r.sales - r.refund; S.total.cost += r.cost; S.total.served += r.served; S.total.sold += r.sold; });
@@ -6543,7 +6549,7 @@
       mxpAdd(20 + clamp(Math.round(allNet / 20000), 0, 50) + 5 * S.shops.length);
       S.yrSales = (S.yrSales || 0) + S.wk.sales + S.wk.branch.reduce(function (a, r) { return a + r.sales; }, 0) + (S.wk.ph ? S.wk.ph.sales : 0);
       missionCheck();
-      S.lastWk = { prod: S.wk.prod, course: S.wk.course, all: allNet };
+      S.lastWk = { prod: S.wk.prod + (S.wk.brProd || 0), course: S.wk.course, all: allNet };
       S.wk.achGot = achCheck();
       S.yrNet = (S.yrNet || 0) + allNet;
       if (S.taxPlan) { var tp = Math.min(S.taxPlan.amt, S.taxPlan.rest); S.cash -= tp; S.total.cost += tp; S.taxPlan.rest -= tp; S.taxPlan.left--;
@@ -6574,7 +6580,7 @@
     return '<div class="slip box"><dl>' +
       (w.base ? '<dt>通常営業（' + w.base.n + '名）</dt><dd>' + yen(w.base.sales) + '</dd>' : '') +
       '<dt>体験コース</dt><dd>' + yen(w.trial) + '</dd><dt>コース・会員</dt><dd>' + yen(w.course) + '</dd>' +
-      '<dt>物販</dt><dd>' + yen(w.prod) + '</dd>' + (w.online ? '<dt>　うちオンライン</dt><dd>' + yen(w.online) + '</dd>' : '') + '<dt>オプション</dt><dd>' + yen(w.opt) + '</dd>' +
+      '<dt>物販</dt><dd>' + yen(w.prod) + '</dd>' + (w.brProd ? '<dt>　ほかの店舗の物販（各店の収支に入っている）</dt><dd>' + yen(w.brProd) + '</dd>' : '') + (w.online ? '<dt>　うちオンライン</dt><dd>' + yen(w.online) + '</dd>' : '') + '<dt>オプション</dt><dd>' + yen(w.opt) + '</dd>' +
       (w.fee ? '<dt>会費（4か月ごと）</dt><dd>' + yen(w.fee) + '</dd>' : '') +
       (w.roy ? '<dt>のれん分けの売上の一部</dt><dd>' + yen(w.roy) + '</dd>' : '') +
       (w.fcRoy ? '<dt>フランチャイズ（加盟金・ロイヤリティ）</dt><dd>' + yen(w.fcRoy) + '</dd>' : '') +
@@ -6590,7 +6596,7 @@
       (w.hqCost ? '<dt>本社（家賃・給与）</dt><dd class="minus">' + yen(-w.hqCost) + '</dd>' : '') +
       (w.base ? '<dt>材料・光熱費</dt><dd class="minus">' + yen(-w.base.cost) + '</dd>' : '') +
       '<div class="sum"></div><dt class="big">' + (br.length ? '本店の収支' : '今月の収支') + '</dt><dd class="big' + (net < 0 ? ' minus' : '') + '">' + yen(net) + '</dd>' +
-      br.map(function (r) { return '<dt>' + r.name + '（来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + (r.fx ? '・為替×' + r.fx.toFixed(2) : '') + (r.season ? '・' + r.season : '') + (r.hotel ? '・ホテルへ' + yen(r.hotel) : '') + (r.hm && (r.hm.join || r.hm.renew || r.hm.left) ? '・ホテル会員 入会' + r.hm.join + '人 更新' + r.hm.renew + '人' + (r.hm.left ? ' 退会' + r.hm.left + '人' : '') : '') + '）</dt><dd class="' + (r.net < 0 ? 'minus' : '') + '">' + yen(r.net) + '</dd>'; }).join('') +
+      br.map(function (r) { return '<dt>' + r.name + '（来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + (r.fx ? '・為替×' + r.fx.toFixed(2) : '') + (r.season ? '・' + r.season : '') + (r.prod ? '・物販' + yen(r.prod) : '') + (r.hotel ? '・ホテルへ' + yen(r.hotel) : '') + (r.hm && (r.hm.join || r.hm.renew || r.hm.left) ? '・ホテル会員 入会' + r.hm.join + '人 更新' + r.hm.renew + '人' + (r.hm.left ? ' 退会' + r.hm.left + '人' : '') : '') + '）</dt><dd class="' + (r.net < 0 ? 'minus' : '') + '">' + yen(r.net) + '</dd>'; }).join('') +
       (ph ? '<dt>ペントハウス（会員' + ph.members + '人' + (ph.join ? '・入会' + ph.join : '') + (ph.gone ? '・退会' + ph.gone : '') + '）</dt><dd class="' + (ph.net < 0 ? 'minus' : '') + '">' + yen(ph.net) + '</dd>' : '') +
       (br.length || ph ? '<div class="sum"></div><dt class="big">全店の収支</dt><dd class="big' + (all < 0 ? ' minus' : '') + '">' + yen(all) + '</dd>' : '') + '</dl>' +
       '<ul class="plain"><li>' + (w.sold.length ? w.sold.join('</li><li>') : '成約なし') + '</li></ul></div>';
