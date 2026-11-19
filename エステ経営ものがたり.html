@@ -2700,7 +2700,7 @@
       var DEALS = {
         s15: { n: '出店費を出資してもらう', d: 'かわりに、その支店の利益の15%を5年間（60か月）支払う', pct: 0.15, months: 60 },
         s30: { n: '出店費と開店資金' + yen(500000) + 'を出資してもらう', d: 'かわりに、その支店の利益の30%を3年間（36か月）支払う', pct: 0.3, months: 36, extra: 500000 },
-        loan: { n: '出店費を無利子で借りる', d: '利益は分けない。そのかわり、出店費を36回で返す', loan: true }
+        loan: { n: '出店費を無利子で借りる', d: '出店費を36回で返す。利益は分けないが、そのかわり36か月のあいだ、その店で毎月VIP施術を無料で差し上げる（月' + yen(30000) + '相当）。セレブが通う店として評判は上がりやすい', loan: true }
       };
       if (!S.spDeal) return Object.keys(DEALS).map(function (dk) {
         var D = DEALS[dk]; return { label: D.n, sub: D.d, go: function () { S.spDeal = dk; weekIntro(); } };
@@ -2711,7 +2711,7 @@
         return { label: AREAS[a].n + 'を出す', sub: D.n + '：' + D.d + '　出店費' + yen(AREAS[a].cost) + '・家賃 月' + yen(AREAS[a].rent), go: function () {
           if (spc) spc.sponsored = true;
           var b = openBranch(a, true), note;
-          if (D.loan) { loanAdd('family', AREAS[a].cost, 0, 36, 0); S.loans[S.loans.length - 1].n = who + 'からの借入'; S.cash -= AREAS[a].cost; note = '出店費' + yen(AREAS[a].cost) + 'は、36回で' + who + 'に返していく。'; }
+          if (D.loan) { loanAdd('family', AREAS[a].cost, 0, 36, 0); S.loans[S.loans.length - 1].n = who + 'からの借入'; S.cash -= AREAS[a].cost; note = '出店費' + yen(AREAS[a].cost) + 'は、36回で' + who + 'に返していく。かわりに、' + who + 'にはこの店で毎月VIP施術を無料で差し上げる。'; b.celebPerk = { name: who, until: S.week + 36, cost: 30000 }; }
           else { b.investor = { name: who, pct: D.pct, until: S.week + D.months }; if (D.extra) S.cash += D.extra; note = 'この店の利益の' + Math.round(D.pct * 100) + '%を、' + D.months + 'か月のあいだ' + who + 'に支払う。' + (D.extra ? '開店資金' + yen(D.extra) + 'も受け取った。' : ''); }
           S.spDeal = null;
           showCut(branchCut(b), function () { done(b.name + 'を開店した。' + who + 'がテープカットに来てくれた。' + note); }); } };
@@ -4706,6 +4706,8 @@
     goldcoast:{ n: 'ゴールドコースト店', tier: 'resort', cost: 3800000, rent: 190000, demand: 4, mult: 1.9, peak: [12, 1, 2], d: 'サーファーの楽園。日焼けケアの需要が高い', names: ['シャーロット', 'アメリア', 'イスラ', 'エヴィー', 'ルビー', 'ジョージア', 'マチルダ', 'ハーパー', 'ウィロー', 'スカーレット', 'サディ', 'ポピー', 'ルナ', 'マイア', 'ハーロウ', 'ペニー', 'ジェイド', 'ベイリー', 'サマー', 'タイラ'] },
     dubai:   { n: 'ドバイ店', tier: 'world', cost: 6000000, rent: 300000, demand: 2, mult: 3.2, d: '石油王の街。お客様は少ないが、桁外れに使う', names: ['レイラ', 'ファティマ', 'ヤスミン', 'アミラ', 'ノール', 'サラ', 'マリアム', 'ライラ', 'ハラ', 'ダナ', 'ルーナ', 'シャイマ', 'アヤ', 'ジャナ', 'ラナ', 'ズハ', 'ナディーン', 'アスマ', 'リーム', 'ハムダ', 'ヌーラ', 'アルヤ', 'ムナ', 'シャハド', 'ルブナ', 'ワファ', 'ガダ', 'ダリア', 'サルマ', 'ヒンド', 'ジュード', 'タラ', 'ザイナブ', 'ルカヤ', 'メイサ', 'ニダ', 'アフラ', 'ヌハ', 'バスマ', 'ラワン'] }
   };
+  // 出店費：内装・設備・保証金を含めた現実的な金額にする（以前の3倍）
+  Object.keys(AREAS).forEach(function (k) { AREAS[k].cost = AREAS[k].cost * 3; });
   // お店のコンセプト。本店はお客様の悩みや予算・人数が変わる。支店は街に合うと伸びやすい
   var CONCEPTS = {
     relax:  { n: '癒やしのリラクゼーション', d: 'ゆったり癒やされたい人が集まる。ヘッドスパとアロマ、リンパの悩みが多くなる', fav: ['aroma', 'dry', 'scalp', 'lymph'],
@@ -4938,6 +4940,7 @@
     mgrEffect(b, r);
     if (!b.home) r.sales = Math.round(r.sales * bossMult());
     r.net = r.sales - r.refund - r.cost;
+    if (b.celebPerk && S.week <= b.celebPerk.until) { r.perk = b.celebPerk.cost; r.cost += r.perk; r.net -= r.perk; b.rep = clamp(b.rep + 0.5, 0, 100); }
     if (b.investor && S.week <= b.investor.until && r.net > 0) { r.inv = Math.round(r.net * b.investor.pct / 1000) * 1000; r.cost += r.inv; r.net -= r.inv; }
     if (b.investor && S.week === b.investor.until) { S.wk.stratNote = (S.wk.stratNote || []).concat([{ t: b.name + 'の、' + b.investor.name + 'への利益の支払いが終わった。これからは利益がまるごと入る。' }]); }
     b.last = r;
@@ -5137,6 +5140,7 @@
       info = (cc && CONCEPTS[cc] ? 'コンセプト：' + CONCEPTS[cc].n + (V ? '（' + fitText(fitOf(V.area, cc)) + '）' : '') + '<br>' : '') +
         '内装 ' + lv + '／' + MAXINT + '　スタッフ ' + crew.length + '人' + (V ? '　評判 ' + stars(V.rep) : '') +
         (r ? '<br>先月：来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + '　収支 ' + yen(r.net) + (r.inv ? '（出資者へ' + yen(r.inv) + '支払い後）' : '') : '') +
+        (V && V.celebPerk && S.week <= V.celebPerk.until ? '<br>セレブへのお礼：' + V.celebPerk.name + 'に毎月VIP施術を無料で（月' + yen(V.celebPerk.cost) + '相当、あと' + (V.celebPerk.until - S.week) + 'か月）' : '') +
         (V && V.investor && S.week <= V.investor.until ? '<br>出資：' + V.investor.name + 'に利益の' + Math.round(V.investor.pct * 100) + '%を支払い中（あと' + (V.investor.until - S.week) + 'か月）' : '');
     }
     var list = [null].concat(S.shops).concat(S.ph ? ['ph'] : []);
