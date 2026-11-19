@@ -6755,8 +6755,8 @@
     var T = [], P = snsFix(), left = snsLeft();
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: '未返信 ' + dotUnread() + '件', go: function () { dotView(false); } } : { t: 'dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
-    if (S.odot && S.odot.length && S.odot.every(function (m) { return m.ai; })) T.push({ t: '公式dot.はAIが返信した', s: S.odot.length + '件（「発信・記録・そのほか」から見られる）', done: true, go: function () { dotView(true); } });
-    else if (S.odot && S.odot.length) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
+    // AIに任せた月は、タスクに出さない
+    if (S.odot && S.odot.length && !S.odot.every(function (m) { return m.ai; })) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
     var rl = renoLeftList();
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
       T.push(S.renoWeek === S.week ? { t: '内装リニューアル', s: '今月はリニューアルした', done: true } : { t: '内装をリニューアルする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
