@@ -4415,7 +4415,8 @@
     if (c.sat >= 80) S.wk.happy = (S.wk.happy || 0) + 1;
     c.loy = clamp(c.loy + (c.st ? sk(c.st, 'care') - 3 + (has(c.st, 'memory') ? 4 : 0) : 0) + (c.sat >= 70 ? 12 : (c.sat >= 50 ? 4 : -15)) + (c.sat >= 50 ? Math.floor(S.hum / 25) + (S.life.dog ? 3 : 0) : 0), 0, 100);
     c.known.concern = true; c.known.pref = true;
-    if (c.visits >= 2) c.known.pers = true;
+    // 聞き上手が担当すると、3つめ（人柄）まで聞き取れている
+    if (c.visits >= 2 || (c.st && !c.st.owner && hearer(c.st))) c.known.pers = true;
     if (c.plan && c.plan.left <= 0) c.plan = null;
     if (c.booked === S.week) c.booked = 0;
     if (!wasNew && c.sat < 45 && c.loy < 20 && (c.plan || c.member) && !has(c.st, 'charm')) {
