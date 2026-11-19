@@ -591,7 +591,7 @@
      データ（人物と店はすべて架空）
      ========================================================= */
   var RANKS = [3000000, 2000000, 1200000, 400000];
-  var WEEKS = 24, START = 300000, RENT = 70000, TRIAL = 5000, FEE = 15000, MAXSTAFF = 4, HIRE = 30000;
+  var WEEKS = 24, START = 300000, RENT = 70000, TRIAL = 5000, FEE = 24000, MAXSTAFF = 4, HIRE = 30000;
   var CONCERN = {
     pore:   { n: '毛穴の黒ずみ',       vague: '最近、鏡を見ると肌がざらついて見えて…。' },
     bright: { n: '肌のくすみ',         vague: '最近、鏡を見るとなんだか疲れて見えて…。' },
@@ -671,7 +671,7 @@
     careful: { n: '慎重派', guard: 60 }, quick: { n: '即決派', guard: 26 }, price: { n: '価格重視', guard: 46 },
     effect: { n: '効果重視', guard: 40 }, chatty: { n: 'おしゃべり好き', guard: 34 }
   };
-  var BUDGET = ['1万円まで', '7万円くらいまで', '12万円くらいまで', '上限なし'];
+  var BUDGET = ['1万円まで', '10万円くらいまで', '30万円くらいまで', '上限なし'];
   var QUESTIONS = [
     { k: 'concern', n: 'お悩みを掘り下げる', d: '本当に気になっている所が分かる' },
     { k: 'pref',    n: '好みの圧を聞く',     d: '施術の強さの好みが分かる' },
@@ -688,10 +688,13 @@
     { k: 'push', n: '強く押す', d: '強く決断をうながす', gen: '興味は大きく上がるが、警戒心も跳ね上がる', line: '今始めないと、もっと戻りにくくなりますよ。今日決めてしまいましょう。', int: 25, grd: 26, push: true }
   ];
   var COURSES = [
-    { k: 'c10', n: '10回コース', price: 118000, need: 80, tier: 2, sessions: 10, big: true },
-    { k: 'c5',  n: '5回券',      price: 64000, need: 62, tier: 1, sessions: 5, big: true },
+    // 複数の悩みに対応する回数券（その日の悩みに合わせて、まとめてケアする）
+    { k: 'total', n: 'トータルケア20回（顔・体・頭、悩みいくつでも）', price: 480000, need: 104, tier: 3, sessions: 20, big: true, multi: 9, note: 'その日の悩みに合わせて、全身をまとめてケアする' },
+    { k: 'w10', n: 'ダブルケア10回（悩み2つ）', price: 230000, need: 94, tier: 2, sessions: 10, big: true, multi: 2, note: '2つの悩みを、毎回まとめてケアする' },
+    { k: 'c10', n: '10回コース', price: 140000, need: 80, tier: 2, sessions: 10, big: true },
+    { k: 'c5',  n: '5回券',      price: 75000, need: 62, tier: 1, sessions: 5, big: true },
     { k: 'mem', n: '会員（会費は4か月ごと）',   price: FEE,   need: 53, tier: 1, member: true, note: '2か月ごとに来店し、4か月ごとに会費が入る（月あたり換算 ' + yen(FEE / 4) + '）' },
-    { k: 'one', n: '次回の予約（都度払い）', price: 9000, need: 30, tier: 0, booking: true, note: '来月また来店する' }
+    { k: 'one', n: '次回の予約（都度払い）', price: 13000, need: 30, tier: 0, booking: true, note: '来月また来店する' }
   ];
   var PRODUCTS = [
     { k: 'set',   n: 'スキンケアセット', d: '洗顔・化粧水・クリーム', cost: 2200, price: 16500, need: 36, tier: 0, col: '#F08DAE', cap: '#B8466E' },
@@ -2331,8 +2334,8 @@
      できごと（3か月目から、毎月なにかが起こる）
      ========================================================= */
   var VIPITEMS = [
-    { k: 'royal', n: 'ロイヤル年間パス', price: 480000, need: 72, tier: 3, royal: true, big: true, note: '1年間、施術はすべてパスに込み。商品は2割引、VIPルームでおもてなし' },
-    { k: 'plat',  n: 'プラチナ美容液セット', price: 60000, need: 50, tier: 3, prod: true, note: '特別な取り寄せ品' }
+    { k: 'royal', n: 'ロイヤル年間パス', price: 1200000, need: 72, tier: 3, royal: true, big: true, note: '1年ごとの更新。施術はすべてパスに込み。商品は2割引、VIPルームでおもてなし' },
+    { k: 'plat',  n: 'プラチナ美容液セット', price: 88000, need: 50, tier: 3, prod: true, note: '特別な取り寄せ品' }
   ];
   var VIPNAMES = ['白金院', '綾小路', '九重院', '鳳'];
   var EV = {
@@ -2410,7 +2413,7 @@
     var m = pm().mult * opMult() * (S.disc && (it.sessions || it.member) ? 0.8 : 1);
     return m === 1 ? it.price : Math.round(it.price * m / 100) * 100;
   }
-  function needOf(it) { return it.need - (S.week <= (S.rankUntil || 0) && (it.sessions || it.member) ? 8 : 0) - (S.disc && (it.sessions || it.member) ? 12 : 0) - (S.gift && (it.cost || it.prod) ? 15 : 0) + (it.cost || it.prod ? 0 : pm().need); }
+  function needOf(it) { return it.need - (it.multi && C && C.known && C.known.c2 ? 8 : 0) - (S.week <= (S.rankUntil || 0) && (it.sessions || it.member) ? 8 : 0) - (S.disc && (it.sessions || it.member) ? 12 : 0) - (S.gift && (it.cost || it.prod) ? 15 : 0) + (it.cost || it.prod ? 0 : pm().need); }
   function costOf(p) { var c = S.cosme ? Math.round(p.cost * 0.7) : p.cost; return S.sale ? Math.round(c / 2) : c; }
   function rollEvent() {
     S.ev = null; S.evPending = false; S.evNote = ''; S.special = null; S.evStaff = null;
@@ -2477,7 +2480,7 @@
     }
   }
   /* --- 追加のできごと --- */
-  var BRIDAL = { k: 'bridal', n: 'ブライダル集中コース（3回）', price: 54000, need: 42, tier: 0, sessions: 3, big: true, note: '式までに3回の集中ケア' };
+  var BRIDAL = { k: 'bridal', n: 'ブライダル集中コース（3回）', price: 98000, need: 46, tier: 1, sessions: 3, big: true, note: '式までに3回の集中ケア' };
   function staffById(id) { return allStaff().filter(function (x) { return x.id === id; })[0] || null; }
   function clientById(id) { return S.clients.filter(function (c) { return c.id === id; })[0] || null; }
   function notManager(st) { var sh = shopOf(st); return !st.owner && !(sh && sh.staff[0] === st); }
@@ -3976,6 +3979,15 @@
         S.news.push({ good: true, t: '会費（4か月ごと） ' + yen(stay * FEE) + ' が入った（' + stay + '人）。' + (left ? left + '人が退会した。' : '') });
       }
     }
+    // ロイヤル年間パスの更新（12か月ごと）
+    S.clients.forEach(function (c) {
+      if (!c.royal) return;
+      if (c.royalSince === undefined) c.royalSince = S.week;
+      if (S.week === c.royalSince || (S.week - c.royalSince) % 12) return;
+      var rp = VIPITEMS[0].price;
+      if (c.loy >= 35 && roll(0.6 + c.loy / 250)) { S.cash += rp; S.wk.course += rp; S.news.push({ good: true, t: c.name + 'さまが、ロイヤル年間パスを更新した（' + yen(rp) + '）。' }); }
+      else { c.royal = false; c.active = !!(c.plan || c.member || c.booked); S.news.push({ good: false, t: c.name + 'さまは、ロイヤル年間パスを更新しなかった。' }); }
+    });
     S.clients = S.clients.filter(function (c) { return c.active || c.vip || S.week - (c.last || 0) < 24; });
     opEnter();
     S.staff.forEach(function (st) { st.used = 0; });
@@ -4169,7 +4181,7 @@
       Object.keys(MENU).map(function (k) {
         var m = MENU[k], locked = m.need && !S[m.need];
         return { label: m.n, sub: locked ? '設備がないので提供できない' : m.subs.map(function (x) { return SUBMENU[x].n; }).join('・'), off: locked, go: function () { C.menu = k; treatSub(); } };
-      }).concat(C.vipN ? [{ label: 'VIPコースをやめる', go: function () { C.vipN = 0; C.vipSubs = []; treatMenu(); } }] : [2, 3].map(function (n) {
+      }).concat(C.vipN ? [{ label: 'VIPコースをやめる', go: function () { C.vipN = 0; C.vipSubs = []; treatMenu(); } }] : [].map(function (n) {
         return { label: 'VIPコース（' + n + 'か所）　+' + yen(vipAdd(n)), sub: '一度に' + n + 'か所の悩みをケアする', go: function () {
           if (C.budget === 0) { say('me', 'よろしければ、' + n + 'か所まとめてケアするVIPコースもございます。'); say('you', 'ごめんなさい、今日はそこまでは…。', 'bad'); C.vipTried = true; return treatMenu(); }
           C.vipN = n; C.vipSubs = []; say('me', '今日は' + n + 'か所、まとめてケアしていきますね。'); say('you', 'ぜいたく…！ お願いします。', 'good'); treatMenu(); } };
@@ -4251,6 +4263,7 @@
       r = best; r.sat = clamp(r.sat + bonus, 5, 100);
       var add = vipAdd(C.vipN); S.cash += add; S.wk.opt += add; C.revenue += add; C.vipDone = C.vipSubs.indexOf(c2) >= 0;
     }
+    if (C.plan && (courseOf(C.plan.k) || {}).multi) r.sat = clamp(r.sat + 6, 5, 100);
     pressLoad(C.st, press);
     C.sat = r.sat;
     C.log = [];
@@ -4401,7 +4414,7 @@
     else S.wk.course += p;
     if (it.sessions) c.plan = { k: it.k, left: (c.plan ? c.plan.left : 0) + it.sessions, price: p, total: it.sessions };
     if (it.member) c.member = true;
-    if (it.royal) c.royal = true;
+    if (it.royal) { c.royal = true; c.royalSince = S.week; }
     if (it.booking) c.booked = S.week + 1;
     if (it.royal || it.prod) c.vipBuy = true;
     if ((it.sessions || it.member || it.booking || it.royal) && S.clients.indexOf(c) < 0) S.clients.push(c);
@@ -4513,7 +4526,7 @@
     var oils = myOils(), bl = menu === 'aroma' ? (oils.length && C.budget >= 1 && roll(0.6) ? 'my:' + oils[0].k : (S.aromaPro && C.budget >= 2 ? 'premium' : (C.budget >= 1 ? 'season' : 'relax'))) : null;
     C.menu = catOf(menu); C.sub = menu; C.blend = bl;
     var press = (!C.isNew || st.trait === 'listen' || roll(0.25 + 0.1 * sk(st, 'listen') + 0.03 * sk(st, 'emp'))) ? C.pref : pick(Object.keys(PRESS));
-    C.sat = satCalc(menu, press, st, bl).sat; C.missSt = null;
+    C.sat = clamp(satCalc(menu, press, st, bl).sat + (C.plan && (courseOf(C.plan.k) || {}).multi ? 6 : 0), 5, 100); C.missSt = null;
     pressLoad(st, press);
     blendPay(bl);
     reputeBySat();
@@ -5040,7 +5053,7 @@
       var st = next(); expAdd(st, 1);
       if (A.tier !== 'local') r.sales += Math.round(8000 * A.mult);
       if (roll(clamp(0.2 + st.talk * 0.05 + (st.trait === 'shop' ? 0.2 : 0) + keep(st), 0.05, 0.8))) { r.sales += stSale(st, Math.round(pick([3500, 16500, 29400, 6600].concat(S.devFace ? [59800] : []).concat(S.devEms ? [39800] : [])) * A.mult)); r.sold++; }
-      if (!g.mem && g.left === 0 && roll(0.25 + st.talk * 0.05 + keep(st))) { g.left = 5; r.sales += stSale(st, Math.round(64000 * A.mult)); r.sold++; }
+      if (!g.mem && g.left === 0 && roll(0.25 + st.talk * 0.05 + keep(st))) { g.left = 5; r.sales += stSale(st, Math.round(courseOf('c5').price * A.mult)); r.sold++; }
     });
     // 新規
     var fit = fitOf(b.area, b.concept);
@@ -5056,7 +5069,7 @@
       if (st.trait === 'mood') b.rep = clamp(b.rep + 1, 0, 100);
       var p = clamp(0.15 + st.talk * 0.08 + (has(st, 'machine') ? 0.15 : 0) + (sat - 55) / 90 + (st.trait === 'talk' ? 0.1 : 0) + (st.trait === 'push' ? 0.12 : 0) + (S.hum - 30) / 300 + moodBonus(st) / 100, 0.04, 0.85);
       if (!roll(p)) continue;
-      var x = rnd(), it = x < 0.12 ? COURSES[0] : (x < 0.47 ? COURSES[1] : (x < 0.75 ? COURSES[2] : COURSES[3]));
+      var x = rnd(), it = courseOf(x < 0.03 ? 'total' : x < 0.08 ? 'w10' : x < 0.16 ? 'c10' : x < 0.47 ? 'c5' : x < 0.75 ? 'mem' : 'one');
       var v = Math.round(it.price * A.mult * pm().mult);
       if (st.trait === 'push' && it.big && roll(0.2)) { r.refund += 0; b.rep = clamp(b.rep - 3, 0, 100); continue; }
       r.sales += stSale(st, v); r.sold++;
