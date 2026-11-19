@@ -72,6 +72,14 @@
   .ver { margin: 14px 0 0; text-align: center; font-size: .72rem; color: var(--sub); }
   .qlist .si { display: block; margin-top: 2px; font-weight: 400; font-size: .78rem; color: var(--accent); }
   .qlist .who-list { margin: 0 10px 10px; }
+  .epsum { display: grid; gap: 8px; margin: 0 0 10px; }
+  .epsum .es { padding: 8px 12px; background: var(--panel); border: 2px solid var(--line); }
+  .epsum .es b { font-size: .92rem; } .epsum .es small { margin-left: 8px; font-size: .74rem; color: var(--sub); }
+  .epsum .es p { margin: 4px 0 0; font-size: .86rem; line-height: 1.55; }
+  .epsum .es p.l2 { margin-top: 2px; color: var(--sub); }
+  .esfin { display: grid; gap: 8px; margin: 0 0 16px; }
+  .esrep { display: grid; justify-items: end; gap: 8px; }
+  .esrep button { width: auto; max-width: 92%; margin: 0; padding: 9px 14px; text-align: left; border-radius: 18px 18px 4px 18px; border: 2px solid var(--accent); background: var(--panel); color: var(--ink); box-shadow: 2px 2px 0 var(--accent); }
   .tgl { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 10px 12px; }
   .tgl b { display: block; font-size: .95rem; }
   .tgl small { display: block; font-size: .76rem; color: var(--sub); line-height: 1.45; }
@@ -161,7 +169,7 @@
   .stcard .eptag { display: block; margin: -2px 0 4px; font-size: .72rem; font-weight: 700; color: var(--accent); }
   .frbox { margin: 10px 0; padding: 8px 10px; background: var(--chip); border-left: 4px solid var(--gold); }
   .frbox b { display: block; margin-bottom: 4px; font-size: .9rem; }
-  .frbox .optbtn { background: var(--accent); color: var(--accent-ink); text-align: center; margin: 4px 0 8px; }
+  .epbox .optbtn, .frbox .optbtn { background: var(--accent); color: var(--accent-ink); text-align: center; margin: 4px 0 8px; }
   .frbox .optbtn small { color: inherit; opacity: .9; }
   .frbox button { display: block; width: 100%; margin: 4px 0 0; padding: 6px 8px; text-align: left; font-size: .88rem; }
   .stcard .frtag { display: block; margin: -2px 0 4px; font-size: .72rem; color: var(--gold); }
@@ -6169,10 +6177,11 @@
       (S.careNote ? '<div class="news good">' + S.careNote + '</div>' : '') +
       (list.filter(function (x) { return x.wantTalk; }).length ? '<div class="epbox"><b>● 面談を申し出ているスタッフ</b><div class="epbtns">' + list.filter(function (x) { return x.wantTalk; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + 'と面談する<small>' + placeOf(st) + '</small></button>'; }).join('') + '</div></div>' : '') +
       (list.filter(function (x) { return frictionOf(x).length; }).length ? '<div class="frbox"><b>相性が気になるスタッフ</b>' + (S.shops.length ? '<button type="button" class="optbtn" data-opt="1">相性を一括で最適化する<small>スタッフを入れかえて、全体の相性をよくする。指名していた常連さんの満足度は下がる</small></button>' : '') + list.filter(function (x) { return frictionOf(x).length; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + '（' + placeOf(st) + '）<small>' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</small></button>'; }).join('') + '</div>' : '') +
-      (list.filter(epiReady).length ? '<div class="epbox"><b>● 話がありそうなスタッフ</b><div class="epbtns">' + list.filter(epiReady).map(function (st) { return '<button type="button" data-epi="' + st.id + '">' + st.name + 'の話を聞く<small>物語 ' + (epiNext(st).n + 1) + '／3</small></button>'; }).join('') + '</div></div>' : '') +
+      (list.filter(epiReady).length ? '<div class="epbox"><b>● 話がありそうなスタッフ</b>' + (list.filter(epiReady).length >= 2 ? '<button type="button" class="optbtn" data-bulk="1">まとめて話を聞く（' + list.filter(epiReady).length + '人）<small>1・2話はあらすじで進み、最後の言葉だけ選ぶ</small></button>' : '') + '<div class="epbtns">' + list.filter(epiReady).map(function (st) { return '<button type="button" data-epi="' + st.id + '">' + st.name + 'の話を聞く<small>物語 ' + (epiNext(st).n + 1) + '／3</small></button>'; }).join('') + '</div></div>' : '') +
       (list.length ? cards : '<p class="lead">まだスタッフがいない。</p>'),
       partyOpts(list).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
     var ob = document.querySelector('#app [data-opt]'); if (ob) ob.addEventListener('click', function () { SFX.click(); optView(); });
+    var eb = document.querySelector('#app [data-bulk]'); if (eb) eb.addEventListener('click', function () { SFX.click(); S.careNote = ''; epiBulk(); });
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-epi]'), function (bt) {
       bt.addEventListener('click', function () { var st = list.filter(function (x) { return x.id === bt.getAttribute('data-epi'); })[0]; if (st) { SFX.click(); S.careNote = ''; epiView(st); } });
     });
@@ -6786,8 +6795,8 @@
     if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
     var asks = allStaff().filter(function (x) { return !x.owner && x.wantTalk; });
     if (asks.length) T.unshift({ t: '面談の申し出に応える', s: asks.map(function (x) { return x.name; }).slice(0, 3).join('・') + 'が相談したがっている', go: careView });
-    var ready = allStaff().filter(function (x) { return !x.owner && epiReady(x); });
-    if (ready.length) T.unshift({ t: 'スタッフの話を聞く', s: ready.map(function (x) { return x.name; }).slice(0, 3).join('・') + (ready.length > 3 ? 'ほか' : '') + 'が話をしたがっている', go: careView });
+    var ready = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && epiReady(x); });
+    if (ready.length) T.unshift({ t: ready.length >= 2 ? 'スタッフの話をまとめて聞く' : 'スタッフの話を聞く', s: ready.map(function (x) { return x.name; }).slice(0, 3).join('・') + (ready.length > 3 ? 'ほか' : '') + 'が話をしたがっている', go: ready.length >= 2 ? function () { epiBulk(); } : careView });
     T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
     if (P.f >= LIVEMIN) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
     var tg = tGroups().filter(function (g2) { return g2.mem.length; });
@@ -7312,6 +7321,41 @@
   var EPIEND = { mood: 'ありがとうございます…！ これからも、ずっとこのお店で働きたいです。', apt: 'はい…！ いつか店長を任せてもらえるように、がんばります！', tech: 'よろしくお願いします！ 絶対に身につけてみせます！',
     talk: 'お客様の話を聞く力…。はい、意識してみます！', gift: '店長にそう言ってもらえると、どこまでも行ける気がします！', dev: 'やった！ アイデア、ノートにたくさん書いてあるんです！' };
   var EPIFX = { mood: 'やる気+25、信頼+15', apt: '店長適性が上がった', tech: '技術の力が2つ上がった', talk: '接客の力が2つ上がった', gift: '伸びしろが★1つ増えた', dev: '次の商品開発の品質が上がりやすくなった' };
+  function epiApply(st, c) {
+    st.epi = 3; moodUp(st, 8, 5);
+    if (c[1] === 'mood') moodUp(st, 25, 15);
+    if (c[1] === 'apt') st.aptB = (st.aptB || 0) + 1;
+    if (c[1] === 'tech') { skUp(st, 'tech'); skUp(st, 'tech'); }
+    if (c[1] === 'talk') { skUp(st, 'talk'); skUp(st, 'talk'); }
+    if (c[1] === 'gift') { talentOf(st); st.gift = Math.min(5, (st.gift || 3) + 1); }
+    if (c[1] === 'dev') S.devHelp = 1;
+  }
+  // 話がありそうなスタッフの物語を、まとめて聞く。1・2話はあらすじで進み、最後の言葉だけ、この画面で選ぶ
+  function epiBulk(done) {
+    var heard = done || [], list = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner; });
+    if (!done) list.filter(epiReady).forEach(function (st) {
+      var e = epiNext(st);
+      while (e && e.ok && e.n < 2) { var L = epiSet(st)[e.n].filter(function (l) { return l[0] !== 'me'; });
+        heard.push({ id: st.id, name: st.name, n: e.n + 1, lines: L.length > 1 ? [L[0][1], L[L.length - 1][1]] : [L[0] ? L[0][1] : ''] }); st.epi = e.n + 1; moodUp(st, 5, 3); e = epiNext(st); }
+    });
+    var fin = list.filter(function (st) { var e = epiNext(st); return e && e.ok && e.n === 2; });
+    var firstSt = fin[0] || (heard[0] && allStaff().concat(hqStaff()).filter(function (x) { return x.id === heard[0].id; })[0]);
+    evScene(['v_cafe']); if (scene.story && firstSt) scene.story.looks = [staffLook(firstSt)];
+    bar();
+    var h = '<h1>まとめて話を聞く</h1>' + (heard.length ? '<div class="epsum">' + heard.map(function (x) { return '<div class="es"><b>' + x.name + '</b><small>物語 ' + x.n + '／3</small>' + (x.lines ? x.lines.map(function (t, k) { return '<p' + (k ? ' class="l2"' : '') + '>' + (k ? '…' : '') + '「' + t + '」</p>'; }).join('') : '<p>「' + x.t + '」</p>') + '</div>'; }).join('') + '</div>' : '') +
+      (heard.length ? '<p class="lead">話を聞いて、' + heard.length + '話分、仲が深まった（それぞれ、やる気+5・信頼+3）。</p>' : '') +
+      (fin.length ? stepHtml('最後の言葉をかける', fin.length + '人が、大事な話を打ち明けてくれた') + fin.map(function (st) {
+        var E = epiSet(st), line = E[2].filter(function (l) { return l[0] !== 'me'; }).slice(-1)[0];
+        return '<div class="esfin"><div class="say you"><span class="who">' + st.name + '（物語 3／3）</span>' + line[1] + '</div><div class="esrep">' +
+          E[3].map(function (c, j) { return '<button type="button" data-fin="' + st.id + '|' + j + '">' + c[0].replace(/^「|」$/g, '') + '</button>'; }).join('') + '</div></div>';
+      }).join('') : '');
+    view(h, [{ main: true, label: fin.length ? 'あとで話す（スタッフの画面にもどる）' : 'スタッフの画面にもどる', go: function () { evScene([]); careView(); } }]);
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-fin]'), function (bt) { bt.addEventListener('click', function () {
+      var a = bt.getAttribute('data-fin').split('|'), st = allStaff().concat(hqStaff()).filter(function (x) { return x.id === a[0]; })[0]; if (!st) return;
+      var c = epiSet(st)[3][+a[1]]; epiApply(st, c); SFX.fanfare(false);
+      heard.push({ id: st.id, name: st.name, n: 3, t: EPIEND[c[1]] + '　→ ' + EPIUP[c[1]] }); epiBulk(heard);
+    }); });
+  }
   function epiReady(st) { var e = epiNext(st); return !!(e && e.ok); }
   function epiNext(st) { var n = st.epi || 0; return n < 3 ? { n: n, need: EPITH[n], ok: (st.trust || 0) >= EPITH[n] } : null; }
   function epiView(st) {
@@ -7327,13 +7371,7 @@
     }
     view(h + stepHtml('あなたは、どう声をかける？'), E[3].map(function (c) {
       return { label: c[0].replace(/^「|」$/g, ''), go: function () {
-        st.epi = 3; moodUp(st, 8, 5);
-        if (c[1] === 'mood') moodUp(st, 25, 15);
-        if (c[1] === 'apt') st.aptB = (st.aptB || 0) + 1;
-        if (c[1] === 'tech') { skUp(st, 'tech'); skUp(st, 'tech'); }
-        if (c[1] === 'talk') { skUp(st, 'talk'); skUp(st, 'talk'); }
-        if (c[1] === 'gift') { talentOf(st); st.gift = Math.min(5, (st.gift || 3) + 1); }
-        if (c[1] === 'dev') S.devHelp = 1;
+        epiApply(st, c);
         SFX.fanfare(false);
         evScene(['v_growth']); if (scene.story) scene.story.looks = [staffLook(st)];
         bar();
