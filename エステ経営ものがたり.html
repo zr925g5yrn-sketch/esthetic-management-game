@@ -3680,11 +3680,11 @@
   }
   function fundView(note) {
     bar();
-    var L = mlv(), max = 1000000 * (1 + Math.floor(L / 10)), rate = Math.max(0.01, 0.025 - S.rep * 0.0001);
+    var L = mlv(), max = 5000000 * (1 + Math.floor(L / 5)), rate = Math.max(0.01, 0.025 - S.rep * 0.0001);
     view('<h1>資金調達と返済</h1><p class="lead">借入の残り ' + yen(loanRest()) + (S.vc ? '　ベンチャーキャピタルの持ち分 ' + Math.round(S.vc.share * 100) + '%' : '') +
       '<br>銀行から追加で借りられるのは、経営者レベルに応じて最大' + yen(max) + '（いまの金利 年' + (rate * 100).toFixed(1) + '%・5年）。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<ul class="who-list">' + (S.loans || []).map(function (l) { return '<li><span>' + l.n + '</span><span>残り' + yen(l.rest) + (l.grace ? '（元金の返済まであと' + l.grace + 'か月）' : '　あと' + l.left + '回') + '</span></li>'; }).join('') + '</ul>',
-      [1000000, 3000000, 5000000, 10000000].filter(function (a) { return a <= max; }).map(function (a) {
+      [3000000, 5000000, 10000000, 20000000, 30000000, 50000000].filter(function (a) { return a <= max; }).map(function (a) {
         return { label: '銀行から' + yen(a) + '借りる', sub: '年' + (rate * 100).toFixed(1) + '%・60回払い（毎月約' + yen(Math.round(a * (rate / 12) / (1 - Math.pow(1 + rate / 12, -60)) / 1000) * 1000) + '）',
           go: function () { loanAdd('bank', a, rate, 60, 0); SFX.coin(); fundView('銀行から' + yen(a) + 'を借りた。'); } };
       }).concat((S.loans || []).map(function (l) {
@@ -3787,14 +3787,14 @@
   // 本店の場所。地元か、5つの都市から選ぶ
   var PREFS = ['北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県', '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県', '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県', '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'];
   var HOMELOC = {
-    local: { n: '地元', rent: 80000, mult: 0.9, demand: -1, rep: 10, good: '家賃が安い・知り合いが常連になってくれる・評判+10からスタート', bad: '新しいお客様は少なめ・単価は低め' },
-    tokyo: { n: '東京', city: '東京', pref: '東京都', rent: 220000, mult: 1.3, demand: 2, rep: -5, good: 'お客様が多い・単価が高い', bad: '家賃がとても高い・ライバル店が多く、評判−5からスタート' },
-    osaka: { n: '大阪', city: '大阪', pref: '大阪府', rent: 140000, mult: 1.1, demand: 1, rep: 0, area: 'osaka', good: '話好きのお客様が多く、警戒心がほぐれやすい・お客様が多め', bad: '値段にきびしいお客様が多い' },
-    fukuoka: { n: '福岡', city: '福岡', pref: '福岡県', rent: 120000, mult: 1.0, demand: 1, rep: 0, area: 'fukuoka', good: '美容への関心が高い若いお客様が多い・SNSが伸びやすい', bad: '都会ほど高い値段では売れない' },
-    hokkaido: { n: '北海道', city: '札幌', pref: '北海道', rent: 100000, mult: 0.95, demand: 0, rep: 0, area: 'sapporo', good: '家賃が安め・冬（11〜3月）は乾燥ケアのお客様が増える', bad: '夏はお客様が少なめ・単価はやや低め' },
-    okinawa: { n: '沖縄', city: '那覇', pref: '沖縄県', rent: 90000, mult: 1.0, demand: 0, rep: 0, good: '家賃が安い・夏（6〜9月）は観光客でにぎわい、海外のお客様も来る', bad: '夏以外は観光客が減って、お客様が少なめ' }
+    local: { n: '地元', rent: 110000, mult: 0.95, demand: 0, rep: 10, good: '家賃が安い・知り合いが常連になってくれる・評判+10からスタート', bad: '単価はやや低め・大きく伸ばすには支店が必要' },
+    tokyo: { n: '東京', city: '東京', pref: '東京都', rent: 320000, mult: 1.45, demand: 3, rep: -5, good: 'お客様が多い・単価が高い', bad: '家賃がとても高い（開業資金の融資がほぼ必須）・ライバル店が多く、評判−5からスタート' },
+    osaka: { n: '大阪', city: '大阪', pref: '大阪府', rent: 200000, mult: 1.15, demand: 2, rep: 0, area: 'osaka', good: '話好きのお客様が多く、警戒心がほぐれやすい・お客様が多め', bad: '値段にきびしいお客様が多い' },
+    fukuoka: { n: '福岡', city: '福岡', pref: '福岡県', rent: 150000, mult: 1.05, demand: 1, rep: 0, area: 'fukuoka', good: '美容への関心が高い若いお客様が多い・SNSが伸びやすい', bad: '都会ほど高い値段では売れない' },
+    hokkaido: { n: '北海道', city: '札幌', pref: '北海道', rent: 130000, mult: 0.95, demand: 0, rep: 0, area: 'sapporo', good: '家賃が安め・冬（11〜3月）は乾燥ケアのお客様が増える', bad: '夏はお客様が少なめ・単価はやや低め' },
+    okinawa: { n: '沖縄', city: '那覇', pref: '沖縄県', rent: 110000, mult: 1.0, demand: 0, rep: 0, good: '家賃が安い・夏（6〜9月）は観光客でにぎわい、海外のお客様も来る', bad: '夏以外は観光客が減って、お客様が少なめ' }
   };
-  var LEGACYLOC = { n: '本店', rent: 80000, mult: 1, demand: 0, rep: 0 };
+  var LEGACYLOC = { n: '本店', rent: 110000, mult: 1, demand: 0, rep: 0 };
   function homeLoc() { return S && S.home && HOMELOC[S.home.key] ? HOMELOC[S.home.key] : LEGACYLOC; }
   function homeRent() { return homeLoc().rent; }
   function homeCity() { if (!S || !S.home) return ''; var L = HOMELOC[S.home.key]; return L.city || String(S.home.pref || '').replace(/[都府県]$/, '').replace('北海道', '北海道'); }
@@ -4764,15 +4764,16 @@
   };
   // 出店費と家賃：15〜25坪ほどのサロンの相場（出店費は内装・設備・保証金込み）
   var AREAPRICE = {
-    suburb: [4500000, 130000], shotengai: [5000000, 150000], town: [6000000, 180000], station: [8000000, 250000], ekibiru: [9000000, 280000],
-    yokohama: [10000000, 300000], shibuya: [13000000, 380000], omote: [15000000, 420000], shinjuku: [14000000, 400000], ebisu: [14000000, 400000], roppongi: [15000000, 430000], ginza: [18000000, 500000],
-    sapporo: [8000000, 220000], fukuoka: [8500000, 240000], nagoya: [9000000, 260000], osaka: [10000000, 300000], kyoto: [10000000, 280000],
-    taipei: [11000000, 280000], seoul: [13000000, 350000], bangkok: [9000000, 220000], shanghai: [16000000, 420000], singapore: [22000000, 550000], hawaii: [22000000, 520000],
-    london: [26000000, 650000], paris: [25000000, 600000], la: [26000000, 620000], newyork: [30000000, 750000], dubai: [30000000, 700000],
-    cebu: [10000000, 220000], guam: [13000000, 320000], bali: [12000000, 260000], phuket: [12000000, 260000], goldcoast: [18000000, 420000], cancun: [20000000, 480000], santorini: [22000000, 520000], maldives: [35000000, 800000]
+    suburb: [10000000, 200000], shotengai: [11000000, 220000], town: [12000000, 260000], station: [16000000, 380000], ekibiru: [18000000, 420000],
+    yokohama: [20000000, 500000], shibuya: [28000000, 750000], omote: [32000000, 850000], shinjuku: [30000000, 800000], ebisu: [28000000, 700000], roppongi: [32000000, 850000], ginza: [40000000, 1100000],
+    sapporo: [14000000, 300000], fukuoka: [15000000, 350000], nagoya: [16000000, 380000], osaka: [20000000, 480000], kyoto: [18000000, 420000],
+    taipei: [18000000, 400000], seoul: [24000000, 600000], bangkok: [14000000, 300000], shanghai: [30000000, 800000], singapore: [40000000, 1100000], hawaii: [40000000, 1200000],
+    london: [48000000, 1400000], paris: [45000000, 1200000], la: [45000000, 1300000], newyork: [55000000, 1800000], dubai: [55000000, 1500000],
+    cebu: [14000000, 250000], guam: [20000000, 450000], bali: [16000000, 300000], phuket: [16000000, 320000], goldcoast: [28000000, 650000], cancun: [32000000, 750000], santorini: [35000000, 800000], maldives: [60000000, 1500000]
   };
   Object.keys(AREAS).forEach(function (k) { if (AREAPRICE[k]) { AREAS[k].cost = AREAPRICE[k][0]; AREAS[k].rent = AREAPRICE[k][1]; } });
-  var BRSCALE = 1.25;  // 支店は、家賃に見合う客数と単価で営業する
+  var BRSCALE = 1.25;  // 支店は、家賃に見合う客数と単価で営業する（家賃の高い一等地ほど、客単価と客数が多い）
+  function areaRev(A) { return BRSCALE * (1 + Math.max(0, A.rent - 250000) / 1000000); }
   // お店のコンセプト。本店はお客様の悩みや予算・人数が変わる。支店は街に合うと伸びやすい
   var CONCEPTS = {
     relax:  { n: '癒やしのリラクゼーション', d: 'ゆったり癒やされたい人が集まる。ヘッドスパとアロマ、リンパの悩みが多くなる', fav: ['aroma', 'dry', 'scalp', 'lymph'],
@@ -5002,7 +5003,7 @@
     r.inv = 0;
     if (A.peak) { var hi = A.peak.indexOf(monthOf()) >= 0; r.season = hi ? 'ハイシーズン' : 'オフシーズン'; r.sales = Math.round(r.sales * (hi ? 1.45 : 0.75)); }
     if (A.tier === 'world' || A.tier === 'resort') { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
-    if (!b.home) r.sales = Math.round(r.sales * BRSCALE);
+    if (!b.home) r.sales = Math.round(r.sales * areaRev(A));
     mgrEffect(b, r);
     if (!b.home) r.sales = Math.round(r.sales * bossMult());
     r.net = r.sales - r.refund - r.cost;
@@ -5523,7 +5524,7 @@
     }).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
   /* --- 経営戦略：フランチャイズ・M&A・上場 --- */
-  var FCFEE = 1000000, FCROY = 60000;
+  var FCFEE = 2000000, FCROY = 120000;
   function fcQ() { return S.fc ? S.fc.q : 80; }
   function stratMonth() {
     var notes = [], inc = 0;
