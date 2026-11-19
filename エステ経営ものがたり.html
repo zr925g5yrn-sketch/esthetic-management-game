@@ -5226,15 +5226,41 @@
     mentor: { n: '育成家', d: '人を育てる。全スタッフの研修経験値が毎月+2、店長適性も上がりやすい。そのかわり、支店の売上は少し控えめ（−2%）' }
   };
   function boss() { return S && S.hq ? S.boss || null : null; }
-  function bossView(next) {
+  // 社長のスタイルは、いくつかの質問への答えで決まる
+  var BOSSQ = [
+    ['はじめての全社会議。最初に何を話す？', [['会社の夢を、熱く語る', { charisma: 2 }], ['まず、みんなの意見を聞く', { gentle: 2 }], ['今期の数字と目標を示す', { strategist: 2 }], ['最近いらしたお客様の話をする', { field: 2 }]]],
+    ['ある支店の売上が落ちている。どうする？', [['自分が乗りこんで、店に立つ', { field: 2 }], ['店長と、じっくり話をする', { gentle: 1, mentor: 1 }], ['データを分析して、手を打つ', { strategist: 2 }], ['SNSで話題をつくる', { charisma: 2 }]]],
+    ['スタッフが大きなミスをした。', [['「次は大丈夫」と笑顔で励ます', { gentle: 2 }], ['一緒に原因を考えて、教える', { mentor: 2 }], ['二度と起きない仕組みをつくる', { strategist: 2 }], ['自分が代わりに、お客様のもとへ謝りに行く', { field: 2 }]]],
+    ['雑誌の取材で「理想の会社は？」と聞かれた。', [['だれもが憧れるブランド', { charisma: 2 }], ['人が育つ会社', { mentor: 2 }], ['みんなが笑顔で働ける会社', { gentle: 2 }], ['お客様の一番近くにいる会社', { field: 2 }]]],
+    ['新人スタッフが入ってきた。最初にすることは？', [['自分の施術を、目の前で見せる', { field: 1, mentor: 1 }], ['一人ひとりと面談する', { mentor: 2 }], ['会社のビジョンを語って聞かせる', { charisma: 2 }], ['期待する目標を、数字で伝える', { strategist: 2 }]]]
+  ];
+  function bossQuiz(next, i, pts) {
+    i = i || 0; pts = pts || {};
+    if (i >= BOSSQ.length) {
+      var best = -1, cands = [];
+      Object.keys(BOSS).forEach(function (k) { var v = pts[k] || 0; if (v > best) { best = v; cands = [k]; } else if (v === best) cands.push(k); });
+      var k = pick(cands);
+      bar();
+      return view('<h1>社長としてのあなたは…</h1><div class="event box"><span class="badge">社長のスタイル</span><h2>' + BOSS[k].n + '</h2><p>' + BOSS[k].d + '</p></div>',
+        [{ main: true, label: '社長として歩みはじめる', go: function () {
+          var changed = S.boss && S.boss !== k;
+          if (changed) crewAll().forEach(function (x) { moodUp(x, -5, 0); });
+          S.boss = k; SFX.fanfare(true); bar(); next('社長のスタイルは「' + BOSS[k].n + '」。' + (changed ? 'スタッフは少し戸惑っている（全員のやる気−5）。' : ''));
+        } }, { label: 'もう一度、答えなおす', go: function () { bossQuiz(next, 0, {}); } }]);
+    }
+    var q = BOSSQ[i];
     bar();
-    view('<h1>社長のスタイル</h1><p class="lead">どんな社長として会社を引っぱる？ 会社全体に効く。' + (S.boss ? '<br>いまは「' + BOSS[S.boss].n + '」。変えると、スタッフが戸惑う（全員のやる気−5）。' : '') + '</p>',
-      Object.keys(BOSS).map(function (k) {
-        return { label: BOSS[k].n + (S.boss === k ? '（いまのスタイル）' : ''), sub: BOSS[k].d, off: S.boss === k, go: function () {
-          if (S.boss) crewAll().forEach(function (x) { moodUp(x, -5, 0); });
-          S.boss = k; SFX.fanfare(false); bar(); next('社長のスタイルを「' + BOSS[k].n + '」にした。');
-        } };
-      }).concat(S.boss ? [{ main: true, label: 'このままにする', go: function () { next(); } }] : []));
+    view('<h1>社長としての決断　' + (i + 1) + '／' + BOSSQ.length + '</h1><p class="lead">' + (S.ownerName || 'あなた') + '社長に聞きます。</p><div class="talk"><div class="say you">' + q[0] + '</div></div>',
+      shuffle(q[1].slice()).map(function (a) {
+        return { label: a[0], go: function () { Object.keys(a[1]).forEach(function (k) { pts[k] = (pts[k] || 0) + a[1][k]; }); bossQuiz(next, i + 1, pts); } };
+      }));
+  }
+  function bossView(next) {
+    if (!S.boss) return bossQuiz(next);
+    bar();
+    view('<h1>社長のスタイル</h1><div class="event box"><span class="badge">いまのスタイル</span><h2>' + BOSS[S.boss].n + '</h2><p>' + BOSS[S.boss].d + '</p></div>' +
+      '<p class="lead">社長としての考え方を、あらためて見つめなおすこともできる。スタイルが変わると、スタッフが戸惑う（全員のやる気−5）。</p>',
+      [{ label: 'あらためて考える（質問に答える）', go: function () { bossQuiz(next); } }, { main: true, label: 'このままにする', go: function () { next(); } }]);
   }
   function bossMonth() {
     var b = boss(); if (!b) return;
@@ -5269,7 +5295,7 @@
       '<p class="lead">家賃 月' + yen(L.rent) + '　本社のスタッフ ' + hs.length + '／' + L.cap + '人　本店の店長：' + (mgr ? mgr.name : 'なし') +
       '<br>社員 ' + employees() + '人　障害者雇用 ' + have + '人' + (need ? '（必要 ' + need + '人' + (have < need ? '。足りない分、毎月' + yen((need - have) * 50000) + 'の納付金' : '') + '）' : '（社員40人から必要。いまは任意）') + '</p>' +
       '<ul class="who-list">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name + (st.dis ? '♿' : ''); }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul>',
-      [{ label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? BOSS[S.boss].d : 'カリスマ・温和・戦略家・現場主義・育成家から選ぶ', go: function () { bossView(function (n) { hqView(n); }); } },
+      [{ label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? BOSS[S.boss].d : 'いくつかの質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } },
        { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人や、接客が合わない人にも。本社では手を使わないので、痛みも治る', off: hs.length >= L.cap, go: transferHqView },
        { label: '本社で新しく採用する　' + yen(HIRE), sub: '部署を決めて採用する', off: hs.length >= L.cap || S.cash < HIRE, go: function () { hqHireView(false); } },
        { label: '障害のある方を本社で採用する　' + yen(HIRE), sub: '障害者雇用促進法にもとづく雇用。会社の信頼が高まる（人間力+2）', off: hs.length >= L.cap || S.cash < HIRE, go: function () { hqHireView(true); } }]
@@ -6265,7 +6291,7 @@
     var rl = renoLeftList();
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
       T.push(S.renoWeek === S.week ? { t: '内装リニューアル', s: '今月はリニューアルした', done: true } : { t: '内装をリニューアルする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
-    if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'カリスマ・温和・戦略家・現場主義・育成家', go: function () { bossView(function () { investView(); }); } });
+    if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
     var ready = allStaff().filter(function (x) { return !x.owner && epiReady(x); });
     if (ready.length) T.unshift({ t: 'スタッフの話を聞く', s: ready.map(function (x) { return x.name; }).slice(0, 3).join('・') + (ready.length > 3 ? 'ほか' : '') + 'が話をしたがっている', go: careView });
     T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
