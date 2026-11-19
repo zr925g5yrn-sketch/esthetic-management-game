@@ -107,6 +107,9 @@
   .talk { margin-top: 10px; display: grid; gap: 6px; }
   .say { max-width: 90%; padding: 6px 10px; font-size: .9rem; line-height: 1.5; border: 2px solid var(--ink); }
   .say.me { justify-self: end; background: var(--ink); color: var(--bg); }
+  .opts.replies { justify-items: end; gap: 10px; }
+  .opts.replies button { width: auto; max-width: 92%; padding: 10px 16px; text-align: left; border-radius: 18px 18px 4px 18px; border: 2px solid var(--accent); background: var(--panel); color: var(--ink); box-shadow: 2px 2px 0 var(--accent); }
+  .opts.replies button b { font-weight: 400; }
   .say.you { justify-self: start; background: var(--panel); }
   .dotbar { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; padding: 6px 10px; background: var(--ink); color: var(--bg); font-size: .9rem; }
   .dotbar b { font-size: 1.05rem; letter-spacing: .04em; }
@@ -3565,7 +3568,7 @@
       salon(); R(8, 18, 112, 2, '#B8866A'); R(8, 34, 112, 2, '#B8866A');
       for (i = 0; i < 10; i++) { var gx = 10 + i * 11, gc = ['#E0567A', '#5AA9E6', '#F2C230', '#7FC49A', '#B48CFF'][i % 5]; R(gx, 10 + (i % 2) * 2, 8, 8 - (i % 2) * 2, gc); R(gx + 3, 10 + (i % 2) * 2, 2, 8 - (i % 2) * 2, '#FFFFFF'); R(gx, 26, 8, 8, gc); R(gx, 29, 8, 2, '#FFFFFF'); }
       table(36, 56, 56); R(54, 48, 14, 8, '#E0567A'); R(60, 48, 2, 8, '#F2C230'); R(56, 46, 10, 2, '#F2C230');
-      big(meU, 12, 34, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 }); big(tm(0), 96, 34, 2, { face: 'smile' });
+      big(meU, 12, 34, 2, { face: 'smile', arms: (Math.floor(t * 2) % 2) === 0 }); big(scene.story.looks && scene.story.looks[0] ? scene.story.looks[0] : tm(0), 96, 34, 2, { face: 'smile' });
       floaty('coin', 40, 40, now, 0, 1); floaty('heart', 84, 36, now, 0.6, 1);
     } else if (k === 'v_cafe' || k === 'v_talk' || k === 'v_date') {
       var cafe = k !== 'v_talk', night2 = k === 'v_date';
@@ -6214,12 +6217,16 @@
     if (groups.length > 1) out.unshift(opt('全店合同の食事会を開く', list, groups.map(function (g2) { return g2.key; }).concat(['all']), '全店合同の食事会で、お店をこえて仲よくなった。みんなの笑顔が増えた。'));
     return out;
   }
-  function careStaff(st, note) {
+  function careStaff(st, note, pic) {
     bar();
+    if (note) {
+      if (pic !== 'keep') { evScene([pic || 'v_cafe']); if (scene.story) scene.story.looks = [staffLook(st)]; }
+      return view('<h1>' + st.name + 'と過ごす</h1><div class="news good">' + note + '</div>', [{ main: true, label: 'つづける', go: function () { evScene([]); careStaff(st); } }]);
+    }
     var used = st.careWeek === S.week, talked = st.talkWeek === S.week;
-    var act = function (cost, m, t, msg, extra) {
+    var act = function (cost, m, t, msg, extra, pic) {
       return function () { var m0 = Math.round(st.mot || 0), t0 = Math.round(st.trust || 0); if (cost) pay(cost); moodUp(st, m, t); if (extra) extra(); if (m) st.careWeek = S.week; else st.talkWeek = S.week; SFX.good();
-        var dm = Math.round(st.mot) - m0, dt = Math.round(st.trust) - t0; careStaff(st, msg + '（' + [dm ? 'やる気' + (dm > 0 ? '+' : '') + dm : '', dt ? '信頼' + (dt > 0 ? '+' : '') + dt : ''].filter(Boolean).join('、') + '）'); };
+        var dm = Math.round(st.mot) - m0, dt = Math.round(st.trust) - t0; careStaff(st, msg + '（' + [dm ? 'やる気' + (dm > 0 ? '+' : '') + dm : '', dt ? '信頼' + (dt > 0 ? '+' : '') + dt : ''].filter(Boolean).join('、') + '）', pic); };
     };
     view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + careStaffInfo(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="prof">気質：' + TEMPER[temperOf(st)].n + '　口ぐせ「' + KUSE[temperOf(st)] + '」<br>趣味：' + profOf(st).hobby + '　好きな食べ物：' + profOf(st).food + '<br>夢：' + ((st.epi || 0) >= 1 ? DREAMS[profOf(st).dream] : '？（もっと仲良くなると話してくれる）') +
@@ -6231,11 +6238,11 @@
         return e.ok ? { main: true, label: '● ' + st.name + 'の話を聞く（物語 ' + (e.n + 1) + '／3）', sub: '打ち明け話をしてくれそう', go: function () { epiView(st); } }
           : { label: st.name + 'の物語 ' + (e.n + 1) + '／3', sub: '信頼' + e.need + 'で話してくれる（いま' + Math.round(st.trust || 0) + '）。面談で信頼が上がる', off: true, go: function () {} }; })(),
        { label: 'ご飯に誘う　' + yen(8000), sub: used ? '今月はもう、ごほうびをあげた' : '', off: used || S.cash < 8000,
-         go: act(8000, 15, 0, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。']), function () { dinnerScene([st]); }) },
+         go: act(8000, 15, 0, pick(['焼き肉に連れて行った。「店長、また行きましょうね！」', 'イタリアンで仕事の夢を語り合った。', '定食屋で、好きな施術の話で盛り上がった。']), function () { dinnerScene([st]); }, 'keep') },
        { label: '面談する', sub: talked ? '今月はもう面談した' : 'じっくり話を聞く', off: talked,
          go: act(0, 0, 10, pick(['悩みを打ち明けてくれた。少し距離が縮まった。', '目標を聞いた。「いつか自分の店を持ちたいんです」', 'お客様への思いを聞いた。頼もしくなってきた。'])) },
        { label: 'ボーナスを渡す　' + yen(20000), sub: used ? '今月はもう、ごほうびをあげた' : '', off: used || S.cash < 20000,
-         go: act(20000, 25, 0, '「えっ、いいんですか！ がんばります！」') },
+         go: act(20000, 25, 0, '「えっ、いいんですか！ がんばります！」', null, 'v_gift') },
        { label: '来月は休みをあげる', sub: '来月は接客しない' + (used ? '（今月はもう、ごほうびをあげた）' : ''), off: used,
          go: act(0, 20, 0, '「ありがとうございます、リフレッシュしてきます」', function () { st.restWeek = S.week + 1; }) },
        hqStaff().indexOf(st) >= 0 ? { label: '部署を変える・店舗に戻す', sub: DEPT[st.dept] ? 'いまは' + DEPT[st.dept].n : '', go: function () { hqStaffView(st); } } : promoOpt(st), hqStaff().indexOf(st) >= 0 ? null : mgrOpt(st),
@@ -7110,7 +7117,8 @@
       fit: ['このお店のやり方が、どうも自分に合っていない気がして…。', '自分らしく働ける場所が、ほかにあるのかなって。'],
       tired: ['最近、ずっと疲れが取れなくて…。', 'このままだと、続けられるか自信がないです。']
     }[why];
-    var finish = function (msg, m, t) { st.wantTalk = 0; st.wantWhy = null; st.gripe = 0; st.talkWeek = S.week; moodUp(st, m, t); SFX.good(); careStaff(st, msg); };
+    var finish = function (msg, m, t) { st.wantTalk = 0; st.wantWhy = null; st.gripe = 0; st.talkWeek = S.week; var m0 = Math.round(st.mot || 0), t0 = Math.round(st.trust || 0); moodUp(st, m, t); SFX.good();
+      var dm = Math.round(st.mot) - m0, dt = Math.round(st.trust) - t0; careStaff(st, msg + ((dm || dt) ? '（' + [dm ? 'やる気' + (dm > 0 ? '+' : '') + dm : '', dt ? '信頼' + (dt > 0 ? '+' : '') + dt : ''].filter(Boolean).join('、') + '）' : ''), 'v_cafe'); };
     var ch = {
       rival: [{ label: 'ふたりの間に入って、話し合いの場をつくる', go: function () { if (rv) moodUp(rv, 5, 3); finish('3人で話し合った。わだかまりが、少しほどけた。', 12, 8); } },
         { label: '別の店舗への異動を考える', go: function () { st.wantTalk = 0; st.wantWhy = null; st.gripe = 0; st.talkWeek = S.week; moodUp(st, 8, 5); moveView(st); } }],
@@ -7120,7 +7128,8 @@
         { label: 'じっくり話を聞く', go: function () { finish('ひとしきり話したら、すっきりした顔になった。', 10, 10); } }]
     }[why];
     bar();
-    view('<h1>' + st.name + 'との面談</h1><div class="talk">' + L.map(function (t) { return '<div class="say you"><span class="who">' + st.name + '</span>' + t + '</div>'; }).join('') + '</div>', ch);
+    evScene(['v_talk']); if (scene.story) scene.story.looks = [staffLook(st)];
+    view('<h1>' + st.name + 'との面談</h1><div class="talk">' + L.map(function (t) { return '<div class="say you"><span class="who">' + st.name + '</span>' + t + '</div>'; }).join('') + '</div>' + stepHtml('どうする？'), ch);
   }
   // 店長の適性（★1〜5）と、その理由
   var MGRTYPE = {
@@ -7217,8 +7226,8 @@
       return view(h, [{ main: true, label: more ? 'うなずいて、続きを聞く（' + (e.n + 2) + '／3）' : 'うなずく', go: function () { st.epi = e.n + 1; moodUp(st, 5, 3); SFX.good(); if (more) epiView(st); else careStaff(st, st.name + 'のことが、少しわかった気がする。（続きは信頼' + EPITH[e.n + 1] + 'で）'); } }]
         .concat(more ? [{ label: 'ここまでにする', go: function () { st.epi = e.n + 1; moodUp(st, 5, 3); careStaff(st, st.name + 'のことが、少しわかった気がする。'); } }] : []));
     }
-    view(h, E[3].map(function (c) {
-      return { label: c[0], go: function () {
+    view(h + stepHtml('あなたは、どう声をかける？'), E[3].map(function (c) {
+      return { label: c[0].replace(/^「|」$/g, ''), go: function () {
         st.epi = 3; moodUp(st, 8, 5);
         if (c[1] === 'mood') moodUp(st, 25, 15);
         if (c[1] === 'apt') st.aptB = (st.aptB || 0) + 1;
@@ -7233,7 +7242,7 @@
           '<div class="event box"><span class="badge">成長</span><h2>' + st.name + 'の' + EPIUP[c[1]] + '</h2></div>',
           [{ main: true, label: st.name + 'の画面にもどる', go: function () { evScene([]); careStaff(st); } }]);
       } };
-    }));
+    }), 'replies');
   }
   // 店長を任命・交代する
   function mgrOpt(st) {
