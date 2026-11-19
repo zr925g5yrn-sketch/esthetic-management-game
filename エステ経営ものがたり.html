@@ -5939,16 +5939,44 @@
     var from = shopOf(st), list = [null].concat(S.shops).filter(function (sh) { return sh !== from; });
     var lastOne = from && from.staff.length <= 1;
     view('<h1>' + st.name + 'を移す</h1><p class="lead">気質：' + TEMPER[temperOf(st)].n + '。いまは' + (from ? from.name : '本店') + '（' + fitMark(shopFit(st, from)) + '）。' +
-      (lastOne ? '<br>この店のスタッフは' + st.name + 'だけなので、移すと店を開けられなくなる。' : '') + '</p>',
+      (lastOne ? '<br>この店のスタッフは' + st.name + 'だけなので、移すと店を開けられなくなる。' : '') + '<br>空きがない店舗には、そこのスタッフと入れかえ（トレード）で移せる。</p>',
       list.map(function (sh) {
         var room = (sh ? sh.staff : S.staff).length < maxOf(sh), f = shopFit(st, sh), c = sh ? sh.concept : S.concept;
-        return { label: (sh ? sh.name : '本店') + 'へ移す　' + fitMark(f), sub: (c && CONCEPTS[c] ? CONCEPTS[c].n + '　' : '') + (room ? 'スタッフ ' + (sh ? sh.staff : S.staff).length + '人' : 'もう雇える人数がいっぱい'),
-          off: !room || lastOne, go: function () {
+        if (!room) return { label: (sh ? sh.name : '本店') + 'のスタッフとトレードする　' + fitMark(f), sub: (c && CONCEPTS[c] ? CONCEPTS[c].n + '　' : '') + '空きがないので、入れかえる相手を選ぶ', go: function () { tradeView(st, sh); } };
+        return { label: (sh ? sh.name : '本店') + 'へ移す　' + fitMark(f), sub: (c && CONCEPTS[c] ? CONCEPTS[c].n + '　' : '') + 'スタッフ ' + (sh ? sh.staff : S.staff).length + '人',
+          off: lastOne, go: function () {
             var src = from ? from.staff : S.staff; src.splice(src.indexOf(st), 1); (sh ? sh.staff : S.staff).push(st);
             moodUp(st, f > shopFit(st, from) ? 10 : f < shopFit(st, from) ? -8 : 0, 0); SFX.hire();
-            careStaff(st, st.name + 'が' + (sh ? sh.name : '本店') + 'に移った。' + (f > 0 ? '「ここ、すごく合ってる気がします！」' : f < 0 ? '「…慣れるまで、少しかかりそうです」' : '「よろしくお願いします」'));
+            careStaff(st, st.name + 'が' + (sh ? sh.name : '本店') + 'に移った。' + moveLine(f));
           } };
       }).concat([{ main: true, label: 'もどる', go: function () { careStaff(st); } }]));
+  }
+  function moveLine(f) { return f > 0 ? '「ここ、すごく合ってる気がします！」' : f < 0 ? '「…慣れるまで、少しかかりそうです」' : '「よろしくお願いします」'; }
+  // その店に入ったら、ライバルと一緒になるか
+  function rivalAt(st, sh, without) { return (sh ? sh.staff : S.staff).filter(function (x) { return x !== without && relOf(st, x) === 'rival'; }).map(function (x) { return x.name; }); }
+  // トレード：相手の店のスタッフと入れかえる。おたがいの相性を確かめて選ぶ
+  function tradeView(st, sh) {
+    bar();
+    var from = shopOf(st), fromN = from ? from.name : '本店', toN = sh ? sh.name : '本店', dst = sh ? sh.staff : S.staff, src = from ? from.staff : S.staff;
+    var f1 = shopFit(st, from), f2 = shopFit(st, sh), r1 = rivalAt(st, sh, null);
+    var cand = dst.filter(function (x) { return !x.owner; });
+    view('<h1>' + toN + 'とトレード</h1><div class="prof"><b>' + st.name + '（' + TEMPER[temperOf(st)].n + '）</b><br>' + fromN + '：' + fitMark(f1) + '　→　' + toN + '：' + fitMark(f2) +
+      (r1.length ? '<br>△ 移った先に、ライバルの' + r1.join('・') + 'がいる' : '') + '</div><p class="lead">入れかえる相手を選ぶ。相手は' + fromN + 'に移る。</p>',
+      cand.map(function (x) {
+        var g1 = shopFit(x, sh), g2 = shopFit(x, from), r2 = rivalAt(x, from, st), mg = dst[0] === x && sh, warn = [];
+        if (r2.length) warn.push('移った先にライバルの' + r2.join('・') + 'がいる');
+        if (mg) warn.push('この店の店長。入れかえると' + st.name + 'が店長になる');
+        if (x.leader) warn.push('リーダー');
+        if (from && src[0] === st) warn.push(x.name + 'が' + fromN + 'の店長になる');
+        var better = (f2 - f1) + (g2 - g1);
+        return { label: x.name + '（' + TEMPER[temperOf(x)].n + '）と入れかえる', sub: toN + '：' + fitMark(g1) + ' → ' + fromN + '：' + fitMark(g2) + (warn.length ? '　△' + warn.join('・') : '') + '　（ふたり合わせて' + (better > 0 ? 'よくなる' : better < 0 ? '悪くなる' : '変わらない') + '）',
+          go: function () {
+            var i = src.indexOf(st), j = dst.indexOf(x); src[i] = x; dst[j] = st;
+            if (mg) { x.leader = false; } if (st.leader) st.leader = false;
+            moodUp(st, f2 > f1 ? 10 : f2 < f1 ? -8 : 0, 0); moodUp(x, g2 > g1 ? 10 : g2 < g1 ? -8 : 0, 0); SFX.hire();
+            careStaff(st, st.name + 'と' + x.name + 'を入れかえた。' + st.name + moveLine(f2) + '　' + x.name + moveLine(g2));
+          } };
+      }).concat([{ main: true, label: 'もどる', go: function () { moveView(st); } }]));
   }
   function careStaffInfo(st) { return '　お店との相性：' + fitMark(shopFit(st, shopOf(st))) + (hurt(st) ? '　手を痛めている（あと' + (st.hurtUntil - S.week) + 'か月）' : ''); }
   function promoOpt(st) {
