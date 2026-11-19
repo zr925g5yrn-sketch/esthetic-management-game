@@ -4885,7 +4885,7 @@
     cebu: [14000000, 250000], guam: [20000000, 450000], bali: [16000000, 300000], phuket: [16000000, 320000], goldcoast: [28000000, 650000], cancun: [32000000, 750000], santorini: [35000000, 800000], maldives: [60000000, 1500000]
   };
   Object.keys(AREAS).forEach(function (k) { if (AREAPRICE[k]) { AREAS[k].cost = AREAPRICE[k][0]; AREAS[k].rent = AREAPRICE[k][1]; } });
-  // 広さ（坪）と、内装リニューアル前のスタッフの上限
+  // 広さ（坪）と、内装アップデート前のスタッフの上限
   var AREASIZE = {
     suburb: [20, 4], shotengai: [18, 4], town: [22, 5], station: [25, 6], ekibiru: [25, 6],
     yokohama: [28, 6], shibuya: [30, 7], omote: [30, 7], shinjuku: [32, 7], ebisu: [28, 6], roppongi: [32, 7], ginza: [35, 8],
@@ -5791,8 +5791,10 @@
     var P = snsFix(), k = deptN('online'), n = Math.round((P.f * 0.0006 + S.rep * 0.03) * (0.7 + P.mix.ig) * (S.snsProd === S.week ? 1.5 : 1) * (1 + 0.5 * k) * (0.7 + rnd() * 0.6));
     return sellOnline(n, false, k ? 0.95 : 0.9);
   }
-  function renoLeftList() { return [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; }); }
-  // まとめてリニューアル：to が null なら全店1段階ずつ、数字ならその段階まで。来月の家賃と給与は残す
+  // オープンから3か月は、内装のアップデートはできない（本店は開業した月から数える）
+  function renoWait(sh) { var o = sh ? (sh.opened || 0) : 1; return Math.max(0, 3 - (S.week - o)); }
+  function renoLeftList() { return [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && !renoWait(sh); }); }
+  // まとめてアップデート：to が null なら全店1段階ずつ、数字ならその段階まで。来月の家賃と給与は残す
   function renoPlan(to) {
     var steps = [];
     renoLeftList().forEach(function (sh) {
@@ -5812,11 +5814,11 @@
       else { S.interiorLv = t.lv + 1; S.interior = true; S.rep = clamp(S.rep + 5, 0, 100); }
       names[t.sh ? t.sh.name : '本店'] = true; if (renoShops.indexOf(t.sh || 'home') < 0) renoShops.push(t.sh || 'home');
     });
-    if (!done) return renoView('来月の家賃と給与（' + yen(keep) + '）を残すと、リニューアルするお金がなかった。');
+    if (!done) return renoView('来月の家賃と給与（' + yen(keep) + '）を残すと、アップデートするお金がなかった。');
     SFX.hire();
     evScene(['v_reno']); if (scene.story) { scene.story.shops = renoShops; scene.story.t0 = performance.now(); }
-    showCut({ kicker: 'まとめてリニューアル', title: Object.keys(names).length + '店舗を改装', sub: done + '回分　' + yen(spent), icon: 'star', c1: '#7FC8E8', c2: '#62B2D6', sound: function () { SFX.fanfare(true); } },
-      function () { renoView(Object.keys(names).join('・') + 'をリニューアルした（' + done + '回分、' + yen(spent) + '）。' + (renoPlan(to).length ? '来月の家賃と給与は残して、残りは見送った。' : '')); });
+    showCut({ kicker: 'まとめてアップデート', title: Object.keys(names).length + '店舗の内装をアップデート', sub: done + '回分　' + yen(spent), icon: 'star', c1: '#7FC8E8', c2: '#62B2D6', sound: function () { SFX.fanfare(true); } },
+      function () { renoView(Object.keys(names).join('・') + 'をアップデートした（' + done + '回分、' + yen(spent) + '）。' + (renoPlan(to).length ? '来月の家賃と給与は残して、残りは見送った。' : '')); });
   }
   function renoView(note) {
     bar();
@@ -5827,11 +5829,13 @@
       bulk.push({ label: '全店舗を1段階ずつ上げる　' + yen(c1), sub: p1.length + '店舗。お金が足りなければ、安い順にできるだけ（来月の家賃と給与は残す）', off: S.cash - homeRent() - wages() < p1.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(null); } });
       bulk.push({ label: '全店舗を最上級まで上げる　' + yen(c3), sub: p3.length + '回分。お金が足りなければ、低い段階から順にできるだけ', off: S.cash - homeRent() - wages() < p3.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(MAXINT); } });
     }
-    view('<h1>内装リニューアル</h1><p class="lead">1段階ごとに満足度と評判が上がり、スタッフをもう1人雇える。都心は2倍、海外は3倍の費用がかかる。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
+    view('<h1>内装のアップデート</h1><p class="lead">1段階ごとに満足度と評判が上がり、スタッフをもう1人雇える。都心は2倍、海外は3倍の費用がかかる。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       bulk.concat(left.map(function (sh) {
         var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0), c2 = renoCost(sh);
         return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + lv + '／' + MAXINT + '）　' + yen(c2), sub: 'いま最大' + maxOf(sh) + '人', off: S.cash < c2, go: function () { renovate(sh, function () { renoView((sh ? sh.name : '本店') + 'を' + (lv + 1) + '段階目にした。'); }); } };
-      })).concat(left.length ? [] : [{ label: 'すべての店舗が最上級', off: true, go: function () {} }]).concat([{ main: true, label: 'もどる', go: investView }]));
+      })).concat([null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && renoWait(sh); }).map(function (sh) {
+        return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT + '）', sub: 'オープンから3か月は、アップデートできない（あと' + renoWait(sh) + 'か月）', off: true, go: function () {} };
+      })).concat(left.length || [null].concat(S.shops).some(renoWait) ? [] : [{ label: 'すべての店舗が最上級', off: true, go: function () {} }]).concat([{ main: true, label: 'もどる', go: investView }]));
   }
 
   /* =========================================================
@@ -6053,7 +6057,7 @@
     else { S.interiorLv = lv + 1; S.interior = true; S.rep = clamp(S.rep + 5, 0, 100); }
     SFX.hire();
     evScene(['v_reno']); if (scene.story) { scene.story.shops = [sh || 'home']; scene.story.t0 = performance.now(); }
-    showCut({ kicker: 'リニューアル', title: (sh ? sh.name : '本店') + 'の内装 ' + (lv + 1) + '段階目', sub: 'スタッフをもう1人雇えるようになった',
+    showCut({ kicker: 'アップデート', title: (sh ? sh.name : '本店') + 'の内装 ' + (lv + 1) + '段階目', sub: 'スタッフをもう1人雇えるようになった',
       icon: 'star', c1: '#7FC8E8', c2: '#62B2D6', sound: function () { SFX.fanfare(true); } }, then || investView);
   }
   function moodUp(st, m, t) { st.mot = clamp((st.mot || 0) + m, 0, 100); st.trust = clamp((st.trust || 0) + t, 0, 100); }
@@ -6574,7 +6578,7 @@
     if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: '近所・都心・海外。いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); } });
     opts = opts.concat(phOpts());
     var renoLeft = [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; });
-    if (renoLeft.length) opts.push({ label: '内装リニューアル', sub: renoLeft.map(function (sh) { return (sh ? sh.name : '本店') + (sh ? sh.interiorLv || 0 : S.interiorLv || 0); }).join(' ').slice(0, 60) + '　満足度と評判、雇える人数が上がる', go: renoView });
+    if (renoLeft.length) opts.push({ label: '内装のアップデート', sub: renoLeft.map(function (sh) { return (sh ? sh.name : '本店') + (sh ? sh.interiorLv || 0 : S.interiorLv || 0); }).join(' ').slice(0, 60) + '　満足度と評判、雇える人数が上がる', go: renoView });
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (team.length) { team.forEach(moodFix); var low = team.filter(function (st) { return st.mot < 30; }).length;
       opts.splice(4, 0, { label: 'スタッフと過ごす', sub: low ? 'やる気が落ちている人が' + low + '人いる' : 'ご飯に誘う、面談、ボーナス、休み', go: careView }); }
@@ -6773,7 +6777,7 @@
     if (S.odot && S.odot.length && !S.odot.every(function (m) { return m.ai; })) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
     var rl = renoLeftList();
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
-      T.push(S.renoWeek === S.week ? { t: '内装リニューアル', s: '今月はリニューアルした', done: true } : { t: '内装をリニューアルする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
+      T.push(S.renoWeek === S.week ? { t: '内装のアップデート', s: '今月はアップデートした', done: true } : { t: '内装をアップデートする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
     if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
     var asks = allStaff().filter(function (x) { return !x.owner && x.wantTalk; });
     if (asks.length) T.unshift({ t: '面談の申し出に応える', s: asks.map(function (x) { return x.name; }).slice(0, 3).join('・') + 'が相談したがっている', go: careView });
