@@ -60,6 +60,7 @@
   .bar .money { text-align: right; font-size: 1.12rem; font-variant-numeric: tabular-nums; }
   .bar .money.minus { color: var(--accent); }
   .bar .sub { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; font-size: .78rem; color: var(--sub); }
+  #app .trw { margin: 16px 0 6px; font-size: 1rem; }
   .bar .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .bar .top .brand { min-width: 0; }
   .bar .ttl { font: inherit; font-size: .72rem; margin: 0; padding: 1px 8px; min-height: 24px; width: auto; cursor: pointer; flex: none; background: transparent; color: var(--sub); border: 1px solid var(--line); box-shadow: none; }
@@ -6450,7 +6451,7 @@
     if (S.cash < -200000) return view(h + '<div class="news bad">資金が尽きた。これ以上は続けられない。</div>', [{ main: true, label: '結果を見る', go: result }]);
     if (S.week >= WEEKS && !S.endless) return view(h, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
     h += staffHtml();
-    var TK = monthTasks(); h = shopSwitch() + earlyTip() + taskBox(TK) + h;
+    var TK = monthTasks(); h = shopSwitch() + (S.trainNote ? '<div class="news good">' + S.trainNote + '</div>' : '') + earlyTip() + taskBox(TK) + h; S.trainNote = null;
     var opts = [
       { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
       { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
@@ -7215,14 +7216,17 @@
     bar();
     var gs = tGroups(), todo = gs.filter(function (g2) { return g2.mem.length && !tDone(g2.key); });
     var allCost = todo.reduce(function (a, g2) { return a + tPlan(g2, tBest(g2)).cost; }, 0);
-    view('<h1>研修（店舗ごと）</h1><p class="lead">スタッフには<b>気質</b>があり、教え方との相性で得られる経験値が変わる（◎40 ○30 △20 ×10）。経験値がたまると<b>自動で力が1上がる</b>。上のレベルほど多く要る（' + [1, 2, 3, 4].map(function (v) { return v + '→' + (v + 1) + 'は' + TLV[v]; }).join('、') + '）。' +
+    view('<h1>研修（店舗ごと）</h1><p class="lead">研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。</p><details class="fold"><summary>研修のしくみ</summary><p class="lead">スタッフには<b>気質</b>があり、教え方との相性で得られる経験値が変わる（◎40 ○30 △20 ×10）。経験値がたまると<b>自動で力が1上がる</b>。上のレベルほど多く要る（' + [1, 2, 3, 4].map(function (v) { return v + '→' + (v + 1) + 'は' + TLV[v]; }).join('、') + '）。' +
       'スタッフごとに<b>伸びしろ</b>（経験値の入り方）と<b>得意・苦手な力</b>がある。得意な力は早く、苦手な力はゆっくり伸びる。' +
       '研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。費用は1人' + yen(2 * TCOST[1]) + '〜' + yen(2 * TCOST[4] + 2 * TCOST5) + '（いちばん低い力のレベルで決まる）。経験値は新人1.2倍、ベテラン0.8倍、センス◯の人は2倍。' +
-      '6つの力がすべて5になったら、研修（経験値' + TGOD + 'で1）と自主練習で神技・神対応へ近づく（' + GODNEED + 'ポイント）。自主練習は、得意な系統か伸びしろ★4以上なら毎月、ほかは3か月に1回。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
+      '6つの力がすべて5になったら、研修（経験値' + TGOD + 'で1）と自主練習で神技・神対応へ近づく（' + GODNEED + 'ポイント）。自主練習は、得意な系統か伸びしろ★4以上なら毎月、ほかは3か月に1回。</p></details>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       (gs.length > 1 ? [{ label: '全店舗で研修する（店ごとにいちばん合う教え方）　' + (allCost ? yen(allCost) : ''), sub: todo.length ? todo.length + '店舗。' + (S.cash < allCost ? 'お金が足りない' : '店舗ごとの教え方は、気質に合う人がいちばん多いもの') : '今月はすべての店舗で研修ずみ',
         off: !todo.length || S.cash < allCost, go: function () {
           var lines = []; todo.forEach(function (g2) { var m = tBest(g2), pl = tPlan(g2, m); pay(pl.cost); lines.push('<b>' + g2.name + '</b>（' + TMETH[m].n + '）'); lines = lines.concat(tRun(g2, m)); });
-          SFX.hire(); if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), function () { trainView(lines.join('<br>')); }); trainView(lines.join('<br>')); } }] : [])
+          var ups = lines.filter(function (l) { return /に上がった|が進んだ/.test(l); }).map(function (l) { return l.replace(/（[^）]*）経験値\+\d+　→ /, '：'); });
+          S.trainNote = todo.length + '店舗で研修した。' + (ups.length ? '<br>' + ups.join('<br>') : '');
+          var back = function () { investView(); window.scrollTo(0, 0); };
+          SFX.hire(); if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), back); back(); } }] : [])
       .concat(gs.map(function (g2) {
         var d = tDone(g2.key), m = g2.mem.length ? tBest(g2) : null, pl = m ? tPlan(g2, m) : null;
         return { grp: regionOf(g2.sh), label: g2.name + 'の研修　' + g2.mem.length + '人', sub: !g2.mem.length ? '研修できるスタッフがいない' : d ? '今月は研修ずみ' : 'おすすめ：' + TMETH[m].n + '（◎' + pl.cnt['◎'] + '人）　' + yen(pl.cost),
@@ -7232,9 +7236,9 @@
   function shopTrain(key, note) {
     bar();
     var g2 = tGroups().filter(function (x) { return x.key === key; })[0], d = tDone(key);
-    var list = '<ul class="who-list">' + g2.mem.map(function (st) { var t = TEMPER[temperOf(st)];
+    var list = '<h2 class="trw">研修を受けるスタッフ（' + g2.mem.length + '人）</h2><ul class="who-list">' + g2.mem.map(function (st) { var t = TEMPER[temperOf(st)];
       return '<li><span>' + whoName(st) + '<br><small>' + t.n + '：' + t.d + '<br>' + talentText(st) + '</small></span><span>' + statText(st) + '<br>経験値 ' + (st.tx || 0) + '／' + tNext(st) + godLine(st) + '</span></li>'; }).join('') + '</ul>';
-    view('<h1>' + g2.name + 'の研修</h1><p class="lead">全員に同じ教え方で研修する。気質に合うほど経験値が多い。' + (d ? '<br><b>今月はもう研修した。</b>' : '') + '</p>' + (note ? '<div class="news good">' + note + '</div>' : '') + list,
+    view('<h1>' + g2.name + 'の研修</h1><p class="lead">全員に同じ教え方で研修する。気質に合うほど経験値が多い。' + (d ? '<br><b>今月はもう研修した。</b>' : '') + '</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       Object.keys(TMETH).map(function (m) { var pl = tPlan(g2, m);
         return { label: TMETH[m].n + '　' + yen(pl.cost), sub: '◎' + pl.cnt['◎'] + ' ○' + pl.cnt['○'] + ' △' + pl.cnt['△'] + ' ×' + pl.cnt['×'] + '　経験値 計' + pl.ex + (TMETH[m].d ? '　' + TMETH[m].d : ''), off: d || S.cash < pl.cost,
           go: function () { pay(pl.cost); var lines = tRun(g2, m); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
@@ -7244,6 +7248,7 @@
           go: function () { pay(pl.cost); var lines = tRun(g2, 'fit'); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
             if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), fin); fin(); } }; })(),
         { main: true, label: 'もどる', go: function () { trainView(); } }]));
+    $('app').insertAdjacentHTML('beforeend', list);
   }
   // 神技・神対応への自主練習は自動。条件を満たした人は毎月こつこつ練習する
   function godAuto() {
