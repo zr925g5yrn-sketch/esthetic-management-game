@@ -5339,7 +5339,9 @@
     deptPick(function (k) {
       var taken = {}; allStaff().concat(hqStaff()).forEach(function (x) { taken[x.name] = true; });
       var cd = genCand(taken, null, null); pay(HIRE);
-      var st = { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: baseWage(cd), cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: !!dis };
+      var isM = roll(0.45);
+      if (isM) { var mn = MALEN.filter(function (n) { return !taken[cd.name.split(' ')[0] + ' ' + n]; }); cd.name = cd.name.split(' ')[0] + ' ' + pick(mn.length ? mn : MALEN); cd.look.style = 'short'; cd.look.hair = pick(['#2B2238', '#3A2A26', '#5A3A28', '#4A3A30']); }
+      var st = { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: baseWage(cd), cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: !!dis, male: isM };
       S.hq.staff.push(st); if (dis) hum(2); SFX.hire();
       hqView(st.name + 'を' + DEPT[k].n + 'に採用した。' + (dis ? '働きやすいよう、仕事の進め方を一緒に考えた。' : ''));
     });
@@ -5833,7 +5835,7 @@
     };
     view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + careStaffInfo(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="prof">気質：' + TEMPER[temperOf(st)].n + '　口ぐせ「' + KUSE[temperOf(st)] + '」<br>趣味：' + profOf(st).hobby + '　好きな食べ物：' + profOf(st).food + '<br>夢：' + ((st.epi || 0) >= 1 ? DREAMS[profOf(st).dream] : '？（もっと仲良くなると話してくれる）') +
-        (relText(st) ? '<br>' + relText(st) : '') + '<br>' + aptText(st) + '</div>' +
+        (relText(st) ? '<br>' + relText(st) : '') + (romText(st) ? '<br>' + romText(st) : '') + '<br>' + aptText(st) + '</div>' +
       '<div class="talk"><div class="say you">' + (epiReady(st) ? '「店長、少しお話ししてもいいですか？」' : talkLine(st)) + '</div></div>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       [(function () { var e = epiNext(st); if (!e) return null;
         return e.ok ? { main: true, label: '● ' + st.name + 'の話を聞く（物語 ' + (e.n + 1) + '／3）', sub: '打ち明け話をしてくれそう', go: function () { epiView(st); } }
@@ -5954,7 +5956,7 @@
       else S.fatigue = clamp(Math.round(S.fatigue + (6 + ow.used * 5) * (1.25 - S.stamina / 200)), 0, 100);
       S.stamina = clamp(S.stamina - 1, 0, 100);
       S.wk.left = staffWeek();
-      S.wk.relNote = relMonth(); bossMonth();
+      S.wk.relNote = relMonth(); bossMonth(); S.wk.romNotes = romMonth();
       S.wk.mgrNotes = (S.wk.branch || []).filter(function (r) { return r.mgr; }).map(function (r) { return r.name + '（店長：' + r.mgr.name + ' ' + starsTxt(r.mgr.stars) + '）…' + r.mgr.note; });
       spAuto();
       godAuto();
@@ -6097,6 +6099,7 @@
     if (S.wk.loan && (S.wk.loan.principal || S.wk.loan.notes.length)) h += '<div class="news">借入金の返済（元金）' + yen(S.wk.loan.principal) + '。残り ' + yen(loanRest()) + (S.wk.loan.notes.length ? '<br>' + S.wk.loan.notes.join('<br>') : '') + '</div>';
     if ((S.wk.stratNote || []).length) h += S.wk.stratNote.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
     if ((S.wk.mgrNotes || []).length) h += '<div class="news">店長の采配：<br>' + S.wk.mgrNotes.join('<br>') + '</div>';
+    if ((S.wk.romNotes || []).length) h += S.wk.romNotes.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
     if ((S.wk.relNote || []).length) h += '<div class="news good">' + S.wk.relNote.join('<br>') + '</div>';
     if ((S.wk.hqNote || []).length) h += '<div class="news good">本社：' + S.wk.hqNote.join('<br>') + '</div>';
     if (S.wk.levy) h += '<div class="news bad">障害者雇用が足りず、納付金' + yen(S.wk.levy) + 'を払った。本社で採用できる。</div>';
@@ -6240,7 +6243,7 @@
         if (/^group/.test(got.kind)) pool = pool.filter(function (m) { return !/^group/.test(m.kind); }); }
       return out;
     };
-    var mine = choose(C2.filter(function (m) { return !DOTOFF[m.kind]; }), 2 + (roll(0.5) ? 1 : 0));
+    var mine = (S.romMsg || []).concat(choose(C2.filter(function (m) { return !DOTOFF[m.kind]; }), 2 + (roll(0.5) ? 1 : 0))); S.romMsg = null;
     var off = choose(C2.filter(function (m) { return DOTOFF[m.kind]; }), 1 + (roll(0.6) ? 1 : 0) + (roll(0.3) ? 1 : 0));
     mine.forEach(function (m, i) { m.id = S.week * 10 + i; m.done = -1; last[m.kind] = S.week; });
     off.forEach(function (m, i) { m.id = S.week * 10 + 5 + i; m.done = -1; m.off = true; last[m.kind] = S.week; });
@@ -6257,6 +6260,8 @@
       case 'moodMid': if (st) moodUp(st, 8, 3); return (st ? st.name + 'の' : '') + 'やる気+8、信頼+3';
       case 'moodSmall': if (st) moodUp(st, 3, 1); return (st ? st.name + 'の' : '') + 'やる気+3';
       case 'party': crewAll().forEach(function (x) { moodUp(x, 8, 3); }); return '全員のやる気+8、信頼+3';
+      case 'wed1': [byId(m.sid), byId(m.sid2)].forEach(function (x) { if (x) moodUp(x, 15, 8); }); crewAll().forEach(function (x) { moodUp(x, 3, 0); }); return 'ふたりのやる気+15、信頼+8。みんなも温かい気持ちに（やる気+3）';
+      case 'wed2': [byId(m.sid), byId(m.sid2)].forEach(function (x) { if (x) moodUp(x, 8, 4); }); return 'ふたりのやる気+8、信頼+4';
       case 'moodDown': if (st) moodUp(st, -6, -3); return (st ? st.name + 'の' : '') + 'やる気−6';
       case 'idea': if (st) moodUp(st, 8, 4); hum(1); return (st ? st.name + 'の' : '') + 'やる気+8、人間力+1';
       case 'practice': if (st) { moodUp(st, 6, 3); expAdd(st, 6); } return (st ? st.name + 'の' : '') + 'やる気+6、研修の経験値+6';
@@ -6290,7 +6295,7 @@
     var back = function () { dotView(!!m.off); };
     var h = dotHead(m.off, m.from) + '<div class="talk">' +
       m.lines.map(function (l) { return '<div class="say you">' + (l.who ? '<span class="who">' + l.who + '</span>' : '') + l.t + '</div>'; }).join('');
-    if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="say me">' + rp.t + '</div><div class="say you">' + rp.res + '</div>' + (note || m.note ? '<div class="say note">' + (note || m.note) + '</div>' : ''); }
+    if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="say me">' + rp.t.replace(/　¥[\d,]+$/, '') + '</div><div class="say you">' + rp.res + '</div>' + (note || m.note ? '<div class="say note">' + (note || m.note) + '</div>' : ''); }
     h += '</div>';
     view(h, m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: back }] :
       m.reps.map(function (rp, i) {
@@ -6587,6 +6592,45 @@
       }
     });
     return notes.slice(0, 2);
+  }
+  // 社内恋愛：本社の男性スタッフと、同じ会社の女性スタッフ。付き合う・結婚・別れる
+  var MALEN = ['翔太', '大輝', '拓海', '颯太', '陸', '蓮', '悠真', '湊', '健太', '亮', '直樹', '航', '駿', '優斗', '海斗', '和也', '慎吾', '雄大', '隼人', '圭'];
+  function everyone() { return allStaff().concat(hqStaff()).filter(function (x) { return !x.owner; }); }
+  function byId(id) { return everyone().filter(function (x) { return x.id === id; })[0] || null; }
+  function placeOf(st) { if (hqStaff().indexOf(st) >= 0) return '本社'; var sh = shopOf(st); return sh ? sh.name : (S.brand ? homeName() : '本店'); }
+  function romOf(st) { return (S.rom || []).filter(function (r) { return r.a === st.id || r.b === st.id; })[0] || null; }
+  function romText(st) { var r = romOf(st); if (!r) return ''; var o = byId(r.a === st.id ? r.b : r.a); return o ? (r.st === 'married' ? '結婚：' : '恋人：') + o.name + '（' + placeOf(o) + '）' : ''; }
+  function leaveCo(st) { var i = hqStaff().indexOf(st); if (i >= 0) S.hq.staff.splice(i, 1); else removeStaff(st); }
+  function romMonth() {
+    S.rom = (S.rom || []).filter(function (r) { return byId(r.a) && byId(r.b); });
+    var all = everyone(), notes = [], free = function (x) { return !romOf(x); };
+    var men = all.filter(function (x) { return x.male && free(x); }), women = all.filter(function (x) { return !x.male && free(x); });
+    men.forEach(function (m) {
+      if (!women.length || !roll(0.035)) return;
+      var w = pick(women); women.splice(women.indexOf(w), 1);
+      S.rom.push({ a: m.id, b: w.id, st: 'dating', since: S.week }); moodUp(m, 10, 0); moodUp(w, 10, 0);
+      notes.push({ t: placeOf(m) + 'の' + m.name + 'と、' + placeOf(w) + 'の' + w.name + 'が付き合いはじめたらしい。ふたりとも、仕事に張りが出ている。' });
+    });
+    S.rom.slice().forEach(function (r) {
+      var a = byId(r.a), b = byId(r.b), mo = S.week - r.since;
+      if (r.st === 'married') { moodUp(a, 1, 0); moodUp(b, 1, 0); return; }
+      if (roll(0.05)) {
+        S.rom.splice(S.rom.indexOf(r), 1); moodUp(a, -20, -5); moodUp(b, -20, -5);
+        var same = placeOf(a) === placeOf(b), note = a.name + 'と' + b.name + 'が別れてしまったらしい。' + (same ? '同じ職場なので、空気が少し重い。' : '');
+        if (same) everyone().filter(function (x) { return placeOf(x) === placeOf(a) && x !== a && x !== b; }).forEach(function (x) { moodUp(x, -3, 0); });
+        if (roll(0.2)) { var q = pick([a, b]); leaveCo(q); note += q.name + 'は気まずさから、会社を辞めてしまった…。'; }
+        notes.push({ bad: true, t: note });
+        return;
+      }
+      if (mo >= 6 && roll(0.12)) {
+        r.st = 'married'; r.wed = S.week;
+        S.romMsg = (S.romMsg || []).concat([{ kind: 'wedding', from: a.name + '・' + b.name, sid: a.id, sid2: b.id, w: 99,
+          lines: [{ who: b.name, t: '店長、ご報告があります…！' }, { who: a.name, t: 'じつは、ぼくたち結婚することになりました！' }],
+          reps: [{ t: 'おめでとう！ お祝いを包むね。　' + yen(30000), fx: 'wed1', cost: 30000, res: 'ありがとうございます…！ ふたりでもっとがんばります！' }, { t: 'おめでとう！ 本当によかったね。', fx: 'wed2', res: 'ありがとうございます！' }] }]);
+        notes.push({ t: a.name + 'と' + b.name + 'が、結婚することになった！ dot.に報告が届いている。' });
+      }
+    });
+    return notes;
   }
   // 店長の適性（★1〜5）と、その理由
   var MGRTYPE = {
