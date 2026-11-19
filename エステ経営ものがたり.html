@@ -5127,12 +5127,13 @@
     cd.look.top = u[0]; cd.look.bottom = u[1];
     list.push({ id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: cd.cap, used: 0, look: cd.look, mot: 65, trust: 30 + ((S && S.heroTrust) || 0) });
   }
+  function openCost(A) { return A.hotel || !hqOn() ? A.cost : Math.round(A.cost * (1 - Math.min(0.3, 0.1 * deptPow('sdev'))) / 10000) * 10000; }
   function openBranch(k, free, concept) {
     var A = AREAS[k];
-    if (!free) pay(A.cost);
+    if (!free) pay(openCost(A));
     var taken = {};
     allStaff().forEach(function (st) { taken[st.name] = true; });
-    var b = { id: 'b' + (S.uid++), area: k, name: (S.brand ? S.brand + ' ' : '') + A.n, staff: [], rep: Math.max(30, S.rep - 10), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free, concept: concept || ((AREAFIT[k] || {}).g || ['relax'])[0] };
+    var b = { id: 'b' + (S.uid++), area: k, name: (S.brand ? S.brand + ' ' : '') + A.n, staff: [], rep: Math.min(90, Math.max(30, S.rep - 10) + (hqOn() ? Math.round(5 * deptPow('sdev')) : 0)), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free, concept: concept || ((AREAFIT[k] || {}).g || ['relax'])[0] };
     S.shops.push(b);
     var cd = genCand(taken, A.names, A.base || k);
     if (A.tier !== 'local') { Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = Math.max(cd.sk[k], 3); }); skFix(cd); cd.wage = baseWage(cd) + 20000; }
@@ -5227,7 +5228,7 @@
       return view('<h1>新しい店舗を出す</h1><p class="lead">経営者レベル ' + mlv() + '。レベルが上がるほど、出店できる街が増える。近所の店は店長1人、都心と海外は店長とスタッフ2人で開店する。支店の営業はスタッフが自動でこなし、収支は毎月の帳簿に入る。</p>',
         ['local', 'city', 'region', 'world', 'resort'].map(function (k) {
           var lock = tierOpen(k), left = freeAreas(k).length, wait = S.lastOpen ? Math.max(0, OPENGAP - (S.week - S.lastOpen)) : 0;
-          var lo = freeAreas(k).reduce(function (m, a) { return Math.min(m, AREAS[a].cost); }, 1e12);
+          var lo = freeAreas(k).reduce(function (m, a) { return Math.min(m, openCost(AREAS[a])); }, 1e12);
           return { label: TIER[k].n + (left ? '　出店費' + yen(lo) + '〜' : '　すべて出店済み'), sub: wait ? '前の出店の準備で手いっぱい。あと' + wait + 'か月で次の出店ができる' : lock || freeAreas(k).map(function (a) { return AREAS[a].n.replace(/店$/, ''); }).join('・') + (k === 'world' ? '。売上は為替で上下する' : k === 'resort' ? '。為替に加えて、ハイシーズンは大にぎわい、オフシーズンは静か' : ''),
             off: !!lock || !left || !!wait, go: function () { branchView(k); } };
         }).concat([{ main: true, label: 'もどる', go: investView }]));
@@ -5237,7 +5238,7 @@
         var A = AREAS[k];
         var F = AREAFIT[k] || {}, need = AREALV[k] || 1;
         if (need > mlv()) return { label: A.n + '　経営者レベル' + need + 'から', sub: A.d, off: true, go: function () {} };
-        return { label: A.n + '　出店費' + yen(A.cost), sub: A.d + '　広さ ' + A.tsubo + '坪・スタッフ ' + A.cap + '人まで　家賃 月' + yen(A.rent) + ((F.g || []).length ? '　合うコンセプト：' + F.g.map(function (c) { return CONCEPTS[c].n; }).join('・') : ''), off: S.cash < A.cost, go: function () { conceptView(k, t); } };
+        return { label: A.n + '　出店費' + yen(openCost(A)) + (openCost(A) < A.cost ? '（店舗開発で割引）' : ''), sub: A.d + '　広さ ' + A.tsubo + '坪・スタッフ ' + A.cap + '人まで　家賃 月' + yen(A.rent) + ((F.g || []).length ? '　合うコンセプト：' + F.g.map(function (c) { return CONCEPTS[c].n; }).join('・') : ''), off: S.cash < openCost(A), go: function () { conceptView(k, t); } };
       }).concat([{ main: true, label: 'もどる', go: function () { branchView(); } }]));
   }
 
@@ -5607,26 +5608,31 @@
     online: { n: 'オンライン販売部', d: 'オンラインショップの売上が1人ごとに1.5倍。手数料と送料も下がる' },
     sns:    { n: '広報', d: '毎月、フォロワーの少ないSNSに会社として発信して、バランスよく伸ばす' },
     acct:   { n: '経理', d: '1人ごとに税金が8%安くなる（最大24%）' },
+    hr:     { n: '人事', d: '店舗の採用で、伸びしろが高く、力のある応募者が来やすくなる' },
+    train:  { n: '教育研修部', d: '全店の研修で得られる経験値が増える（1人ごとに約15%）' },
+    sdev:   { n: '店舗開発', d: '新しい店舗の出店費が下がり（最大30%）、開店したときの評判が高い' },
     eng:    { n: 'エンジニア', d: 'ホームページとネット予約を作る。1人ごとに本店の新規+1人、支店も+1人（最大2人分）' }
   };
   function hqOn() { return !!(S && S.hq); }
   function hqStaff() { return hqOn() ? S.hq.staff : []; }
   function deptN(k) { return hqStaff().filter(function (st) { return st.dept === k; }).length; }
   // 本社のスタッフの力（接客の力のかわりに、事務・企画の力）。1〜5
-  var HQSK = [['plan', '企画'], ['pr', '発信'], ['num', '数字'], ['it', 'IT']];
-  var DEPTSK = { online: 'plan', sns: 'pr', acct: 'num', eng: 'it' };
-  var SKDEPT = { plan: 'online', pr: 'sns', num: 'acct', it: 'eng' };
+  var HQSK = [['plan', '企画'], ['pr', '発信'], ['num', '数字'], ['it', 'IT'], ['coach', '指導']];
+  var DEPTSK = { online: 'plan', sns: 'pr', acct: 'num', eng: 'it', hr: 'plan', train: 'coach', sdev: 'num' };
+  var SKDEPT = { plan: 'hr', pr: 'sns', num: 'sdev', it: 'eng', coach: 'train' };
   var CERTS = [
     { n: '日商簿記2級', sk: 'num', v: 2 }, { n: '日商簿記3級', sk: 'num', v: 1 }, { n: 'MOS（Excel）', sk: 'num', v: 1 },
     { n: '基本情報技術者', sk: 'it', v: 2 }, { n: 'ITパスポート', sk: 'it', v: 1 }, { n: 'ウェブデザイン技能検定', sk: 'it', v: 1 },
     { n: 'ネットショップ実務士', sk: 'plan', v: 2 }, { n: 'マーケティング検定', sk: 'plan', v: 1 },
-    { n: 'PRプランナー', sk: 'pr', v: 2 }, { n: '秘書検定2級', sk: 'pr', v: 1 }
+    { n: 'PRプランナー', sk: 'pr', v: 2 }, { n: '秘書検定2級', sk: 'pr', v: 1 },
+    { n: 'キャリアコンサルタント', sk: 'plan', v: 2 }, { n: '宅地建物取引士', sk: 'num', v: 2 },
+    { n: '認定エステティシャン', sk: 'coach', v: 1 }, { n: '美容インストラクター資格', sk: 'coach', v: 2 }
   ];
-  var PREVJOB = { plan: ['通販会社の企画', 'アパレルのEC担当', '雑貨店の店長'], pr: ['広告代理店', '雑誌の編集', 'ホテルの広報'], num: ['会計事務所', '銀行の窓口', 'メーカーの経理'], it: ['Web制作会社', 'システム会社', 'ゲーム会社'] };
+  var PREVJOB = { plan: ['通販会社の企画', 'アパレルのEC担当', '雑貨店の店長'], pr: ['広告代理店', '雑誌の編集', 'ホテルの広報'], num: ['会計事務所', '銀行の窓口', 'メーカーの経理', '不動産会社'], it: ['Web制作会社', 'システム会社', 'ゲーム会社'], coach: ['大手サロンのトレーナー', '美容学校の講師', 'ホテルの接客指導'] };
   // 店舗から本社に来た人は、接客で身につけた力から、本社の力を決める
   function hqSkFix(st) {
-    if (st.hqsk) return st.hqsk; skFix(st);
-    st.hqsk = { plan: clamp(Math.round(((st.sk.know || 2) + (st.sk.listen || 2)) / 2), 1, 5), pr: clamp(Math.round(((st.sk.word || 2) + (st.sk.emp || 2)) / 2), 1, 5), num: clamp((st.sk.know || 2) - 1, 1, 5), it: 1 };
+    if (st.hqsk) { if (st.hqsk.coach === undefined) st.hqsk.coach = st.sk ? clamp(Math.round(((st.tech || 2) + (st.talk || 2)) / 2) - (st.hq ? 1 : 0), 1, 5) : 1; return st.hqsk; } skFix(st);
+    st.hqsk = { plan: clamp(Math.round(((st.sk.know || 2) + (st.sk.listen || 2)) / 2), 1, 5), pr: clamp(Math.round(((st.sk.word || 2) + (st.sk.emp || 2)) / 2), 1, 5), num: clamp((st.sk.know || 2) - 1, 1, 5), it: 1, coach: clamp(Math.round(((st.tech || 2) + (st.talk || 2)) / 2), 1, 5) };
     return st.hqsk;
   }
   // 本社の力の伸び方：部署の力に経験がたまると1上がる。5になると部長
@@ -5795,18 +5801,18 @@
   function hqCandsOf(dis) {
     var key = dis ? 'dis' : 'gen';
     S.hqCands = S.hqCands && S.hqCands.week === S.week ? S.hqCands : { week: S.week };
-    if (!S.hqCands[key] || (S.hqCands[key][0] && !S.hqCands[key][0].hqsk)) {
+    if (!S.hqCands[key] || (S.hqCands[key][0] && !(S.hqCands[key][0].hqsk && S.hqCands[key][0].hqsk.coach))) {
       var taken = {}; everyone().forEach(function (x) { taken[x.name] = true; });
       S.hqCands[key] = [0, 1, 2, 3, 4, 5].map(function () {
         var cd = genCand(taken, null, null);
         if (roll(0.45)) { var mn = MALEN.filter(function (n) { return !taken[cd.name.split(' ')[0] + ' ' + n]; }); cd.name = cd.name.split(' ')[0] + ' ' + pick(mn.length ? mn : MALEN); cd.look.style = 'short'; cd.look.hair = pick(['#2B2238', '#3A2A26', '#5A3A28', '#4A3A30']); cd.male = true; }
-        var main = pick(HQSK)[0], k = { plan: 1 + Math.floor(rnd() * 2), pr: 1 + Math.floor(rnd() * 2), num: 1 + Math.floor(rnd() * 2), it: 1 + Math.floor(rnd() * 2) };
+        var main = pick(HQSK)[0], k = { plan: 1 + Math.floor(rnd() * 2), pr: 1 + Math.floor(rnd() * 2), num: 1 + Math.floor(rnd() * 2), it: 1 + Math.floor(rnd() * 2), coach: 1 + Math.floor(rnd() * 2) };
         k[main] = Math.min(5, k[main] + 1 + Math.floor(rnd() * 2));
         var cs = CERTS.filter(function (c) { return c.sk === main; }), certs = [];
         if (roll(0.75)) { var c1 = pick(cs); certs.push(c1.n); k[main] = Math.min(5, k[main] + c1.v - 1); }
         if (roll(0.3)) { var c2 = pick(CERTS.filter(function (c) { return certs.indexOf(c.n) < 0; })); certs.push(c2.n); k[c2.sk] = Math.min(5, k[c2.sk] + 1); }
         cd.hqsk = k; cd.certs = certs; cd.prev = pick(PREVJOB[main]);
-        cd.wage = 200000 + 12000 * (k.plan + k.pr + k.num + k.it - 4) + 8000 * certs.length; cd.dis = false; return cd;
+        cd.wage = 200000 + 12000 * (k.plan + k.pr + k.num + k.it + k.coach - 5) + 8000 * certs.length; cd.dis = false; return cd;
       });
     }
     return S.hqCands[key];
@@ -6930,7 +6936,7 @@
       if (hqStaff().length) T.push(S.hqTrainWk === S.week ? { t: '本社の研修', s: '今月はすんだ', done: true } : { t: '本社の研修', s: '勉強会・セミナー・資格の支援で、本社のスタッフを育てる', go: function () { hqTrainView(); } });
       var HL = HQLV[S.hq.lv - 1], hroom = HL.cap - hqStaff().length;
       var emptyD = Object.keys(DEPT).filter(function (k) { return !deptN(k); }).map(function (k) { return DEPT[k].n; });
-      if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.join('、') + 'がいない' : ''), go: function () { hqHireView(false); } });
+      if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.slice(0, 3).join('、') + (emptyD.length > 3 ? 'など' : '') + 'がいない' : ''), go: function () { hqHireView(false); } });
       if (!S.staff.some(function (st) { return st.id === S.mainMgr; }) && S.staff.some(function (st) { return !st.owner; })) T.push({ t: '本店の店長を決める', s: '社長になったので、本店をまかせる人が必要', go: function () { mgrView(); } });
     }
     if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
@@ -7621,7 +7627,7 @@
   // 研修で伸ばす余地がある人（神技・神対応の両方に届いた人は対象外）
   function trainable(st) { skFix(st); return !onLeave(st) && (st.sk.tech < 6 || st.sk.word < 6); }
   function tCost1(st) { skFix(st); var low = Math.min.apply(null, SKILLS.map(function (x) { return st.sk[x[0]]; })); return 2 * TCOST[clamp(low, 1, 4)] + (low >= 5 ? 2 * TCOST5 : 0); }
-  function tGain(st, meth) { var base = meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth]; return Math.round(base * (st.trait === 'rookie' ? 1.2 : st.trait === 'vet' ? 0.8 : 1) * (has(st, 'sense') ? 2 : 1) * GIFTMUL[talentOf(st).gift]); }
+  function tGain(st, meth) { var base = meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth]; return Math.round(base * (st.trait === 'rookie' ? 1.2 : st.trait === 'vet' ? 0.8 : 1) * (has(st, 'sense') ? 2 : 1) * GIFTMUL[talentOf(st).gift] * (1 + Math.min(0.6, 0.15 * (hqOn() ? deptPow('train') : 0)))); }
   function tGroups() {
     var gs = [{ key: 'main', sh: null, name: S.shops.length ? '本店' : 'お店', mem: S.staff }];
     S.shops.forEach(function (b) { gs.push({ key: b.id, sh: b, name: b.name, mem: b.staff }); });
@@ -7815,7 +7821,10 @@
       var taken = {};
       allStaff().forEach(function (st) { taken[st.name] = true; });
       Object.keys(S.cands).forEach(function (k) { S.cands[k].forEach(function (c) { taken[c.name] = true; }); });
-      S.cands[ck] = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function () { return genCand(taken, pool, dest ? dest.area : null); });
+      var hrP = hqOn() ? deptPow('hr') : 0;
+      S.cands[ck] = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function () { var cd = genCand(taken, pool, dest ? dest.area : null);
+        if (hrP && roll(Math.min(0.6, 0.2 * hrP))) { talentOf(cd); cd.gift = Math.min(5, (cd.gift || 3) + 1); var sk2 = pick(SKILLS)[0]; if (cd.sk && cd.sk[sk2] < 5) { cd.sk[sk2]++; skFix(cd); } cd.wage = baseWage(cd); }
+        return cd; });
     }
     var room = maxOf(dest || null) - (dest ? dest.staff : S.staff).length, list = S.cands[ck];
     cardCands = list;
