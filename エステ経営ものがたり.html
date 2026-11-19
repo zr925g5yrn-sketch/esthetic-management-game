@@ -117,6 +117,18 @@
   .stk-auto b { min-width: 4.5em; text-align: center; }
   .prof { margin: 8px 0; padding: 8px 10px; font-size: .82rem; line-height: 1.6; background: var(--chip); border-left: 4px solid var(--gold); }
   .karte .first { margin-top: 6px; padding: 4px 8px; font-size: .8rem; line-height: 1.5; color: var(--ink); background: var(--chip); border-left: 4px solid var(--accent); }
+  /* スタッフと過ごす：ドット絵のカードを横に並べる */
+  .strow-h { margin: 14px 0 4px; font-size: .9rem; color: var(--sub); }
+  .stcards { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+  .stcard { flex: none; width: 124px; margin: 0; padding: 8px 8px 10px; text-align: center; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; }
+  .stcard canvas { display: block; width: 84px; height: 90px; margin: 0 auto 6px; image-rendering: pixelated; background: var(--chip); border: 2px solid var(--line); }
+  .stcard .nm { display: block; font-size: .92rem; line-height: 1.3; }
+  .stcard .rl { display: inline-block; align-self: center; margin: 2px 0; padding: 0 6px; font-size: .7rem; background: var(--accent); color: var(--accent-ink); }
+  .stcard .tp { display: block; font-size: .72rem; color: var(--sub); }
+  .stcard .mb { display: block; height: 6px; margin: 6px 4px 2px; background: var(--line); }
+  .stcard .mb u { display: block; height: 100%; background: var(--good); }
+  .stcard .mb u.lo { background: var(--accent); }
+  .stcard .ep { display: block; font-size: .7rem; color: var(--accent); margin-top: 2px; }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
   .say.bad { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -5653,19 +5665,55 @@
     if (m >= 45 && (S.week + hashOf(st.id)) % 3 === 0) return '「この前のお休み、' + profOf(st).hobby + 'で気分転換してきました」';
     return '「' + sayOf(st, m >= 75 ? 'hi' : m >= 45 ? 'mid' : m >= 25 ? 'low' : 'vlow') + '」';
   }
+  // スタッフのドット絵（カードの小さな画面に描く）
+  var cardTimer = null;
+  function drawPortrait(cvs, st, now) {
+    var ctx = cvs.getContext('2d'), keep = g; g = ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cvs.width, cvs.height); ctx.setTransform(cvs.width / 20, 0, 0, cvs.width / 20, 0, 0);
+    var m = st.mot || 60, ph = hashOf(st.id) % 1000, t = reduce ? 0 : now + ph * 7;
+    R(0, 17, 20, 5, 'rgba(43,34,56,.08)'); R(4, 20, 12, 1, 'rgba(43,34,56,.18)');
+    var bob = reduce ? 0 : Math.round(Math.sin(t / 420) * 0.6), blink = !reduce && (t % 3400) < 140;
+    var face = m >= 70 ? 'smile' : m < 30 ? 'trouble' : null, wave = !reduce && m >= 70 && Math.floor(t / 1600) % 4 === 1;
+    sprite(staffLook(st), 5, 3 + bob, { face: face, blink: blink, arms: wave });
+    if (m < 30 && !reduce && Math.floor(t / 900) % 2) icon('sweat', 14, 1);
+    if (m >= 75 && !reduce && Math.floor(t / 1100) % 3 === 0) icon('heart', 13, 0);
+    if (st.sick || hurt(st)) icon('zz', 15, 1);
+    g = keep;
+  }
+  function cardLoop() {
+    if (cardTimer) clearInterval(cardTimer);
+    var tick = function () {
+      var cs = document.querySelectorAll('#app .stcard canvas');
+      if (!cs.length) { clearInterval(cardTimer); cardTimer = null; return; }
+      var now = performance.now(), all = allStaff();
+      Array.prototype.forEach.call(cs, function (c) { var st = all.filter(function (x) { return x.id === c.getAttribute('data-sid'); })[0]; if (st) drawPortrait(c, st, now); });
+    };
+    tick(); if (!reduce) cardTimer = setInterval(tick, 120);
+  }
+  function stCard(st) {
+    var r = roleName(st), m = Math.round(st.mot || 60), e = epiNext(st);
+    return '<button type="button" class="stcard" data-card="' + st.id + '"><canvas width="168" height="180" data-sid="' + st.id + '" aria-hidden="true"></canvas>' +
+      '<b class="nm">' + st.name + '</b>' + (r ? '<span class="rl">' + r + '</span>' : '') +
+      '<span class="tp">' + TEMPER[temperOf(st)].n + '・' + TRAITS[st.trait].n + '</span>' +
+      '<span class="mb" title="やる気"><u class="' + (m < 30 ? 'lo' : '') + '" style="width:' + clamp(m, 0, 100) + '%"></u></span>' +
+      '<span class="tp">やる気' + m + '　信頼' + Math.round(st.trust || 0) + '</span>' +
+      (e && e.ok ? '<span class="ep">● 話がありそう</span>' : '') +
+      (st.careWeek === S.week || st.talkWeek === S.week ? '<span class="tp">今月は' + [st.careWeek === S.week ? 'ごほうび' : '', st.talkWeek === S.week ? '面談' : ''].filter(Boolean).join('・') + 'ずみ</span>' : '') + '</button>';
+  }
   function careView() {
     bar();
     var list = allStaff().filter(function (st) { return !st.owner; });
     list.forEach(moodFix);
-    var n = list.length;
-    view('<h1>スタッフと過ごす</h1><p class="lead">やる気が下がると施術や接客の質が落ち、限界を超えると辞めてしまう。信頼が高い人は、店のために良い提案をしてくれる。食事やボーナスでやる気を、面談で信頼を上げる。それぞれひとりにつき月1回まで。</p>' +
-      (S.careNote ? '<div class="news good">' + S.careNote + '</div>' : ''),
-      partyOpts(list).concat(list.map(function (st) {
-        var sh = shopOf(st);
-        return { grp: regionOf(sh) + ' のスタッフ', label: st.name + (sh ? '（' + sh.name + '）' : '') + '　' + TRAITS[st.trait].n, sub: moodText(st) + (st.careWeek === S.week ? '　やる気：今月ずみ' : '') + (st.talkWeek === S.week ? '　面談：今月ずみ' : ''),
-          go: function () { S.careNote = ''; careStaff(st); } };
-      }))
-      .concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
+    var groups = [{ name: S.brand ? homeName() : '本店', mem: S.staff.filter(function (st) { return !st.owner; }) }].concat(S.shops.map(function (b) { return { name: b.name, mem: b.staff.filter(function (st) { return !st.owner; }) }; }))
+      .filter(function (gp) { return gp.mem.length; });
+    var cards = groups.map(function (gp) { return '<h2 class="strow-h">' + gp.name + '（' + gp.mem.length + '人）' + (gp.mem.length > 2 ? '　横にスクロール →' : '') + '</h2><div class="stcards">' + gp.mem.map(stCard).join('') + '</div>'; }).join('');
+    view('<h1>スタッフと過ごす</h1><p class="lead">やる気が下がると施術や接客の質が落ち、限界を超えると辞めてしまう。信頼が深まると、打ち明け話をしてくれることも。話したい人をタップしよう。</p>' +
+      (S.careNote ? '<div class="news good">' + S.careNote + '</div>' : '') + (list.length ? cards : '<p class="lead">まだスタッフがいない。</p>'),
+      partyOpts(list).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-card]'), function (bt) {
+      bt.addEventListener('click', function () { var st = list.filter(function (x) { return x.id === bt.getAttribute('data-card'); })[0]; if (st) { SFX.click(); S.careNote = ''; careStaff(st); } });
+    });
+    cardLoop();
   }
   // 食事会：店ごと、または全店合同。どれも月1回（合同を開くと、その月は店ごとの会はなし）
   function partyOpts(list) {
