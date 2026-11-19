@@ -3628,7 +3628,7 @@
       mxp: 0, wage2: true, hum: 30, life: { partner: 'none', since: 0, dog: false, baby: false, done: {} }, shops: [], away: 0, tiredWeek: 0, fatigue: 20, stamina: 40,
       lifeKey: null, lifePending: false, lifeNote: '', evClientId: null,
       ev: null, evLast: {}, vipCount: 0, vipSeen: false, vipNext: 0, rivalUntil: 0, buzz: { until: 0, n: 0 }, special: null, quitRisk: null };
-    if (hero) { applyHero(hero); if (hero.origin) applyOrigin(hero.origin); return openFund(); }
+    if (hero) { applyHero(hero); if (hero.origin) applyOrigin(hero.origin); S.homePref = hero.pref || ''; return openLoc(hero); }
     startWeek();
   }
   /* --- 開業の準備：コンセプト → 内装 → スタッフ候補3人から1人だけ雇える → 設備投資を選べる → 営業開始 --- */
@@ -3726,7 +3726,7 @@
     var items = INVEST.filter(function (v) { return OPENINV.indexOf(v.k) >= 0; }), any = items.some(function (v) { return S[v.k]; });
     view('<h1>開業の準備　設備投資</h1>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<p class="lead">設備投資をしますか？ 設備を入れると、提供できるメニューが増える。何も買わずに、このまま開業してもいい。</p>' +
-      '<p class="lead">所持金 ' + yen(S.cash) + '。月末には家賃' + yen(RENT) + 'と給与の支払いがある。' + (S.cash < 150000 ? '<b>使いすぎると、すぐ赤字になるかも。</b>' : '') + '</p>',
+      '<p class="lead">所持金 ' + yen(S.cash) + '。月末には家賃' + yen(homeRent()) + 'と給与の支払いがある。' + (S.cash < 150000 ? '<b>使いすぎると、すぐ赤字になるかも。</b>' : '') + '</p>',
       items.map(function (v) {
         return { label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: !!S[v.k] || S.cash < v.price,
           go: function () { pay(v.price); S[v.k] = true; SFX.hire(); openInvest(v.n + 'を導入した。'); } };
@@ -3782,14 +3782,52 @@
     for (var i = 0; i < HEROQ.length; i++) if (HERODREAMS.indexOf(i) < 0) a.push(i);
     return shuffle(a).slice(0, 5).concat([pick(HERODREAMS)]);
   }
+  // 本店の場所。地元か、5つの都市から選ぶ
+  var PREFS = ['北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県', '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県', '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県', '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'];
+  var HOMELOC = {
+    local: { n: '地元', rent: 80000, mult: 0.9, demand: -1, rep: 10, good: '家賃が安い・知り合いが常連になってくれる・評判+10からスタート', bad: '新しいお客様は少なめ・単価は低め' },
+    tokyo: { n: '東京', city: '東京', pref: '東京都', rent: 220000, mult: 1.3, demand: 2, rep: -5, good: 'お客様が多い・単価が高い', bad: '家賃がとても高い・ライバル店が多く、評判−5からスタート' },
+    osaka: { n: '大阪', city: '大阪', pref: '大阪府', rent: 140000, mult: 1.1, demand: 1, rep: 0, area: 'osaka', good: '話好きのお客様が多く、警戒心がほぐれやすい・お客様が多め', bad: '値段にきびしいお客様が多い' },
+    fukuoka: { n: '福岡', city: '福岡', pref: '福岡県', rent: 120000, mult: 1.0, demand: 1, rep: 0, area: 'fukuoka', good: '美容への関心が高い若いお客様が多い・SNSが伸びやすい', bad: '都会ほど高い値段では売れない' },
+    hokkaido: { n: '北海道', city: '札幌', pref: '北海道', rent: 100000, mult: 0.95, demand: 0, rep: 0, area: 'sapporo', good: '家賃が安め・冬（11〜3月）は乾燥ケアのお客様が増える', bad: '夏はお客様が少なめ・単価はやや低め' },
+    okinawa: { n: '沖縄', city: '那覇', pref: '沖縄県', rent: 90000, mult: 1.0, demand: 0, rep: 0, good: '家賃が安い・夏（6〜9月）は観光客でにぎわい、海外のお客様も来る', bad: '夏以外は観光客が減って、お客様が少なめ' }
+  };
+  var LEGACYLOC = { n: '本店', rent: 80000, mult: 1, demand: 0, rep: 0 };
+  function homeLoc() { return S && S.home && HOMELOC[S.home.key] ? HOMELOC[S.home.key] : LEGACYLOC; }
+  function homeRent() { return homeLoc().rent; }
+  function homeCity() { if (!S || !S.home) return ''; var L = HOMELOC[S.home.key]; return L.city || String(S.home.pref || '').replace(/[都府県]$/, '').replace('北海道', '北海道'); }
+  function homeSeason() {
+    var k = S && S.home ? S.home.key : null, m = monthOf();
+    if (k === 'hokkaido') return m >= 11 || m <= 3 ? 2 : m >= 7 && m <= 8 ? -1 : 0;
+    if (k === 'okinawa') return m >= 6 && m <= 9 ? 2 : -1;
+    return 0;
+  }
+  function openLoc(hero) {
+    var pref = hero.pref || '', bar0 = bar(), mine = Object.keys(HOMELOC).filter(function (k) { return HOMELOC[k].pref === pref; })[0];
+    var opts = [];
+    var mk = function (k, isLocal) {
+      var L = HOMELOC[k], nm = isLocal ? (k === 'local' ? pref : L.n) + '（地元）' : L.n + (L.city && L.city !== L.n ? '・' + L.city : '');
+      return { label: nm + 'で開業する　家賃 月' + yen(L.rent), sub: '◎ ' + L.good + (isLocal && k !== 'local' ? '・地元なので知り合いが常連に、評判+10' : '') + '　× ' + L.bad, go: function () {
+        S.home = { key: k, pref: pref, local: !!isLocal };
+        S.rep = clamp(S.rep + (L.rep || 0) + (isLocal && k !== 'local' ? 10 : 0), 0, 100);
+        if (isLocal) { var used = {}; for (var i = 0; i < 2; i++) { var c = makeCustomer(used, true); c.isNew = false; c.active = true; c.visits = 3; c.loy = 55; c.last = 0; c.plan = { k: 'c5', left: 3 }; c.friend = true; S.clients.push(c); } }
+        openFund();
+      } };
+    };
+    if (!mine) opts.push(mk('local', true));
+    ['tokyo', 'osaka', 'fukuoka', 'hokkaido', 'okinawa'].forEach(function (k) { opts.push(mk(k, k === mine)); });
+    if (mine) { var o = opts.splice(opts.findIndex(function (x) { return x.label.indexOf('（地元）') >= 0; }), 1)[0]; opts.unshift(o); }
+    view('<h1>本店をどこに開く？</h1><p class="lead">出身は' + (pref || '（未設定）') + '。地元で開くか、5つの都市から選ぶ。場所によって、家賃・お客様の数・単価・季節の波が変わる。</p>', opts);
+  }
   function heroStart(n) {
     SLOT = n;
     bar();
     view('<h1>あなたの名前</h1><p class="lead">これから開業する店長、つまりあなたの名前を決めよう。</p>' +
-      '<div class="form"><label>名前（6文字まで）<input id="heroName" type="text" maxlength="6" autocomplete="off" placeholder="あかり"></label></div>',
+      '<div class="form"><label>名前（6文字まで）<input id="heroName" type="text" maxlength="6" autocomplete="off" placeholder="あかり"></label>' +
+      '<label>出身地<select id="heroPref">' + PREFS.map(function (p) { return '<option' + (p === '東京都' ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></label></div>',
       [{ main: true, label: 'この名前で決める', go: function () {
-        var nm = clean($('heroName').value).slice(0, 6) || 'あかり';
-        heroQ({ name: nm, pts: {}, i: 0, qs: pickQs() });
+        var nm = clean($('heroName').value).slice(0, 6) || 'あかり', pf = $('heroPref') ? $('heroPref').value : '東京都';
+        heroQ({ name: nm, pref: pf, pts: {}, i: 0, qs: pickQs() });
       } }, { label: 'もどる', go: function () { slotView(n); } }]);
     setTimeout(function () { try { $('heroName').focus(); } catch (e) {} }, 50);
   }
@@ -3817,7 +3855,7 @@
     bar();
     view('<h1>' + h.name + 'さんの性格は…</h1><div class="event box"><span class="badge">せいかく</span><h2>' + P.n + '</h2><p>' + P.d + '</p><p class="evnote">' + bon.join('、') + '</p></div>',
       [{ main: true, label: '開業までの道のりへ', go: function () { originView(h); } },
-       { label: 'しつもんに答えなおす', go: function () { heroQ({ name: h.name, pts: {}, i: 0, qs: pickQs() }); } }]);
+       { label: 'しつもんに答えなおす', go: function () { heroQ({ name: h.name, pref: h.pref, pts: {}, i: 0, qs: pickQs() }); } }]);
   }
   function applyHero(h) {
     var o = S.staff[0], P = PERSONA[h.persona] || {};
@@ -3838,9 +3876,11 @@
     if (pf) r += SNSPF[pf].bud;
     if (S.concept && CONCEPTS[S.concept]) r += CONCEPTS[S.concept].bud || 0;
     if (rg && !OA.names) male = male && roll(0.6);
+    if (!OA && S.home && S.home.key === 'osaka' && roll(0.2)) pers = 'price';
+    var osk = !OA && S.home && S.home.key === 'osaka' ? -5 : 0;
     return { id: S.uid++, name: name, age: age, male: male, look: makeLook(male, rg),
       concern: newConcern(), pref: pick(Object.keys(PRESS)), pers: pers, budget: r < 0.33 ? 0 : (r < 0.78 ? 1 : 2),
-      grd: clamp(PERS[pers].guard + (50 - S.rep) * 0.2 + rnd() * 10 - 5 - (ref ? 18 : 0) - (S.storm ? 10 : 0) - (S.hum - 30) * 0.2 - sq * 12 - (fromSns ? 6 : 0) - (pf ? SNSPF[pf].grd : 0), 5, 95), int: (ref ? 8 : 0) + (fromSns ? 6 : 0) + (S.snsTech === S.week ? 6 : 0), sat: 0, sns: pf || false,
+      grd: clamp(osk + PERS[pers].guard + (50 - S.rep) * 0.2 + rnd() * 10 - 5 - (ref ? 18 : 0) - (S.storm ? 10 : 0) - (S.hum - 30) * 0.2 - sq * 12 - (fromSns ? 6 : 0) - (pf ? SNSPF[pf].grd : 0), 5, 95), int: (ref ? 8 : 0) + (fromSns ? 6 : 0) + (S.snsTech === S.week ? 6 : 0), sat: 0, sns: pf || false,
       known: {}, asked: [], used: {}, turns: 0, pushed: false, log: [], revenue: 0, ref: ref, isNew: true,
       loy: ref ? 15 : 0, visits: 0, active: false, plan: null, member: false, booked: 0, last: 0, phase: 'meet' };
   }
@@ -3907,6 +3947,7 @@
     if (S.concept && CONCEPTS[S.concept]) newN += CONCEPTS[S.concept].cnt || 0;
     if (opArea()) newN += opArea().demand - 2 + fitOf(opBranch().area, S.concept);
     if (brandOn(3)) newN += 1;
+    if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
     newN = Math.max(1, newN + pm().newAdj);
     S.ad = 0;
@@ -3918,6 +3959,7 @@
     var fresh = [], i;
     for (i = 0; i < refs; i++) fresh.push(makeCustomer(used, true));
     for (i = 0; i < newN; i++) fresh.push(makeCustomer(used, false));
+    if (!S.special && !opArea() && S.home && S.home.key === 'okinawa' && homeSeason() > 0 && roll(0.35)) S.special = 'inbound';
     if (S.special) fresh.unshift(makeSpecial(used, S.special));
     var room = cap - q.length;
     turned += Math.max(0, fresh.length - room);
@@ -4718,8 +4760,17 @@
     goldcoast:{ n: 'ゴールドコースト店', tier: 'resort', cost: 3800000, rent: 190000, demand: 4, mult: 1.9, peak: [12, 1, 2], d: 'サーファーの楽園。日焼けケアの需要が高い', names: ['シャーロット', 'アメリア', 'イスラ', 'エヴィー', 'ルビー', 'ジョージア', 'マチルダ', 'ハーパー', 'ウィロー', 'スカーレット', 'サディ', 'ポピー', 'ルナ', 'マイア', 'ハーロウ', 'ペニー', 'ジェイド', 'ベイリー', 'サマー', 'タイラ'] },
     dubai:   { n: 'ドバイ店', tier: 'world', cost: 6000000, rent: 300000, demand: 2, mult: 3.2, d: '石油王の街。お客様は少ないが、桁外れに使う', names: ['レイラ', 'ファティマ', 'ヤスミン', 'アミラ', 'ノール', 'サラ', 'マリアム', 'ライラ', 'ハラ', 'ダナ', 'ルーナ', 'シャイマ', 'アヤ', 'ジャナ', 'ラナ', 'ズハ', 'ナディーン', 'アスマ', 'リーム', 'ハムダ', 'ヌーラ', 'アルヤ', 'ムナ', 'シャハド', 'ルブナ', 'ワファ', 'ガダ', 'ダリア', 'サルマ', 'ヒンド', 'ジュード', 'タラ', 'ザイナブ', 'ルカヤ', 'メイサ', 'ニダ', 'アフラ', 'ヌハ', 'バスマ', 'ラワン'] }
   };
-  // 出店費：内装・設備・保証金を含めた現実的な金額にする（以前の3倍）
-  Object.keys(AREAS).forEach(function (k) { AREAS[k].cost = AREAS[k].cost * 3; });
+  // 出店費と家賃：15〜25坪ほどのサロンの相場（出店費は内装・設備・保証金込み）
+  var AREAPRICE = {
+    suburb: [4500000, 130000], shotengai: [5000000, 150000], town: [6000000, 180000], station: [8000000, 250000], ekibiru: [9000000, 280000],
+    yokohama: [10000000, 300000], shibuya: [13000000, 380000], omote: [15000000, 420000], shinjuku: [14000000, 400000], ebisu: [14000000, 400000], roppongi: [15000000, 430000], ginza: [18000000, 500000],
+    sapporo: [8000000, 220000], fukuoka: [8500000, 240000], nagoya: [9000000, 260000], osaka: [10000000, 300000], kyoto: [10000000, 280000],
+    taipei: [11000000, 280000], seoul: [13000000, 350000], bangkok: [9000000, 220000], shanghai: [16000000, 420000], singapore: [22000000, 550000], hawaii: [22000000, 520000],
+    london: [26000000, 650000], paris: [25000000, 600000], la: [26000000, 620000], newyork: [30000000, 750000], dubai: [30000000, 700000],
+    cebu: [10000000, 220000], guam: [13000000, 320000], bali: [12000000, 260000], phuket: [12000000, 260000], goldcoast: [18000000, 420000], cancun: [20000000, 480000], santorini: [22000000, 520000], maldives: [35000000, 800000]
+  };
+  Object.keys(AREAS).forEach(function (k) { if (AREAPRICE[k]) { AREAS[k].cost = AREAPRICE[k][0]; AREAS[k].rent = AREAPRICE[k][1]; } });
+  var BRSCALE = 1.25;  // 支店は、家賃に見合う客数と単価で営業する
   // お店のコンセプト。本店はお客様の悩みや予算・人数が変わる。支店は街に合うと伸びやすい
   var CONCEPTS = {
     relax:  { n: '癒やしのリラクゼーション', d: 'ゆったり癒やされたい人が集まる。ヘッドスパとアロマ、リンパの悩みが多くなる', fav: ['aroma', 'dry', 'scalp', 'lymph'],
@@ -4795,16 +4846,16 @@
     if (t === 'resort') return hasTier('world') && S.rep >= 70 ? '' : '海外に1店舗出し、本店の評判を70以上にすると出せる';
     return hasTier('region') && S.rep >= 65 ? '' : '地方都市に1店舗出し、本店の評判を65以上にすると出せる';
   }
-  function freeAreas(t) { var o = S.shops.map(function (b) { return b.area; }); return Object.keys(AREAS).filter(function (k) { return o.indexOf(k) < 0 && (!t || AREAS[k].tier === t); }); }
+  function freeAreas(t) { var o = S.shops.map(function (b) { return b.area; }); if (S.home && HOMELOC[S.home.key] && HOMELOC[S.home.key].area) o.push(HOMELOC[S.home.key].area); return Object.keys(AREAS).filter(function (k) { return o.indexOf(k) < 0 && (!t || AREAS[k].tier === t); }); }
   function renoCost(sh) { var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0); return INTCOST[lv] * (sh ? TIER[AREAS[sh.area].tier].m : 1); }
   var MAXBRANCH = 2;
   function allStaff() { var a = S.staff.slice(); S.shops.forEach(function (b) { a = a.concat(b.staff); }); if (S.opHome) a = a.concat(S.opHome.staff); return a; }
   // いま自分が営業している支店（本店なら null）
   function opBranch() { return S && S.opShop ? S.shops.filter(function (b) { return b.id === S.opShop; })[0] || null : null; }
   function opArea() { var b = opBranch(); return b ? AREAS[b.area] : null; }
-  function opMult() { var A = opArea(); return A ? A.mult : 1; }
-  function curRent() { var A = opArea(); return A ? A.rent : RENT; }
-  var HOMEA = { n: '本店', tier: 'local', rent: RENT, demand: 2, mult: 1 };
+  function opMult() { var A = opArea(); return A ? A.mult : homeLoc().mult; }
+  function curRent() { var A = opArea(); return A ? A.rent : homeRent(); }
+  function homeA() { var L = homeLoc(); return { n: '本店', tier: 'local', rent: L.rent, demand: 2 + (L.demand || 0), mult: L.mult }; }
   // 月のはじめ：選んだ支店に、あなた（オーナー）が入る。本店はスタッフにおまかせになる
   function opEnter() {
     var b = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
@@ -4861,7 +4912,7 @@
       } }, { label: 'やめる', go: investView }]);
     $('nmBrand').value = S.brand || ''; if ($('nmCo')) $('nmCo').value = S.company || '';
   }
-  function homeName() { return (S.brand ? S.brand + ' ' : '') + '本店'; }
+  function homeName() { return (S.brand ? S.brand + ' ' : '') + homeCity() + '本店'; }
   function opView() {
     bar();
     var cur = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
@@ -4899,7 +4950,7 @@
   }
   // 支店の1か月。お客様をまとめて計算する
   function simBranch(b) {
-    var A = b.home ? HOMEA : AREAS[b.area], i = 0, slots = shopCap(b);
+    var A = b.home ? homeA() : AREAS[b.area], i = 0, slots = shopCap(b);
     var r = { name: b.name, sales: 0, refund: 0, served: 0, sold: 0, turned: 0, cost: A.rent + b.staff.reduce(function (a, st) { return a + payOf(st); }, 0) };
     var work = b.staff.filter(function (st) { return capOf(st) > 0; });
     if (!work.length) { r.net = -r.cost; r.turned = 2 + A.demand; b.last = r; return r; }
@@ -4949,6 +5000,7 @@
     r.inv = 0;
     if (A.peak) { var hi = A.peak.indexOf(monthOf()) >= 0; r.season = hi ? 'ハイシーズン' : 'オフシーズン'; r.sales = Math.round(r.sales * (hi ? 1.45 : 0.75)); }
     if (A.tier === 'world' || A.tier === 'resort') { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
+    if (!b.home) r.sales = Math.round(r.sales * BRSCALE);
     mgrEffect(b, r);
     if (!b.home) r.sales = Math.round(r.sales * bossMult());
     r.net = r.sales - r.refund - r.cost;
@@ -5237,6 +5289,7 @@
     if (buzz) views = Math.round(views * (8 + rnd() * 8));
     // 同じ媒体ばかりだと伸びが鈍る（その媒体の割合が高いほど、新しいフォロワーが増えにくい）
     var gain = Math.round(views * (0.02 + q * 0.05) * x.gain * (1.35 - P.mix[pf]) / (1 + P.f / 50000));
+    if (S.home && S.home.key === 'fukuoka') gain = Math.round(gain * 1.2);
     addF(pf, gain); P.best = Math.max(P.best, views);
     var extra = '';
     if (k === 'tech') { S.snsTech = S.week + 1; extra = '来月の新規は、動画を見て期待して来てくれる。'; }
@@ -5553,7 +5606,7 @@
     return steps.sort(function (a, b) { return a.lv - b.lv || a.cost - b.cost; });
   }
   function renoBulk(to) {
-    var keep = RENT + wages(), done = 0, spent = 0, names = {}, renoShops = [];
+    var keep = homeRent() + wages(), done = 0, spent = 0, names = {}, renoShops = [];
     renoPlan(to).forEach(function (t) {
       var cur = t.sh ? (t.sh.interiorLv || 0) : (S.interiorLv || 0);
       if (cur !== t.lv || S.cash - t.cost < keep) return;
@@ -5575,8 +5628,8 @@
     if (left.length > 1) {
       var p1 = renoPlan(null), c1 = p1.reduce(function (a, x) { return a + x.cost; }, 0);
       var p3 = renoPlan(MAXINT), c3 = p3.reduce(function (a, x) { return a + x.cost; }, 0);
-      bulk.push({ label: '全店舗を1段階ずつ上げる　' + yen(c1), sub: p1.length + '店舗。お金が足りなければ、安い順にできるだけ（来月の家賃と給与は残す）', off: S.cash - RENT - wages() < p1.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(null); } });
-      bulk.push({ label: '全店舗を最上級まで上げる　' + yen(c3), sub: p3.length + '回分。お金が足りなければ、低い段階から順にできるだけ', off: S.cash - RENT - wages() < p3.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(MAXINT); } });
+      bulk.push({ label: '全店舗を1段階ずつ上げる　' + yen(c1), sub: p1.length + '店舗。お金が足りなければ、安い順にできるだけ（来月の家賃と給与は残す）', off: S.cash - homeRent() - wages() < p1.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(null); } });
+      bulk.push({ label: '全店舗を最上級まで上げる　' + yen(c3), sub: p3.length + '回分。お金が足りなければ、低い段階から順にできるだけ', off: S.cash - homeRent() - wages() < p3.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(MAXINT); } });
     }
     view('<h1>内装リニューアル</h1><p class="lead">1段階ごとに満足度と評判が上がり、スタッフをもう1人雇える。都心は2倍、海外は3倍の費用がかかる。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       bulk.concat(left.map(function (sh) {
@@ -6186,7 +6239,7 @@
       (w.whole ? '<dt>自社商品の卸売り</dt><dd>' + yen(w.whole) + '</dd>' : '') +
       (w.extra ? '<dt>賞金など</dt><dd>' + yen(w.extra) + '</dd>' : '') +
       (w.refund ? '<dt>解約の返金</dt><dd class="minus">' + yen(-w.refund) + '</dd>' : '') +
-      '<dt>家賃・固定費' + (w.opName ? '（' + w.opName + '）' : '') + '</dt><dd class="minus">' + yen(-(w.rent || RENT)) + '</dd>' +
+      '<dt>家賃・固定費' + (w.opName ? '（' + w.opName + '）' : '') + '</dt><dd class="minus">' + yen(-(w.rent || homeRent())) + '</dd>' +
       (w.wage ? '<dt>スタッフ給与（役職手当込み）</dt><dd class="minus">' + yen(-w.wage) + '</dd>' : '') +
       (w.inc ? '<dt>インセンティブ</dt><dd class="minus">' + yen(-w.inc) + '</dd>' : '') +
       (w.loan && w.loan.interest ? '<dt>借入金の利息</dt><dd class="minus">' + yen(-w.loan.interest) + '</dd>' : '') +
