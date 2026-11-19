@@ -132,6 +132,8 @@
   .stcard .eptag { display: block; margin: -2px 0 4px; font-size: .72rem; font-weight: 700; color: var(--accent); }
   .frbox { margin: 10px 0; padding: 8px 10px; background: var(--chip); border-left: 4px solid var(--gold); }
   .frbox b { display: block; margin-bottom: 4px; font-size: .9rem; }
+  .frbox .optbtn { background: var(--accent); color: var(--accent-ink); text-align: center; margin: 4px 0 8px; }
+  .frbox .optbtn small { color: inherit; opacity: .9; }
   .frbox button { display: block; width: 100%; margin: 4px 0 0; padding: 6px 8px; text-align: left; font-size: .88rem; }
   .stcard .frtag { display: block; margin: -2px 0 4px; font-size: .72rem; color: var(--gold); }
   .epbox { margin: 10px 0; padding: 10px 12px; background: var(--panel); border: 3px solid var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -606,7 +608,7 @@
   function blendOf(bl) {
     if (bl && bl.indexOf('my:') === 0) {
       var k = bl.slice(3), p = ((S && S.myProds) || []).filter(function (x) { return x.k === k; })[0];
-      return p ? { n: 'オリジナル「' + p.n + '」', price: 2500, sat: 4 + 2 * (p.q || 1), my: p } : BLEND.relax;
+      return p ? { n: 'オリジナル「' + p.n + '」', price: 4000 + 500 * (p.q || 1), sat: 4 + 2 * (p.q || 1), my: p } : BLEND.relax;
     }
     return BLEND[bl] || BLEND.relax;
   }
@@ -4143,13 +4145,13 @@
   }
   function treatBlend() {
     bar();
-    view(karte() + talkHtml() + stepHtml('アロマのブレンドを選ぶ', tip('blend', '高いブレンドほど満足度が上がる。お財布にきびしいお客様には逆効果。')),
+    view(karte() + talkHtml() + stepHtml('アロマのブレンドを選ぶ', tip('blend', 'ブレンドの追加料金はお客様が払い、お店の売上になる。高いブレンドほど満足度が上がるが、お財布にきびしいお客様には逆効果。')),
       Object.keys(BLEND).map(function (k) {
         var x = BLEND[k], locked = x.need && !S[x.need];
-        return { label: x.n + '　' + (x.price ? '+' + yen(x.price) : '追加料金なし'), sub: locked ? '仕入れ契約がないので出せない' : '', off: locked, go: function () { C.blend = k; treatPress(); } };
+        return { label: x.n + '　' + (x.price ? 'お客様の追加料金 +' + yen(x.price) : '追加料金なし'), sub: locked ? '仕入れ契約がないので出せない' : '', off: locked, go: function () { C.blend = k; treatPress(); } };
       }).concat(myOils().map(function (p) {
         var x = blendOf('my:' + p.k);
-        return { label: x.n + '　+' + yen(x.price), sub: '自社のエッセンシャルオイル（品質' + p.q + '・在庫' + S.stock[p.k] + '）。1回で1本使う。気に入ったお客様は、そのまま買ってくれやすい', go: function () { C.blend = 'my:' + p.k; treatPress(); } };
+        return { label: x.n + '　お客様の追加料金 +' + yen(x.price), sub: '自社のエッセンシャルオイル（品質' + p.q + '・在庫' + S.stock[p.k] + '）。1回で1本使う。気に入ったお客様は、そのまま買ってくれやすい', go: function () { C.blend = 'my:' + p.k; treatPress(); } };
       })).concat([{ label: 'ケア選びにもどる', go: treatSub }]));
   }
   function treatPress() {
@@ -5961,11 +5963,11 @@
     view('<h1>スタッフと過ごす</h1><p class="lead">やる気が下がると施術や接客の質が落ち、限界を超えると辞めてしまう。信頼が深まると、打ち明け話をしてくれることも。話したい人をタップしよう。</p>' +
       (S.careNote ? '<div class="news good">' + S.careNote + '</div>' : '') +
       (list.filter(function (x) { return x.wantTalk; }).length ? '<div class="epbox"><b>● 面談を申し出ているスタッフ</b><div class="epbtns">' + list.filter(function (x) { return x.wantTalk; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + 'と面談する<small>' + placeOf(st) + '</small></button>'; }).join('') + '</div></div>' : '') +
-      (list.filter(function (x) { return frictionOf(x).length; }).length ? '<div class="frbox"><b>相性が気になるスタッフ</b>' + list.filter(function (x) { return frictionOf(x).length; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + '（' + placeOf(st) + '）<small>' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</small></button>'; }).join('') + '</div>' : '') +
+      (list.filter(function (x) { return frictionOf(x).length; }).length ? '<div class="frbox"><b>相性が気になるスタッフ</b>' + (S.shops.length ? '<button type="button" class="optbtn" data-opt="1">相性を一括で最適化する<small>スタッフを入れかえて、全体の相性をよくする。指名していた常連さんの満足度は下がる</small></button>' : '') + list.filter(function (x) { return frictionOf(x).length; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + '（' + placeOf(st) + '）<small>' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</small></button>'; }).join('') + '</div>' : '') +
       (list.filter(epiReady).length ? '<div class="epbox"><b>● 話がありそうなスタッフ</b><div class="epbtns">' + list.filter(epiReady).map(function (st) { return '<button type="button" data-epi="' + st.id + '">' + st.name + 'の話を聞く<small>物語 ' + (epiNext(st).n + 1) + '／3</small></button>'; }).join('') + '</div></div>' : '') +
       (list.length ? cards : '<p class="lead">まだスタッフがいない。</p>'),
-      (S.shops.length && list.some(function (x) { return frictionOf(x).length; }) ? [{ label: '相性を一括で最適化する', sub: 'スタッフを入れかえて、全体の相性をよくする。指名していた常連さんの満足度は下がる', go: optView }] : [])
-      .concat(partyOpts(list)).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
+      partyOpts(list).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
+    var ob = document.querySelector('#app [data-opt]'); if (ob) ob.addEventListener('click', function () { SFX.click(); optView(); });
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-epi]'), function (bt) {
       bt.addEventListener('click', function () { var st = list.filter(function (x) { return x.id === bt.getAttribute('data-epi'); })[0]; if (st) { SFX.click(); S.careNote = ''; epiView(st); } });
     });
