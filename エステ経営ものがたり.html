@@ -69,6 +69,7 @@
   .bar .ttl { font: inherit; font-size: .72rem; margin: 0; padding: 1px 8px; min-height: 24px; width: auto; cursor: pointer; flex: none; background: transparent; color: var(--sub); border: 1px solid var(--line); box-shadow: none; }
   .bar .sub { flex-wrap: wrap; justify-content: flex-start; gap: 2px 12px; }
   .bar .sub span { white-space: nowrap; }
+  .ver { margin: 14px 0 0; text-align: center; font-size: .72rem; color: var(--sub); }
   .tgl { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 10px 12px; }
   .tgl b { display: block; font-size: .95rem; }
   .tgl small { display: block; font-size: .76rem; color: var(--sub); line-height: 1.45; }
@@ -7848,6 +7849,7 @@
         return { main: n === 1 && !!inf, label: 'セーブ' + n + '　' + (inf ? calOf(inf.week) + '　' + yen(inf.cash) : '空き'), sub: inf ? (1 + inf.shops) + '店舗・スタッフ' + inf.staff + '人' + (inf.ts ? '　' + when(inf.ts) : '') : 'ここで新しく開業する',
           go: function () { slotView(n); } };
       }));
+    try { var lm = new Date(document.lastModified); if (!isNaN(lm)) $('app').insertAdjacentHTML('beforeend', '<p class="ver">更新：' + lm.getFullYear() + '/' + (lm.getMonth() + 1) + '/' + lm.getDate() + ' ' + lm.getHours() + ':' + ('0' + lm.getMinutes()).slice(-2) + '</p>'); } catch (err) {}
     onTitle = true;
   }
   (function () {

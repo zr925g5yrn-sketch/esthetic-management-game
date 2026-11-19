@@ -14,7 +14,8 @@
   a { color: #D9466F; }
   @media (prefers-color-scheme: dark) { body { background: #1C1726; color: #F3ECDF; } a { color: #FF7FA0; } }
 </style>
-<script>location.replace('./%E3%82%A8%E3%82%B9%E3%83%86%E7%B5%8C%E5%96%B6%E3%82%82%E3%81%AE%E3%81%8B%E3%82%99%E3%81%9F%E3%82%8A.html' + location.search + location.hash);</script>
+<script>// いつも最新版を開く（ブラウザに残った古いページを使わない）
+location.replace('./%E3%82%A8%E3%82%B9%E3%83%86%E7%B5%8C%E5%96%B6%E3%82%82%E3%81%AE%E3%81%8B%E3%82%99%E3%81%9F%E3%82%8A.html' + (location.search ? location.search + '&' : '?') + 'v=' + Date.now() + location.hash);</script>
 </head>
 <body>
 <p>エステ経営ものがたりを開いています…<br>
