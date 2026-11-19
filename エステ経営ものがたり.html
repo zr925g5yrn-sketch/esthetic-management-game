@@ -67,7 +67,10 @@
   .bar .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .bar .top .brand { min-width: 0; }
   .bar .ttl { font: inherit; font-size: .72rem; margin: 0; padding: 1px 8px; min-height: 24px; width: auto; cursor: pointer; flex: none; background: transparent; color: var(--sub); border: 1px solid var(--line); box-shadow: none; }
+  .bar .sub { flex-wrap: wrap; justify-content: flex-start; gap: 2px 12px; }
   .bar .sub span { white-space: nowrap; }
+  .bar .bn { display: inline-block; }
+  .bar .cpt { display: inline-block; margin-right: 8px; padding: 0 8px; font-size: .72rem; color: var(--ink); background: var(--panel); border: 2px solid var(--cc); vertical-align: 1px; }
   .ttlask { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(20, 14, 28, .55); }
   .ttlask .box { width: min(360px, 100%); margin: 0; padding: 16px; display: grid; gap: 10px; }
   .ttlask h2 { margin: 0; }
@@ -2211,7 +2214,8 @@
       b.innerHTML = '<span class="week">エステ経営ものがたり</span><span></span><button class="snd" id="snd" type="button"></button>';
     } else {
       var full = Math.round(S.rep / 20);
-      b.innerHTML = '<span class="top"><span class="brand">' + (S.brand || S.company ? (S.company && S.brand && S.company.indexOf(S.brand) < 0 ? S.brand + '　｜　' + S.company : (S.company || S.brand)) : '') + '</span><button class="ttl" id="toTitle" type="button">タイトルへ</button></span>' + '<span class="week">' + calOf(S.week) + (S.ownerName ? '　' + S.ownerName + (S.hq ? '社長' + (S.boss ? '（' + BOSS[S.boss].n + '）' : '') : '店長') : '') + '　Lv' + mlv() + '</span>' +
+      var cpB = opBranch(), cpK = cpB ? cpB.concept : S.concept;
+      b.innerHTML = '<span class="top"><span class="brand">' + (cpK && CONCEPTS[cpK] ? '<span class="cpt" style="--cc:' + (CONCEPTS[cpK].tint.flower || '#E0567A') + '">' + CONCEPTS[cpK].n + '</span>' : '') + '<span class="bn">' + (S.brand || S.company ? (S.company && S.brand && S.company.indexOf(S.brand) < 0 ? S.brand + '　｜　' + S.company : (S.company || S.brand)) : '') + '</span>' + '</span><button class="ttl" id="toTitle" type="button">タイトルへ</button></span>' + '<span class="week">' + calOf(S.week) + (S.ownerName ? '　' + S.ownerName + (S.hq ? '社長' + (S.boss ? '（' + BOSS[S.boss].n + '）' : '') : '店長') : '') + '　Lv' + mlv() + '</span>' +
         '<span class="money' + (S.cash < 0 ? ' minus' : '') + '">' + yen(S.cash) + '</span>' +
         '<button class="snd" id="snd" type="button"></button>' +
         '<span class="sub"><span>評判 ' + '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5 - full) + '</span>' +
