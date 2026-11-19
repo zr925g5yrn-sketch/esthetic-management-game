@@ -60,6 +60,9 @@
   .bar .money { text-align: right; font-size: 1.12rem; font-variant-numeric: tabular-nums; }
   .bar .money.minus { color: var(--accent); }
   .bar .sub { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 8px; font-size: .78rem; color: var(--sub); }
+  .hcond { display: grid; grid-template-columns: 6.5em 1fr; gap: 8px 10px; margin: 0; font-size: .9rem; line-height: 1.55; }
+  .hcond dt { color: var(--sub); white-space: nowrap; }
+  .hcond dd { margin: 0; }
   #app .trw { margin: 16px 0 6px; font-size: 1rem; }
   .bar .top { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .bar .top .brand { min-width: 0; }
@@ -2228,7 +2231,7 @@
   }
   var onTitle = false, GRPOPEN = {};
   // 店舗の地域（一覧を地域ごとにたたむため）
-  function regionOf(sh) { if (!sh || sh === 'main') return '本店・近所の店'; if (sh === 'ph') return '都心の店'; return { local: '本店・近所の店', city: '都心の店', region: '地方都市の店', world: '海外の店', resort: '海外リゾートの店' }[AREAS[sh.area].tier]; }
+  function regionOf(sh) { if (!sh || sh === 'main') return '本店・近所の店'; if (sh === 'ph') return '都心の店'; return { local: '本店・近所の店', city: '都心の店', region: '地方都市の店', world: '海外の店', resort: '海外リゾートの店', hotel: 'ホテルの店' }[AREAS[sh.area].tier]; }
   function view(html, opts, cls) {
     onTitle = false;
     var app = $('app');
@@ -2266,9 +2269,9 @@
   function stName(st) { return st.owner ? (S && S.ownerName ? S.ownerName + '店長' : 'あなた') : st.name; }
   function karte() {
     var c = C, k = c.known;
-    var tag = (c.vip ? 'セレブ　' : (c.press ? '雑誌の記者　' : (c.influ ? 'インフルエンサー　' : ''))) + (c.isNew ? (c.ref ? '紹介で来店' : '初めての来店') :
+    var tag = (c.vip ? 'セレブ　' : (c.hotel ? c.hotelName + 'の支配人（視察）　' : c.press ? '雑誌の記者　' : (c.influ ? 'インフルエンサー　' : ''))) + (c.isNew ? (c.ref ? '紹介で来店' : '初めての来店') :
       ('常連・' + (c.visits + 1) + '回目' + (c.plan ? '　' + courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回' : (c.member ? '　会員' : (c.royal ? '　ロイヤル会員' : '')))));
-    var h = '<section class="karte box"><div class="kh"><b>' + c.name + (c.vip ? ' さま' : ' さん') + '</b><span>' + c.age + '代 ' + (c.male ? '男性' : '女性') + '</span></div>' +
+    var h = '<section class="karte box"><div class="kh"><b>' + c.name + (c.hotel ? ' 支配人' : c.vip ? ' さま' : ' さん') + '</b><span>' + c.age + '代 ' + (c.male ? '男性' : '女性') + '</span></div>' +
       '<div class="ag">' + tag + (c.st ? '　担当 ' + stName(c.st) : '') + '</div><div class="chips">';
     var today = !c.isNew && c.today && c.phase !== 'meet0';
     h += k.concern ? '<span>' + (today ? '今日' : '悩み') + '：' + CONCERN[today ? c.today : c.concern].n + (k.c2 && c.concern2 ? '（ほかに' + CONCERN[c.concern2].n + '）' : '') + '</span>' : '<span class="q">悩み：？</span>';
@@ -2830,16 +2833,28 @@
       c.celeb = true; c.name = 'サングラスの女性'; c.male = false; c.age = 30; c.budget = 3; c.grd = 55;
       c.look.top = '#2B2238'; c.look.bottom = '#2B2238'; c.look.glasses = true; c.look.style = 'long';
     }
+    if (kind === 'hotel') {
+      var HV = AREAS[S.hotelVisit && S.hotelVisit.k] || AREAS.h_tokyo;
+      c.press = true; c.hotel = S.hotelVisit ? S.hotelVisit.k : 'h_tokyo'; c.hotelName = HV.n.replace(/店$/, ''); c.male = roll(0.5); c.age = pick([40, 50]); c.grd = 52; c.pers = 'careful';
+      c.name = pick(JPSUR); c.look.top = '#2B2238'; c.look.bottom = '#2B2238'; c.look.style = c.male ? 'short' : 'bun'; c.look.glasses = roll(0.5);
+    }
     if (kind === 'influ') { c.influ = true; c.age = 20; c.male = false; c.look.top = '#FF7FA0'; c.look.style = 'long'; c.look.phone = true; }
     return c;
   }
   function pressOutcome() {
+    if (C.hotel) {
+      var hn = AREAS[C.hotel].n.replace(/店$/, '');
+      S.hotelNext = S.week + 6;
+      if (C.sat >= 80) { S.hotelOffer = C.hotel; S.rep = clamp(S.rep + 3, 0, 100); return hn + 'の支配人が「ぜひ、うちのホテルにスパを出していただけませんか」と申し出た。月末の画面から話を進められる。'; }
+      if (C.sat >= 55) return '「よい時間でした。また寄らせていただきます」。今回は、出店の話にはならなかった。';
+      S.rep = clamp(S.rep - 3, 0, 100); return '支配人は、ていねいにお礼を言って帰っていった。出店の話はなかった。';
+    }
     if (C.sat >= 75) { S.rep = clamp(S.rep + 12, 0, 100); S.buzz = { until: S.week + 2, n: 2 }; return '記者が大満足。評判が大きく上がり、来月から2か月、記事を見た新規が増える。'; }
     if (C.sat >= 55) { S.rep = clamp(S.rep + 4, 0, 100); return '小さな記事で紹介された。評判が少し上がった。'; }
     S.rep = clamp(S.rep - 8, 0, 100); return '辛口の記事が載ってしまった。評判が下がった。';
   }
   function pressDone() {
-    say('me', '本日はありがとうございました。'); say('you', '取材にご協力いただき、ありがとうございました。');
+    say('me', '本日はありがとうございました。'); say('you', C.hotel ? '本日は、ありがとうございました。' : '取材にご協力いただき、ありがとうございました。');
     var msg = pressOutcome();
     endVisit(C);
     if (C.sat >= 75) burst('heart', 37, 34, 5);
@@ -4020,6 +4035,8 @@
     if (boss() === 'charisma') newN += 1;
     newN = Math.max(1, newN + pm().newAdj);
     S.ad = 0;
+    if (!S.special && !opArea() && hotelReady()) { var hk2 = hotelNextKey(); S.special = 'hotel'; S.hotelVisit = { k: hk2, week: S.week }; S.hotelNext = S.week + 6;
+      S.news.push({ good: true, t: AREAS[hk2].n.replace(/店$/, '') + 'の支配人が、視察を兼ねて予約を入れた。ホテルのスパを任せられるお店を探しているらしい。' }); }
     var cap = totalCap(), keep = Math.max(0, cap - (S.special ? 1 : 0));
     var used = {};
     S.clients.forEach(function (c) { if (c.active) used[c.name] = true; });
@@ -4052,6 +4069,7 @@
   }
   function tagOf(c) {
     if (c.vip) return c.royal ? 'セレブ・ロイヤル会員' : 'セレブ';
+    if (c.hotel) return 'ホテルの支配人（視察）';
     if (c.press) return '雑誌の記者（取材）';
     if (c.influ) return 'インフルエンサー';
     if (c.inbound) return c.from + 'からの観光客';
@@ -4279,7 +4297,7 @@
     if (C.isNew) { C.int = clamp(C.int + 15 + C.sat * 0.5, 0, 100); S.cash += TRIAL; S.wk.trial += TRIAL; C.revenue += TRIAL; }
     setScene('treat', { sat: C.sat });
     bar();
-    if (C.press) return view(karte() + talkHtml() + '<div class="news">取材のお客様なので、売り込みはしない。</div>', [{ main: true, label: 'お見送りする', go: pressDone }]);
+    if (C.press) return view(karte() + talkHtml() + '<div class="news">' + (C.hotel ? '視察のお客様' : '取材のお客様') + 'なので、売り込みはしない。</div>', [{ main: true, label: 'お見送りする', go: pressDone }]);
     view(karte() + talkHtml(), [{ main: true, label: C.isNew ? 'クロージングへ' : 'お会計へ', go: function () {
       C.phase = 'close'; setScene('talk');
       if (C.isNew) closing(); else regOffer();
@@ -4831,6 +4849,16 @@
     goldcoast:{ n: 'ゴールドコースト店', tier: 'resort', cost: 3800000, rent: 190000, demand: 4, mult: 1.9, peak: [12, 1, 2], d: 'サーファーの楽園。日焼けケアの需要が高い', names: ['シャーロット', 'アメリア', 'イスラ', 'エヴィー', 'ルビー', 'ジョージア', 'マチルダ', 'ハーパー', 'ウィロー', 'スカーレット', 'サディ', 'ポピー', 'ルナ', 'マイア', 'ハーロウ', 'ペニー', 'ジェイド', 'ベイリー', 'サマー', 'タイラ'] },
     dubai:   { n: 'ドバイ店', tier: 'world', cost: 6000000, rent: 300000, demand: 2, mult: 3.2, d: '石油王の街。お客様は少ないが、桁外れに使う', names: ['レイラ', 'ファティマ', 'ヤスミン', 'アミラ', 'ノール', 'サラ', 'マリアム', 'ライラ', 'ハラ', 'ダナ', 'ルーナ', 'シャイマ', 'アヤ', 'ジャナ', 'ラナ', 'ズハ', 'ナディーン', 'アスマ', 'リーム', 'ハムダ', 'ヌーラ', 'アルヤ', 'ムナ', 'シャハド', 'ルブナ', 'ワファ', 'ガダ', 'ダリア', 'サルマ', 'ヒンド', 'ジュード', 'タラ', 'ザイナブ', 'ルカヤ', 'メイサ', 'ニダ', 'アフラ', 'ヌハ', 'バスマ', 'ラワン'] }
   };
+  // 高級ホテルのスパ（ホテルはすべて架空）。家賃はなく、売上の25%をホテルに払う。内装はホテルが用意する
+  var HOTELS = {
+    h_tokyo:  { n: 'ホテル・ルミエール東京店', base: 'ginza', cost: 18000000, mult: 2.4, demand: 3, d: '丸の内の高級ホテル。国内外の宿泊客と、ホテルの会員が主なお客様' },
+    h_kyoto:  { n: '京都・月影ホテル店', base: 'kyoto', cost: 15000000, mult: 2.2, demand: 3, d: '東山の老舗ホテル。海外からの宿泊客が多い' },
+    h_sing:   { n: 'グランド・オーキッド シンガポール店', base: 'singapore', cost: 30000000, mult: 3.0, demand: 3, intl: true, d: '湾を見下ろすホテル。アジアの富裕層が集まる' },
+    h_paris:  { n: 'ル・パレ・ソワレ パリ店', base: 'paris', cost: 36000000, mult: 3.2, demand: 2, intl: true, d: '凱旋門の近くの宮殿ホテル。世界の名士が泊まる' },
+    h_dubai:  { n: 'アル・サフィール ドバイ店', base: 'dubai', cost: 40000000, mult: 3.6, demand: 2, intl: true, d: '砂漠と海に囲まれた最高級ホテル' }
+  };
+  var HOTELSHARE = 0.25, HMJOIN = 1000000, HMYEAR = 600000;
+  Object.keys(HOTELS).forEach(function (k) { var H = HOTELS[k]; AREAS[k] = { n: H.n, tier: 'hotel', hotel: true, base: H.base, intl: !!H.intl, cost: H.cost, rent: 0, demand: H.demand, mult: H.mult, d: H.d, names: AREAS[H.base] && AREAS[H.base].names }; });
   // 出店費と家賃：15〜25坪ほどのサロンの相場（出店費は内装・設備・保証金込み）
   var AREAPRICE = {
     suburb: [10000000, 200000], shotengai: [11000000, 220000], town: [12000000, 260000], station: [16000000, 380000], ekibiru: [18000000, 420000],
@@ -4848,7 +4876,8 @@
     sapporo: [25, 6], fukuoka: [25, 6], nagoya: [26, 6], osaka: [30, 7], kyoto: [26, 6],
     taipei: [26, 6], seoul: [30, 7], bangkok: [30, 7], shanghai: [35, 8], singapore: [32, 7], hawaii: [30, 7],
     london: [32, 7], paris: [30, 7], la: [32, 7], newyork: [35, 8], dubai: [40, 9],
-    cebu: [30, 6], guam: [28, 6], bali: [35, 7], phuket: [32, 7], goldcoast: [30, 6], cancun: [35, 7], santorini: [30, 6], maldives: [40, 8]
+    cebu: [30, 6], guam: [28, 6], bali: [35, 7], phuket: [32, 7], goldcoast: [30, 6], cancun: [35, 7], santorini: [30, 6], maldives: [40, 8],
+    h_tokyo: [40, 7], h_kyoto: [36, 6], h_sing: [45, 8], h_paris: [40, 7], h_dubai: [50, 9]
   };
   Object.keys(AREAS).forEach(function (k) { var z = AREASIZE[k] || [20, 4]; AREAS[k].tsubo = z[0]; AREAS[k].cap = z[1]; });
   var BRSCALE = 1.25;  // 支店は、家賃に見合う客数と単価で営業する（家賃の高い一等地ほど、客単価と客数が多い）
@@ -4879,6 +4908,7 @@
     maldives: { g: ['luxe', 'relax'], b: ['casual'] }, phuket: { g: ['relax', 'body'] }, cebu: { g: ['relax', 'casual'] }, guam: { g: ['relax', 'casual'] },
     cancun: { g: ['luxe', 'relax'] }, santorini: { g: ['luxe', 'relax'] }, goldcoast: { g: ['body', 'skin'] }, dubai: { g: ['luxe'], b: ['casual'] }
   };
+  Object.keys(HOTELS).forEach(function (k) { AREAFIT[k] = { g: ['luxe'], b: ['casual'] }; });
   function fitOf(area, c) { var F = AREAFIT[area] || {}; return !c ? 0 : (F.g || []).indexOf(c) >= 0 ? 1 : (F.b || []).indexOf(c) >= 0 ? -1 : 0; }
   function fitText(m) { return m > 0 ? 'この街に合う！' : m < 0 ? 'この街には合わない' : 'ふつう'; }
   /* --- 経営者レベル（1〜100）。日々の仕事・できごと・トラブルの対応で経験値がたまり、出店できる街が増える --- */
@@ -4913,7 +4943,7 @@
       SFX.fanfare(false);
     }
   }
-  var TIER = { local: { n: '近所に出す', m: 1 }, city: { n: '都心に出す', m: 2 }, region: { n: '地方都市に出す', m: 2 }, world: { n: '海外に出す', m: 3 }, resort: { n: '海外リゾートに出す', m: 3 } };
+  var TIER = { local: { n: '近所に出す', m: 1 }, city: { n: '都心に出す', m: 2 }, region: { n: '地方都市に出す', m: 2 }, world: { n: '海外に出す', m: 3 }, resort: { n: '海外リゾートに出す', m: 3 }, hotel: { n: '高級ホテル', m: 3 } };
   var OPENGAP = 3;
   function hasTier(t) { return S.shops.some(function (b) { return AREAS[b.area].tier === t; }); }
   function tierOpen(t) {
@@ -5022,11 +5052,12 @@
     allStaff().forEach(function (st) { taken[st.name] = true; });
     var b = { id: 'b' + (S.uid++), area: k, name: (S.brand ? S.brand + ' ' : '') + A.n, staff: [], rep: Math.max(30, S.rep - 10), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free, concept: concept || ((AREAFIT[k] || {}).g || ['relax'])[0] };
     S.shops.push(b);
-    var cd = genCand(taken, A.names, k);
+    var cd = genCand(taken, A.names, A.base || k);
     if (A.tier !== 'local') { Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = Math.max(cd.sk[k], 3); }); skFix(cd); cd.wage = baseWage(cd) + 20000; }
     hireTo(b, cd);
     // 都心と海外は、開店時にスタッフを2人連れていく
-    if (A.tier !== 'local') for (var e2 = 0; e2 < 2; e2++) hireTo(b, genCand(taken, A.names, k));
+    if (A.tier !== 'local') for (var e2 = 0; e2 < 2; e2++) hireTo(b, genCand(taken, A.names, A.base || k));
+    if (A.hotel) { b.interiorLv = 2; b.hmem = []; }
     burst('coin', 60, 30, 8); burst('heart', 60, 34, 4);
     evScene(['v_reno']); if (scene.story) { scene.story.shops = [b]; scene.story.t0 = performance.now(); }
     return b;
@@ -5082,10 +5113,20 @@
     if (fit) r.sales = Math.round(r.sales * (1 + 0.12 * fit));
     r.inv = 0;
     if (A.peak) { var hi = A.peak.indexOf(monthOf()) >= 0; r.season = hi ? 'ハイシーズン' : 'オフシーズン'; r.sales = Math.round(r.sales * (hi ? 1.45 : 0.75)); }
-    if (A.tier === 'world' || A.tier === 'resort') { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
+    if (A.tier === 'world' || A.tier === 'resort' || A.intl) { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
     if (!b.home) r.sales = Math.round(r.sales * areaRev(A));
     mgrEffect(b, r);
     if (!b.home) r.sales = Math.round(r.sales * bossMult());
+    if (A.hotel) {
+      b.hmem = b.hmem || []; var hj = 0, hr = 0, hl = 0, hcap = 6 + 2 * (b.interiorLv || 0);
+      b.hmem = b.hmem.filter(function (m) {
+        if (S.week === m.since || (S.week - m.since) % 12) return true;
+        if (roll(0.7 + S.hum / 400 + b.rep / 1000)) { hr++; return true; } hl++; return false; });
+      if (b.hmem.length < hcap && roll(0.08 + b.rep / 500 + S.hum / 1000)) { b.hmem.push({ since: S.week }); hj++; }
+      r.hm = { n: b.hmem.length, join: hj, renew: hr, left: hl };
+      r.sales += hj * HMJOIN + hr * HMYEAR;
+      r.hotel = Math.round(r.sales * HOTELSHARE); r.cost += r.hotel;
+    }
     r.net = r.sales - r.refund - r.cost;
     if (b.celebPerk && S.week <= b.celebPerk.until) { r.perk = b.celebPerk.cost; r.cost += r.perk; r.net -= r.perk; b.rep = clamp(b.rep + 0.5, 0, 100); }
     if (b.investor && S.week <= b.investor.until && r.net > 0) { r.inv = Math.round(r.net * b.investor.pct / 1000) * 1000; r.cost += r.inv; r.net -= r.inv; }
@@ -5122,6 +5163,34 @@
           var b = openBranch(k, false, c); mxpAdd(50); S.wk.opened = b; S.lastOpen = S.week; showCut(branchCut(b), investView);
         } };
       }).concat([{ main: true, label: 'もどる', go: function () { branchView(t); } }]));
+  }
+
+  /* --- 高級ホテルのスパ --- */
+  function hotelNextKey() { return Object.keys(HOTELS).filter(function (k) { return !S.shops.some(function (b) { return b.area === k; }); })[0]; }
+  function hotelReady() {
+    if (S.hotelOffer || !hotelNextKey() || S.week < (S.hotelNext || 0) || !S.shops.length) return false;
+    var royal = S.clients.filter(function (c) { return c.royal; }).length;
+    return S.rep >= 90 && royal >= 2 && S.hum >= 50;
+  }
+  function hotelOpts() {
+    if (!S.hotelOffer || !AREAS[S.hotelOffer]) return [];
+    var A = AREAS[S.hotelOffer];
+    return [{ label: A.n.replace(/店$/, '') + 'から、出店の話', sub: 'ホテルのスパを任せたいという申し出', go: hotelView }];
+  }
+  function hotelView() {
+    bar();
+    var k = S.hotelOffer, A = AREAS[k], hn = A.n.replace(/店$/, '');
+    view('<h1>' + hn + 'のスパ</h1><p class="lead">' + A.d + '。</p><div class="box" style="padding:12px 14px"><h2 style="margin-top:0">出店の条件</h2><dl class="hcond">' +
+      '<dt>出店費</dt><dd>' + yen(A.cost) + '（内装はホテルが用意する）</dd>' +
+      '<dt>家賃</dt><dd>なし。そのかわり、売上の' + Math.round(HOTELSHARE * 100) + '%をホテルに払う</dd>' +
+      '<dt>お客様</dt><dd>宿泊客と、ホテルの会員。単価は街の店の2〜3倍</dd>' +
+      '<dt>ホテル会員</dt><dd>入会金' + yen(HMJOIN) + '・年会費' + yen(HMYEAR) + '。評判が高いほど入会が増える</dd>' +
+      '<dt>スタッフ</dt><dd>店長とスタッフ2人で開店する</span></li></dl></div>',
+      [{ main: true, label: '契約して出店する　' + yen(A.cost), sub: S.cash < A.cost ? 'お金が足りない。話は待ってもらえる' : '', off: S.cash < A.cost, go: function () {
+          var b = openBranch(k, false, 'luxe'); S.hotelOffer = null; S.hotelNext = S.week + 12; mxpAdd(80); hum(3); S.wk.opened = b; S.lastOpen = S.week;
+          showCut({ kicker: 'グランドオープン', title: b.name, sub: 'ホテルのスパを任された', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, investView); } },
+        { label: '今回は見送る', sub: 'また機会があれば、別のホテルから声がかかるかもしれない', go: function () { S.hotelOffer = null; S.hotelNext = S.week + 6; investView(); } },
+        { label: 'もどる', go: investView }]);
   }
 
   /* --- ペントハウス --- */
@@ -5286,7 +5355,8 @@
       var cc = V ? V.concept : S.concept;
       info = (cc && CONCEPTS[cc] ? 'コンセプト：' + CONCEPTS[cc].n + (V ? '（' + fitText(fitOf(V.area, cc)) + '）' : '') + '<br>' : '') +
         '内装 ' + lv + '／' + MAXINT + '　スタッフ ' + crew.length + '／' + maxOf(V && V !== 'ph' ? V : null) + '人　広さ ' + (V && V !== 'ph' ? AREAS[V.area].tsubo : homeLoc().tsubo) + '坪' + (V ? '　評判 ' + stars(V.rep) : '') +
-        (r ? '<br>先月：来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + '　収支 ' + yen(r.net) + (r.inv ? '（出資者へ' + yen(r.inv) + '支払い後）' : '') : '') +
+        (r ? '<br>先月：来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + '　収支 ' + yen(r.net) + (r.inv ? '（出資者へ' + yen(r.inv) + '支払い後）' : '') + (r.hotel ? '（ホテルへ' + yen(r.hotel) + '支払い後）' : '') : '') +
+        (V && V.hmem ? '<br>ホテル会員 ' + V.hmem.length + '人（入会金' + yen(HMJOIN) + '・年会費' + yen(HMYEAR) + '）' : '') +
         (V && V.celebPerk && S.week <= V.celebPerk.until ? '<br>セレブへのお礼：' + V.celebPerk.name + 'に毎月VIP施術を無料で（月' + yen(V.celebPerk.cost) + '相当、あと' + (V.celebPerk.until - S.week) + 'か月）' : '') +
         (V && V.investor && S.week <= V.investor.until ? '<br>出資：' + V.investor.name + 'に利益の' + Math.round(V.investor.pct * 100) + '%を支払い中（あと' + (V.investor.until - S.week) + 'か月）' : '');
     }
@@ -6360,7 +6430,7 @@
       (w.hqCost ? '<dt>本社（家賃・給与' + (w.levy ? '・障害者雇用納付金' : '') + '）</dt><dd class="minus">' + yen(-w.hqCost) + '</dd>' : '') +
       (w.base ? '<dt>材料・光熱費</dt><dd class="minus">' + yen(-w.base.cost) + '</dd>' : '') +
       '<div class="sum"></div><dt class="big">' + (br.length ? '本店の収支' : '今月の収支') + '</dt><dd class="big' + (net < 0 ? ' minus' : '') + '">' + yen(net) + '</dd>' +
-      br.map(function (r) { return '<dt>' + r.name + '（来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + (r.fx ? '・為替×' + r.fx.toFixed(2) : '') + (r.season ? '・' + r.season : '') + '）</dt><dd class="' + (r.net < 0 ? 'minus' : '') + '">' + yen(r.net) + '</dd>'; }).join('') +
+      br.map(function (r) { return '<dt>' + r.name + '（来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + (r.fx ? '・為替×' + r.fx.toFixed(2) : '') + (r.season ? '・' + r.season : '') + (r.hotel ? '・ホテルへ' + yen(r.hotel) : '') + (r.hm && (r.hm.join || r.hm.renew || r.hm.left) ? '・ホテル会員 入会' + r.hm.join + '人 更新' + r.hm.renew + '人' + (r.hm.left ? ' 退会' + r.hm.left + '人' : '') : '') + '）</dt><dd class="' + (r.net < 0 ? 'minus' : '') + '">' + yen(r.net) + '</dd>'; }).join('') +
       (ph ? '<dt>ペントハウス（会員' + ph.members + '人' + (ph.join ? '・入会' + ph.join : '') + (ph.gone ? '・退会' + ph.gone : '') + '）</dt><dd class="' + (ph.net < 0 ? 'minus' : '') + '">' + yen(ph.net) + '</dd>' : '') +
       (br.length || ph ? '<div class="sum"></div><dt class="big">全店の収支</dt><dd class="big' + (all < 0 ? ' minus' : '') + '">' + yen(all) + '</dd>' : '') + '</dl>' +
       '<ul class="plain"><li>' + (w.sold.length ? w.sold.join('</li><li>') : '成約なし') + '</li></ul></div>';
@@ -6514,7 +6584,7 @@
     if (curCat && CAT[curCat]) return catView(curCat);
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
-    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + (nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(
+    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + (nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(
       S.shops.length ? [{ label: '来月の営業店舗：' + (nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える。選んだ店舗のお客様を自分で接客し、本店はスタッフにおまかせになる', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
@@ -7309,6 +7379,7 @@
   };
   var SURFIRST = { seoul: 1, shanghai: 1, taipei: 1 };
   function fullName(given, area, seed) {
+    if (area && AREAS[area] && AREAS[area].base) area = AREAS[area].base;
     var list = area && WSUR[area], sur;
     if (seed !== undefined) { var h = 0, s = String(seed) + given; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 99991; sur = (list || JPSUR)[h % (list || JPSUR).length]; }
     else sur = pick(list || JPSUR);
