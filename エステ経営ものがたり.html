@@ -4065,8 +4065,8 @@
     var vo = VOICE[C.sub] || VOICE.aroma;
     if (C.sat >= 75) say('you', vo[0], 'good');
     else if (C.sat >= 50) say('you', vo[1]);
+    else say('you', r.match < 40 ? 'うーん、気になっていた所とは少し違ったかも…。' : (r.gap === 2 ? '圧がちょっと合わなかったです…。' : 'うーん…。思っていたほどではなかったかも。'), 'bad');
     if (C.oilLiked && C.sat >= 60) say('you', 'この香り、すごく好きです…。お家でも使いたいな。');
-    else say('you', r.match < 40 ? 'うーん、気になっていた所とは少し違ったかも…。' : (r.gap === 2 ? '圧がちょっと合わなかったです…。' : 'まあ、こんなものでしょうか。'), 'bad');
     reputeBySat();
     if (C.isNew) { C.int = clamp(C.int + 15 + C.sat * 0.5, 0, 100); S.cash += TRIAL; S.wk.trial += TRIAL; C.revenue += TRIAL; }
     setScene('treat', { sat: C.sat });
