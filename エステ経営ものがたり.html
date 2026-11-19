@@ -6755,7 +6755,8 @@
     var T = [], P = snsFix(), left = snsLeft();
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (S.dot && S.dot.length) T.push(dotUnread() ? { t: 'dot.に返信する', s: '未返信 ' + dotUnread() + '件', go: function () { dotView(false); } } : { t: 'dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
-    // AIに任せた月は、タスクに出さない
+    // AIに任せているなら、まだ返信していないもの（AIの導入前に届いたものも）はAIが返信する。タスクには出さない
+    if (S.dotAI !== false && S.odot) S.odot.forEach(function (m) { if (m.done < 0) { m.done = 0; m.ai = true; m.note = dotFx(m, m.reps[0]); } });
     if (S.odot && S.odot.length && !S.odot.every(function (m) { return m.ai; })) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
     var rl = renoLeftList();
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
