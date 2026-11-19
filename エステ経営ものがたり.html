@@ -228,6 +228,23 @@
   .opts { display: grid; gap: 9px; }
   .topback { display: inline-block; width: auto; min-height: 36px; margin: 0 0 8px; padding: 6px 12px; font-size: .85rem; font-weight: 700; }
   .opts.two { grid-template-columns: 1fr 1fr; }
+  /* ふつうの選択肢：ひとつのパネルに、線で区切って並べる（四角がたくさん並ばないように） */
+  .olist { display: grid; background: var(--panel); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  .olist > button, details.fold.grp > .opts > button { position: relative; min-height: 50px; margin: 0; padding: 9px 30px 9px 12px; border: 0; border-top: 1px solid var(--line); box-shadow: none; background: transparent; }
+  .olist > button:first-child, details.fold.grp > .opts > button:first-child { border-top: 0; }
+  .olist > button::after, details.fold.grp > .opts > button::after { content: '›'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--sub); font-size: 1.25rem; line-height: 1; }
+  .olist > button:disabled::after, details.fold.grp > .opts > button:disabled::after { content: ''; }
+  .olist > button:active:not(:disabled), details.fold.grp > .opts > button:active:not(:disabled) { transform: none; box-shadow: none; background: var(--chip); }
+  .olist > button.picked, details.fold.grp > .opts > button.picked { background: var(--chip); }
+  .olist > button.picked b::before { content: '✓ '; color: var(--accent); }
+  details.fold.grp > .opts { gap: 0; padding: 0 !important; border-top: 1px solid var(--line); }
+  .osec { margin: 10px 0 -3px; font-size: .82rem; font-weight: 700; color: var(--sub); }
+  details.more { margin: 0 0 8px; }
+  details.more > summary { display: inline-block; cursor: pointer; font-size: .8rem; color: var(--accent); list-style: none; padding: 2px 0; }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::after { content: ' ▼'; font-size: .65rem; }
+  details.more[open] > summary::after { content: ' ▲'; }
+  details.more > .lead { margin-top: 4px; }
   button {
     font: inherit; cursor: pointer; text-align: left;
     min-height: 48px; padding: 7px 12px;
@@ -251,7 +268,7 @@
   .slip .sum { grid-column: 1 / -1; border-top: 2px dashed var(--line); margin: 4px 0; }
   .slip .big { font-size: 1.12rem; }
   .rank { font-size: 4.4rem; line-height: 1; color: var(--accent); margin: 4px 0; }
-  .news { margin-top: 10px; padding: 7px 11px; border: 2px solid var(--ink); border-left: 8px solid var(--gold); background: var(--panel); font-size: .88rem; }
+  .news { margin-top: 10px; padding: 8px 12px; border: 0; border-left: 5px solid var(--gold); background: var(--panel); font-size: .88rem; line-height: 1.6; }
   .news.bad { border-left-color: var(--accent); }
   .news.good { border-left-color: var(--good); }
   .who-list.auto li { align-items: center; }
@@ -315,6 +332,8 @@
   .event.life .badge { background: #8E6CD8; color: #FFFFFF; }
   .event.season { border-color: #5FAE80; box-shadow: 4px 4px 0 #5FAE80; }
   .event.mission { border-color: #E8A93A; box-shadow: 4px 4px 0 #E8A93A; }
+  .event.mission h2 { font-size: 1.02rem; margin: 4px 0 2px; }
+  .event.mission p { font-size: .82rem; }
   .shopsw { display: flex; gap: 6px; align-items: center; overflow-x: auto; padding: 2px 0 8px; margin: 0 0 4px; -webkit-overflow-scrolling: touch; }
   .shopsw span { flex: none; font-size: .85rem; opacity: .8; }
   .shopsw .chipb { flex: none; width: auto; margin: 0; padding: 6px 10px; font: inherit; font-size: .9rem; color: var(--ink); background: var(--panel); border: 2px solid var(--line); box-shadow: none; cursor: pointer; }
@@ -322,12 +341,20 @@
   .tasks { margin: 8px 0 10px; padding: 8px 10px 10px; }
   .tasks h2 { margin: 0 0 6px; font-size: 1rem; }
   .tasks .task { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin: 4px 0 0; padding: 8px 10px; font: inherit; color: var(--ink);
-    background: var(--panel); border: 2px solid var(--line); border-radius: 0; cursor: pointer; }
+    background: transparent; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; cursor: pointer; }
+  .tasks .task:active:not(:disabled) { transform: none; box-shadow: none; background: var(--chip); }
+  .tasks > .task:first-of-type { border-top: 0; }
   .tasks .task .mk { flex: none; width: 1.4em; text-align: center; font-weight: bold; }
   .tasks .task.todo { border-color: var(--ink); }
   .tasks .task.todo .mk { color: var(--accent, #D9466F); }
   .tasks .task.done { opacity: .55; cursor: default; }
   .tasks .task small { display: block; opacity: .75; }
+  .notes { margin: 18px 0 10px; background: var(--panel); border: 2px solid var(--line); }
+  .notes h2 { margin: 0; padding: 8px 12px; font-size: .95rem; border-bottom: 1px solid var(--line); }
+  .notes > .news, .notes > .lead, .notes > details.fold { margin: 0; border-left-width: 4px; border-bottom: 1px solid var(--line); }
+  .notes > .lead { padding: 8px 12px; }
+  .notes > details.fold { border: 0; border-bottom: 1px solid var(--line); }
+  .notes > :last-child { border-bottom: 0; }
   .sumline { font-size: 1rem; margin: 4px 0 8px; padding: 8px 10px; border: 2px solid var(--line); background: var(--panel); }
   .sumline b { font-size: 1.2rem; }
   .sumline.minus b { color: var(--accent); }
@@ -2257,18 +2284,41 @@
   var onTitle = false, GRPOPEN = {};
   // 店舗の地域（一覧を地域ごとにたたむため）
   function regionOf(sh) { if (!sh || sh === 'main') return '本店・近所の店'; if (sh === 'ph') return '都心の店'; return { local: '本店・近所の店', city: '都心の店', region: '地方都市の店', world: '海外の店', resort: '海外リゾートの店', hotel: 'ホテルの店' }[AREAS[sh.area].tier]; }
+  // 長い説明文（.lead）は、最初の一文だけ見せて、残りは「くわしく」に折りたたむ
+  function foldLeads(html) {
+    return html.replace(/<p class="lead"( style="[^"]*")?>([\s\S]*?)<\/p>/g, function (all, st, body) {
+      var plain = body.replace(/<[^>]*>/g, '');
+      if (plain.length <= 90) return all;
+      var depth = 0, cut = -1;
+      for (var i = 0; i < body.length; i++) {
+        var ch = body.charAt(i);
+        if (ch === '<') depth++; else if (ch === '>') depth--;
+        else if (depth === 0 && ch === '。' && body.slice(0, i).replace(/<[^>]*>/g, '').length >= 18) { cut = i + 1; break; }
+      }
+      if (cut < 0 || cut >= body.length - 4) return all;
+      var head = body.slice(0, cut), rest = body.slice(cut).replace(/^(<br>)+/, '');
+      var open = (head.match(/<(b|small|span)\b/g) || []).length, close = (head.match(/<\/(b|small|span)>/g) || []).length;
+      if (open !== close) return all;
+      return '<p class="lead"' + (st || '') + '>' + head + '</p><details class="more"><summary>くわしく</summary><p class="lead">' + rest + '</p></details>';
+    });
+  }
   function view(html, opts, cls) {
     onTitle = false;
     var app = $('app');
     // 選択肢が多い画面は、上にも「もどる」を出す
     var bk = (opts || []).length >= 6 ? (opts || []).filter(function (o) { return !o.off && /もどる/.test(o.label); }).slice(-1)[0] : null;
-    app.innerHTML = (bk ? '<button type="button" class="topback" id="topback"></button>' : '') + html + '<div class="opts ' + (cls || '') + '" id="opts"></div>';
+    app.innerHTML = (bk ? '<button type="button" class="topback" id="topback"></button>' : '') + foldLeads(html) + '<div class="opts ' + (cls || '') + '" id="opts"></div>';
     if (bk) { var tb = $('topback'); tb.textContent = '‹ ' + bk.label; tb.addEventListener('click', function () { SFX.click(); bk.go(); }); }
     var box = $('opts'), gbox = {};
     var multi = {}; (opts || []).forEach(function (o) { if (o.grp) multi[o.grp] = (multi[o.grp] || 0) + 1; });
-    var useG = Object.keys(multi).length > 1;
+    var useG = Object.keys(multi).length > 1, listy = !/two|replies/.test(cls || ''), olist = null, curSec = null;
     (opts || []).forEach(function (o) {
       var host = box;
+      if (o.grp && useG) olist = null;
+      else if (listy && !o.main) {
+        if (o.sec && o.sec !== curSec) { curSec = o.sec; olist = null; var hd = document.createElement('p'); hd.className = 'osec'; hd.textContent = o.sec; box.appendChild(hd); }
+        if (!olist) { olist = document.createElement('div'); olist.className = 'olist'; box.appendChild(olist); } host = olist; }
+      else olist = null;
       if (o.grp && useG) {
         if (!gbox[o.grp]) {
           var d = document.createElement('details'); d.className = 'fold grp'; if (GRPOPEN[o.grp]) d.open = true;
@@ -2291,6 +2341,8 @@
     });
     window.scrollTo(0, 0);
   }
+  // 一覧では、店名の前の「お店の名前」を省いて短くする（例：サロン・あかり 表参道店 → 表参道店）
+  function shortShop(n) { n = String(n || ''); return S && S.brand && n.indexOf(S.brand + ' ') === 0 ? n.slice(S.brand.length + 1) : n; }
   function stName(st) { return st.owner ? (S && S.ownerName ? S.ownerName + '店長' : 'あなた') : st.name; }
   function karte() {
     var c = C, k = c.known;
@@ -6448,7 +6500,7 @@
       S.stamina = clamp(S.stamina - 1, 0, 100);
       S.wk.left = staffWeek();
       S.wk.relNote = relMonth(); bossMonth(); S.wk.romNotes = romMonth().concat(gripeMonth());
-      S.wk.mgrNotes = (S.wk.branch || []).filter(function (r) { return r.mgr; }).map(function (r) { return r.name + '（店長：' + r.mgr.name + ' ' + starsTxt(r.mgr.stars) + '）…' + r.mgr.note; });
+      S.wk.mgrNotes = (S.wk.branch || []).filter(function (r) { return r.mgr; }).map(function (r) { return shortShop(r.name) + '（' + r.mgr.name + '）…' + r.mgr.note; });
       spAuto();
       godAuto();
       var allNet = S.wk.sales - S.wk.refund - S.wk.cost + S.wk.branch.reduce(function (a, r) { return a + r.net; }, 0) + (S.wk.ph ? S.wk.ph.net : 0);
@@ -6527,7 +6579,7 @@
   }
   function staffHtml() {
     var h = '<p class="sec">スタッフ<small class="tap">（タップで開く）</small></p>';
-    var secs = [{ rg: regionOf(null), html: staffSec('main', S.shops.length ? '本店' : 'お店', S.staff, maxOf(null)) }].concat(S.shops.map(function (b) { return { rg: regionOf(b), html: staffSec(b.id, b.name + '　' + stars(b.rep), b.staff, maxOf(b)) }; }));
+    var secs = [{ rg: regionOf(null), html: staffSec('main', S.shops.length ? '本店' : 'お店', S.staff, maxOf(null)) }].concat(S.shops.map(function (b) { return { rg: regionOf(b), html: staffSec(b.id, shortShop(b.name) + '　' + stars(b.rep), b.staff, maxOf(b)) }; }));
     var rgs = []; secs.forEach(function (x) { if (rgs.indexOf(x.rg) < 0) rgs.push(x.rg); });
     if (rgs.length < 2 || secs.length < 5) return h + secs.map(function (x) { return x.html; }).join('');
     rgs.forEach(function (rg) {
@@ -6582,31 +6634,32 @@
     bar();
     var lg = ledger(), allN = S.wk.allNet, hasBr = (S.wk.branch || []).length || S.wk.ph;
     var h = '<h1>' + calOf(S.week) + 'の月末</h1><div class="sumline' + (allN < 0 ? ' minus' : '') + '">' + (hasBr ? '全店の収支' : '今月の収支') + '　<b>' + yen(allN) + '</b>　所持金 ' + yen(S.cash) + '</div>' +
-      '<details class="fold"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
+      '';
+    var hn = '', hb = '<details class="fold"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
     if (S.wk.quit) h += '<div class="news bad">' + S.wk.quit + 'が「辞めさせてください」と言って、店を去った。</div>';
     (S.wk.left || []).forEach(function (n) { var why = S.wk.leftWhy && S.wk.leftWhy[n]; h += '<div class="news bad">' + n + (why ? 'が、' + why + '。引き止めることはできなかった。' : 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。') + '</div>'; });
-    if ((S.wk.stLife || []).length) h += '<details class="fold"' + (S.wk.stLife.some(function (x) { return !x.good; }) ? ' open' : '') + '><summary>スタッフの近況（' + S.wk.stLife.length + '）</summary>' + S.wk.stLife.map(function (x) { return '<div class="news' + (x.good ? ' good' : ' bad') + '">' + x.t + '</div>'; }).join('') + '</details>';
-    if ((S.wk.incList || []).length) h += '<div class="news good">インセンティブ（コースと商品の売上に応じて）：' + S.wk.incList.join('、') + '</div>';
-    if (S.wk.loan && (S.wk.loan.principal || S.wk.loan.notes.length)) h += '<div class="news">借入金の返済（元金）' + yen(S.wk.loan.principal) + '。残り ' + yen(loanRest()) + (S.wk.loan.notes.length ? '<br>' + S.wk.loan.notes.join('<br>') : '') + '</div>';
-    if ((S.wk.stratNote || []).length) h += S.wk.stratNote.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
-    if ((S.wk.mgrNotes || []).length) h += '<div class="news">店長の采配：<br>' + S.wk.mgrNotes.join('<br>') + '</div>';
-    if ((S.wk.romNotes || []).length) h += S.wk.romNotes.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
-    if ((S.wk.relNote || []).length) h += '<div class="news good">' + S.wk.relNote.join('<br>') + '</div>';
-    if ((S.wk.hqNote || []).length) h += '<div class="news good">本社：' + S.wk.hqNote.join('<br>') + '</div>';
-    if (S.wk.taxNote) h += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
-    if (S.wk.lv) h += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
+    if ((S.wk.stLife || []).length) hn += '<details class="fold"' + (S.wk.stLife.some(function (x) { return !x.good; }) ? ' open' : '') + '><summary>スタッフの近況（' + S.wk.stLife.length + '）</summary>' + S.wk.stLife.map(function (x) { return '<div class="news' + (x.good ? ' good' : ' bad') + '">' + x.t + '</div>'; }).join('') + '</details>';
+    if ((S.wk.incList || []).length) hn += '<div class="news good">インセンティブ（コースと商品の売上に応じて）：' + S.wk.incList.join('、') + '</div>';
+    if (S.wk.loan && (S.wk.loan.principal || S.wk.loan.notes.length)) hn += '<div class="news">借入金の返済（元金）' + yen(S.wk.loan.principal) + '。残り ' + yen(loanRest()) + (S.wk.loan.notes.length ? '<br>' + S.wk.loan.notes.join('<br>') : '') + '</div>';
+    if ((S.wk.stratNote || []).length) hn += S.wk.stratNote.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
+    if ((S.wk.mgrNotes || []).length) hn += '<div class="news">店長の采配：<br>' + S.wk.mgrNotes.join('<br>') + '</div>';
+    if ((S.wk.romNotes || []).length) hn += S.wk.romNotes.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
+    if ((S.wk.relNote || []).length) hn += '<div class="news good">' + S.wk.relNote.join('<br>') + '</div>';
+    if ((S.wk.hqNote || []).length) hn += '<div class="news good">本社：' + S.wk.hqNote.join('<br>') + '</div>';
+    if (S.wk.taxNote) hn += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
+    if (S.wk.lv) hn += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
       (S.wk.lv.areas.length ? '<br>新しく出店できる街：' + S.wk.lv.areas.map(function (k) { return AREAS[k].n; }).join('、') : '') + '</div>';
-    else { var L1 = mlv(); h += '<p class="lead">経営者レベル ' + L1 + '（' + lvTitle(L1) + '）' + (L1 < MAXLV ? '　次のレベルまで あと' + (xpTo(L1 + 1) - S.mxp) : '') + '</p>'; }
-    if (S.wk.eshop) h += S.wk.eshop.sold ? '<div class="news good">オンラインショップで商品が' + S.wk.eshop.sold + '個売れた（' + S.wk.eshop.txt + '）。売上 ' + yen(S.wk.eshop.money) + '。' + (S.wk.eshop.out ? '在庫が足りず、売り逃しがあった。' : '') + '</div>'
+    else { var L1 = mlv(); hn += '<p class="lead">経営者レベル ' + L1 + '（' + lvTitle(L1) + '）' + (L1 < MAXLV ? '　次のレベルまで あと' + (xpTo(L1 + 1) - S.mxp) : '') + '</p>'; }
+    if (S.wk.eshop) hn += S.wk.eshop.sold ? '<div class="news good">オンラインショップで商品が' + S.wk.eshop.sold + '個売れた（' + S.wk.eshop.txt + '）。売上 ' + yen(S.wk.eshop.money) + '。' + (S.wk.eshop.out ? '在庫が足りず、売り逃しがあった。' : '') + '</div>'
       : (S.wk.eshop.out ? '<div class="news bad">オンラインショップに注文が来たが、在庫がなかった。商品を仕入れておこう。</div>' : '<div class="news">オンラインショップは、今月は注文がなかった。</div>');
-    if ((S.wk.spl || []).length) h += '<details class="fold"><summary>スタッフが特殊スキルを覚えた（' + S.wk.spl.length + '）</summary>' + S.wk.spl.map(function (x) { return '<div class="news good">' + x.t + '</div>'; }).join('') + '</details>';
-    h = missionBox() + h;
+    if ((S.wk.spl || []).length) hn += '<details class="fold"><summary>スタッフが特殊スキルを覚えた（' + S.wk.spl.length + '）</summary>' + S.wk.spl.map(function (x) { return '<div class="news good">' + x.t + '</div>'; }).join('') + '</details>';
     if (S.yearRes && S.yearRes.y === yearOf() && monthOf() === 3) h = '<div class="news good">' + S.yearRes.y + '年目のサロンランキングは' + S.yearRes.rank + '位' + (S.yearRes.prize ? '。賞金' + yen(S.yearRes.prize) + 'を受け取った' : '') + '。</div>' + h;
-    if (S.wk.opened) h += '<div class="news good">' + S.wk.opened.name + 'を開店した。店長は' + S.wk.opened.staff[0].name + '（' + TRAITS[S.wk.opened.staff[0].trait].n + '）。</div>';
-    if (S.cash < -200000) return view(h + '<div class="news bad">資金が尽きた。これ以上は続けられない。</div>', [{ main: true, label: '結果を見る', go: result }]);
-    if (S.week >= WEEKS && !S.endless) return view(h, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
-    h += staffHtml();
-    var TK = monthTasks(); h = shopSwitch() + (S.trainNote ? '<div class="news good">' + S.trainNote + '</div>' : '') + earlyTip() + taskBox(TK) + h; S.trainNote = null;
+    if (S.wk.opened) hn += '<div class="news good">' + S.wk.opened.name + 'を開店した。店長は' + S.wk.opened.staff[0].name + '（' + TRAITS[S.wk.opened.staff[0].trait].n + '）。</div>';
+    var notesHtml = hn ? '<section class="notes"><h2>今月のお知らせ</h2>' + hn + '</section>' : '';
+    if (S.cash < -200000) return view(h + notesHtml + '<div class="news bad">資金が尽きた。これ以上は続けられない。</div>', [{ main: true, label: '結果を見る', go: result }]);
+    if (S.week >= WEEKS && !S.endless) return view(h + notesHtml, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
+    var below = notesHtml + hb + staffHtml();
+    var TK = monthTasks(); h = shopSwitch() + h + (S.trainNote ? '<div class="news good">' + S.trainNote + '</div>' : '') + earlyTip() + taskBox(TK) + missionBox(); S.trainNote = null;
     var opts = [
       { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
       { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
@@ -6626,7 +6679,7 @@
     if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: '近所・都心・海外。いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); } });
     opts = opts.concat(phOpts());
     var renoLeft = [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; });
-    if (renoLeft.length) opts.push({ label: '内装のアップデート', sub: renoLeft.map(function (sh) { return (sh ? sh.name : '本店') + (sh ? sh.interiorLv || 0 : S.interiorLv || 0); }).join(' ').slice(0, 60) + '　満足度と評判、雇える人数が上がる', go: renoView });
+    if (renoLeft.length) opts.push({ label: '内装のアップデート', sub: renoLeft.map(function (sh) { return (sh ? shortShop(sh.name) : '本店') + ' ' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT; }).join('・'), go: renoView });
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (team.length) { team.forEach(moodFix); var low = team.filter(function (st) { return st.mot < 30; }).length;
       opts.splice(4, 0, { label: 'スタッフと過ごす', sub: low ? 'やる気が落ちている人が' + low + '人いる' : 'ご飯に誘う、面談、ボーナス、休み', go: careView }); }
@@ -6650,6 +6703,10 @@
       else CAT.other.push(o);
     });
     var TITLES = { staff: 'スタッフ', shop: 'お店づくり', other: '発信・記録・そのほか' };
+    var SECOF = function (l) { return /本社|料金の方針|経営戦略|資金調達|広告|名前/.test(l) ? '経営' : /仕入れ|商品開発|内装|店舗|ペントハウス|ホテル/.test(l) ? 'お店と商品' : '設備・機械'; };
+    CAT.shop.forEach(function (o) { o.sec = SECOF(o.label); });
+    var SO = { '経営': 0, 'お店と商品': 1, '設備・機械': 2 };
+    CAT.shop = CAT.shop.map(function (o, i) { return [o, i]; }).sort(function (a, b) { return SO[a[0].sec] - SO[b[0].sec] || a[1] - b[1]; }).map(function (x) { return x[0]; });
     var catView = function (key) {
       curCat = key; bar();
       view('<h1>' + TITLES[key] + '</h1>', CAT[key].concat([{ main: true, label: '月末の画面にもどる', go: function () { curCat = null; investView(); } }]));
@@ -6657,11 +6714,12 @@
     if (curCat && CAT[curCat]) return catView(curCat);
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
-    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + (nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(
-      S.shops.length ? [{ label: '来月の営業店舗：' + (nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える。選んだ店舗のお客様を自分で接客し、本店はスタッフにおまかせになる', go: opView }] : []).concat([
+    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(
+      S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
       { label: '発信・記録・そのほか', sub: 'SNS（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]));
+    $('app').insertAdjacentHTML('beforeend', below);
     taskBind(TK); shopSwBind();
   }
   var curCat = null;
@@ -6842,7 +6900,7 @@
     if (P.f >= LIVEMIN) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
     var tg = tGroups().filter(function (g2) { return g2.mem.length; });
     if (tg.length) { var tl = tg.filter(function (g2) { return !tDone(g2.key); });
-      T.push(tl.length ? { t: 'スタッフの研修', s: 'あと' + tl.length + '店舗（' + tl.map(function (g2) { return g2.name; }).join('・') + '）', go: function () { trainView(); } } : { t: 'スタッフの研修', s: '今月はすべての店舗で研修ずみ', done: true }); }
+      T.push(tl.length ? { t: 'スタッフの研修', s: 'あと' + tl.length + '店舗（' + tl.map(function (g2) { return shortShop(g2.name); }).join('・') + '）', go: function () { trainView(); } } : { t: 'スタッフの研修', s: '今月はすべての店舗で研修ずみ', done: true }); }
     var low = team.filter(function (st) { moodFix(st); return st.mot < 40; });
     if (low.length) T.push({ t: 'やる気が落ちているスタッフと過ごす', s: low.map(function (st) { return st.name; }).slice(0, 3).join('・') + (low.length > 3 ? 'ほか' : ''), go: careView });
     var lowStock = prods().filter(function (p) { return S.stock[p.k] <= 1 && !S.autoStock[p.k]; });
