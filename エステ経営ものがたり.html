@@ -5547,14 +5547,36 @@
   ];
   var DEPT = {
     online: { n: 'オンライン販売部', d: 'オンラインショップの売上が1人ごとに1.5倍。手数料と送料も下がる' },
-    sns:    { n: 'SNS担当', d: '毎月、フォロワーの少ない媒体に自動で投稿して、バランスよく伸ばす' },
+    sns:    { n: '広報', d: '毎月、フォロワーの少ないSNSに会社として発信して、バランスよく伸ばす' },
     acct:   { n: '経理', d: '1人ごとに税金が8%安くなる（最大24%）' },
     eng:    { n: 'エンジニア', d: 'ホームページとネット予約を作る。1人ごとに本店の新規+1人、支店も+1人（最大2人分）' }
   };
   function hqOn() { return !!(S && S.hq); }
   function hqStaff() { return hqOn() ? S.hq.staff : []; }
   function deptN(k) { return hqStaff().filter(function (st) { return st.dept === k; }).length; }
-  function webN() { return Math.min(2, deptN('eng')); }
+  // 本社のスタッフの力（接客の力のかわりに、事務・企画の力）。1〜5
+  var HQSK = [['plan', '企画'], ['pr', '発信'], ['num', '数字'], ['it', 'IT']];
+  var DEPTSK = { online: 'plan', sns: 'pr', acct: 'num', eng: 'it' };
+  var SKDEPT = { plan: 'online', pr: 'sns', num: 'acct', it: 'eng' };
+  var CERTS = [
+    { n: '日商簿記2級', sk: 'num', v: 2 }, { n: '日商簿記3級', sk: 'num', v: 1 }, { n: 'MOS（Excel）', sk: 'num', v: 1 },
+    { n: '基本情報技術者', sk: 'it', v: 2 }, { n: 'ITパスポート', sk: 'it', v: 1 }, { n: 'ウェブデザイン技能検定', sk: 'it', v: 1 },
+    { n: 'ネットショップ実務士', sk: 'plan', v: 2 }, { n: 'マーケティング検定', sk: 'plan', v: 1 },
+    { n: 'PRプランナー', sk: 'pr', v: 2 }, { n: '秘書検定2級', sk: 'pr', v: 1 }
+  ];
+  var PREVJOB = { plan: ['通販会社の企画', 'アパレルのEC担当', '雑貨店の店長'], pr: ['広告代理店', '雑誌の編集', 'ホテルの広報'], num: ['会計事務所', '銀行の窓口', 'メーカーの経理'], it: ['Web制作会社', 'システム会社', 'ゲーム会社'] };
+  // 店舗から本社に来た人は、接客で身につけた力から、本社の力を決める
+  function hqSkFix(st) {
+    if (st.hqsk) return st.hqsk; skFix(st);
+    st.hqsk = { plan: clamp(Math.round(((st.sk.know || 2) + (st.sk.listen || 2)) / 2), 1, 5), pr: clamp(Math.round(((st.sk.word || 2) + (st.sk.emp || 2)) / 2), 1, 5), num: clamp((st.sk.know || 2) - 1, 1, 5), it: 1 };
+    return st.hqsk;
+  }
+  function hqSkText(st) { var k = hqSkFix(st); return HQSK.map(function (x) { return x[1] + k[x[0]]; }).join(' '); }
+  function certText(st) { return st.certs && st.certs.length ? st.certs.join('・') : 'なし'; }
+  // 部署の力：その部署の人の力の合計（力3で、ひとり分）
+  function deptPow(k) { return hqStaff().filter(function (st) { return st.dept === k; }).reduce(function (a, st) { return a + 0.4 + 0.2 * hqSkFix(st)[DEPTSK[k]]; }, 0); }
+  function bestDept(st) { var k = hqSkFix(st), b = HQSK.slice().sort(function (x, y) { return k[y[0]] - k[x[0]]; })[0][0]; return SKDEPT[b]; }
+  function webN() { return Math.min(2, Math.round(deptPow('eng'))); }
   function hqCap() { return HQLV[S.hq.lv - 1].cap; }
   function employees() { return allStaff().filter(function (st) { return !st.owner; }).length + hqStaff().length; }
   // 障害者雇用の仕組みは廃止（ゲームの中での表現が難しいため）。必要人数はいつも0、納付金もかからない
@@ -5564,12 +5586,14 @@
     if (!hqOn()) return 0;
     var cost = HQLV[S.hq.lv - 1].rent + hqStaff().reduce(function (a, st) { return a + payOf(st); }, 0);
     var lack = Math.max(0, disNeed() - disHave()); S.wk.levy = lack * 50000; cost += S.wk.levy;
-    // SNS担当が、フォロワーの少ない媒体に投稿する
-    for (var i = 0; i < deptN('sns'); i++) {
+    // 広報が、フォロワーの少ないSNSに発信する（発信の力が高いほど伸びる）
+    hqStaff().filter(function (st) { return st.dept === 'sns'; }).forEach(function (st) {
       var P = snsFix(), pf = Object.keys(P.mix).sort(function (a, b) { return P.mix[a] - P.mix[b]; })[0];
-      var g = Math.round((300 + P.f * 0.02) * (0.6 + rnd() * 0.8)); addF(pf, g); P.last = S.week;
-      S.wk.hqNote = (S.wk.hqNote || []).concat([DEPT.sns.n + 'が' + SNSPF[pf].n + 'に投稿した。フォロワー +' + fmtN(g) + '人']);
-    }
+      var g = Math.round((300 + P.f * 0.02) * (0.4 + 0.2 * hqSkFix(st).pr) * (0.6 + rnd() * 0.8)); addF(pf, g); P.last = S.week;
+      S.wk.hqNote = (S.wk.hqNote || []).concat([DEPT.sns.n + 'の' + st.name + 'が' + SNSPF[pf].n + 'で発信した。フォロワー +' + fmtN(g) + '人']);
+    });
+    // 本社の仕事で、部署の力が少しずつ伸びる
+    hqStaff().forEach(function (st) { var key = DEPTSK[st.dept], k = hqSkFix(st); if (key && k[key] < 5 && roll(0.12)) { k[key]++; S.wk.hqNote = (S.wk.hqNote || []).concat([st.name + 'の' + HQSK.filter(function (x) { return x[0] === key; })[0][1] + 'の力が' + k[key] + 'に上がった']); } });
     return cost;
   }
   function coClean(v) { return String(v || '').replace(/[<>&"'\\]/g, '').trim().slice(0, 16); }
@@ -5654,7 +5678,7 @@
       [{ label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? BOSS[S.boss].d : 'いくつかの質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } },
        { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人や、接客が合わない人にも。本社では手を使わないので、痛みも治る', off: hs.length >= L.cap, go: transferHqView },
        { label: '本社で新しく採用する', sub: '今月の応募者の一覧から、何人でも選べる（あと' + Math.max(0, L.cap - hs.length) + '人まで）', off: hs.length >= L.cap, go: function () { hqHireView(false); } }]
-      .concat(hs.map(function (st) { return { grp: '本社のスタッフ', label: st.name + '（' + DEPT[st.dept].n + '）', sub: '月給' + yen(payOf(st)) + '　部署を変える・店舗に戻す', go: function () { hqStaffView(st); } }; }))
+      .concat(hs.map(function (st) { return { grp: '本社のスタッフ', label: st.name + '（' + DEPT[st.dept].n + '）', sub: hqSkText(st) + '　月給' + yen(payOf(st)), go: function () { hqStaffView(st); } }; }))
       .concat(S.staff.filter(function (st) { return !st.owner; }).length ? [{ label: '本店の店長を決めなおす', sub: mgr ? 'いまは' + mgr.name : 'いまはいない', go: function () { mgrView(); } }] : [])
       .concat(nx ? [{ label: '本社を「' + nx.n + '」に移す　' + yen(nx.cost), sub: '家賃 月' + yen(nx.rent) + '、本社のスタッフ' + nx.cap + '人まで。社長室も豪華になる', off: S.cash < nx.cost,
         go: function () { pay(nx.cost); H.lv++; S.rep = clamp(S.rep + 3, 0, 100); mxpAdd(60); showCut({ kicker: '移転', title: nx.n, sub: '社長室も新しくなった', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, function () { hqView(); }); } }] : [])
@@ -5676,16 +5700,21 @@
     }).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
   // 本社の採用：今月の応募者の一覧から、何人でも選べる。部署は採用するときに決める
-  var DEPTFIT = { know: 'acct', tech: 'eng', word: 'sns', emp: 'sns', listen: 'online', care: 'online' };
   function hqCandsOf(dis) {
     var key = dis ? 'dis' : 'gen';
     S.hqCands = S.hqCands && S.hqCands.week === S.week ? S.hqCands : { week: S.week };
-    if (!S.hqCands[key]) {
+    if (!S.hqCands[key] || (S.hqCands[key][0] && !S.hqCands[key][0].hqsk)) {
       var taken = {}; everyone().forEach(function (x) { taken[x.name] = true; });
       S.hqCands[key] = [0, 1, 2, 3, 4, 5].map(function () {
         var cd = genCand(taken, null, null);
         if (roll(0.45)) { var mn = MALEN.filter(function (n) { return !taken[cd.name.split(' ')[0] + ' ' + n]; }); cd.name = cd.name.split(' ')[0] + ' ' + pick(mn.length ? mn : MALEN); cd.look.style = 'short'; cd.look.hair = pick(['#2B2238', '#3A2A26', '#5A3A28', '#4A3A30']); cd.male = true; }
-        cd.wage = baseWage(cd); cd.dis = !!dis; return cd;
+        var main = pick(HQSK)[0], k = { plan: 1 + Math.floor(rnd() * 2), pr: 1 + Math.floor(rnd() * 2), num: 1 + Math.floor(rnd() * 2), it: 1 + Math.floor(rnd() * 2) };
+        k[main] = Math.min(5, k[main] + 1 + Math.floor(rnd() * 2));
+        var cs = CERTS.filter(function (c) { return c.sk === main; }), certs = [];
+        if (roll(0.75)) { var c1 = pick(cs); certs.push(c1.n); k[main] = Math.min(5, k[main] + c1.v - 1); }
+        if (roll(0.3)) { var c2 = pick(CERTS.filter(function (c) { return certs.indexOf(c.n) < 0; })); certs.push(c2.n); k[c2.sk] = Math.min(5, k[c2.sk] + 1); }
+        cd.hqsk = k; cd.certs = certs; cd.prev = pick(PREVJOB[main]);
+        cd.wage = 200000 + 12000 * (k.plan + k.pr + k.num + k.it - 4) + 8000 * certs.length; cd.dis = false; return cd;
       });
     }
     return S.hqCands[key];
@@ -5697,8 +5726,13 @@
     cardCands = list;
     view('<h1>本社の採用' + '' + '</h1><p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用するときに部署を決める。' + '' + '</p>' +
       (note ? '<div class="news good">' + note + '</div>' : '') + '<div class="cdlist">' + list.map(function (cd, i) {
-        var dk = DEPTFIT[cd.fav || 'tech'] || 'online';
-        return candCard(cd, i, S.cash < HIRE || room <= 0, '<span class="row"><span class="lb">向く部署</span>' + DEPT[dk].n + '</span>');
+        return '<div class="cdcard"><canvas width="120" height="126" data-cid="' + i + '" aria-hidden="true"></canvas><div class="cdinfo">' +
+          '<b class="nm">' + cd.name + (cd.male ? '<span class="mk">男性</span>' : '') + '</b><span class="tr">前職：' + cd.prev + '</span>' +
+          '<span class="row"><span class="lb">資格</span>' + certText(cd) + '</span>' +
+          '<span class="row sk">' + hqSkText(cd) + '</span>' +
+          '<span class="row"><span class="lb">向く部署</span>' + DEPT[bestDept(cd)].n + '</span>' +
+          '<span class="row"><span class="lb">月給</span>' + yen(cd.wage) + '</span></div>' +
+          '<button type="button" class="cdhire" data-hire="' + i + '"' + (S.cash < HIRE || room <= 0 ? ' disabled' : '') + '>採用する<small>' + yen(HIRE) + '</small></button></div>';
       }).join('') + '</div>',
       [{ main: true, label: '本社の画面にもどる', go: function () { hqView(); } }]);
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-hire]'), function (bt) {
@@ -5706,9 +5740,9 @@
         var cd = list[+bt.getAttribute('data-hire')]; if (!cd || S.cash < HIRE || room <= 0) return;
         deptPick(function (k) {
           pay(HIRE);
-          var st = { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: baseWage(cd), cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: !!dis, male: !!cd.male };
+          var st = { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: false, hqsk: cd.hqsk, certs: cd.certs, prev: cd.prev, male: !!cd.male };
           S.hq.staff.push(st); list.splice(list.indexOf(cd), 1); if (dis) hum(2); S.hqHireWk = S.week; SFX.hire();
-          hqHireView(dis, st.name + 'を' + DEPT[k].n + 'に採用した。' + (DEPTFIT[cd.fav || 'tech'] === k ? '得意を活かせる部署だ。' : '') + '');
+          hqHireView(dis, st.name + 'を' + DEPT[k].n + 'に採用した。' + (bestDept(cd) === k ? '力を活かせる部署だ。' : '') + '');
         });
       });
     });
@@ -5717,7 +5751,7 @@
   function hqStaffView(st) {
     bar();
     var rooms = [null].concat(S.shops).filter(function (sh) { return (sh ? sh.staff : S.staff).length < maxOf(sh); });
-    view('<h1>' + st.name + '</h1><p class="lead">' + DEPT[st.dept].n + '　月給' + yen(payOf(st)) + '</p>',
+    view('<h1>' + st.name + '</h1><p class="lead">' + DEPT[st.dept].n + '　月給' + yen(payOf(st)) + '<br>' + hqSkText(st) + '<br>資格：' + certText(st) + (st.prev ? '　前職：' + st.prev : '') + '</p>',
       [{ label: '部署を変える', go: function () { deptPick(function (k) { st.dept = k; hqView(st.name + 'が' + DEPT[k].n + 'に移った。'); }); } }]
       .concat(rooms.map(function (sh) { return { label: (sh ? sh.name : '本店') + 'に戻す', sub: '接客の現場にもどる　相性：' + fitMark(shopFit(st, sh)), go: function () {
         S.hq.staff.splice(S.hq.staff.indexOf(st), 1); delete st.dept; (sh ? sh.staff : S.staff).push(st); SFX.hire(); hqView(st.name + 'が' + (sh ? sh.name : '本店') + 'にもどった。'); } }; }))
@@ -5801,7 +5835,7 @@
     showCut({ kicker: 'M&A', title: o.n + 'を買収', sub: o.t === 'chain' ? o.areas.length + '店舗が仲間に加わった' : o.t === 'biz' ? '新しいサービスが加わった' : '仕入れが安くなった', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, function () { stratView(o.n + 'を買収した。'); });
   }
   function eshopMonth() {
-    var P = snsFix(), k = deptN('online'), n = Math.round((P.f * 0.0006 + S.rep * 0.03) * (0.7 + P.mix.ig) * (S.snsProd === S.week ? 1.5 : 1) * (1 + 0.5 * k) * (0.7 + rnd() * 0.6));
+    var P = snsFix(), k = deptPow('online'), n = Math.round((P.f * 0.0006 + S.rep * 0.03) * (0.7 + P.mix.ig) * (S.snsProd === S.week ? 1.5 : 1) * (1 + 0.5 * k) * (0.7 + rnd() * 0.6));
     return sellOnline(n, false, k ? 0.95 : 0.9);
   }
   // オープンから3か月は、内装のアップデートはできない（本店は開業した月から数える）
@@ -6159,7 +6193,7 @@
     var r = roleName(st), m = Math.round(st.mot || 60), e = epiNext(st);
     return '<button type="button" class="stcard' + (e && e.ok || st.wantTalk ? ' hasep' : '') + '" data-card="' + st.id + '">' + (st.wantTalk ? '<span class="eptag">● 面談を希望</span>' : e && e.ok ? '<span class="eptag">● 話がある</span>' : '') + (frictionOf(st).length ? '<span class="frtag">△ 相性に不安</span>' : '') + '<canvas width="168" height="180" data-sid="' + st.id + '" aria-hidden="true"></canvas>' +
       '<b class="nm">' + st.name + '</b>' + (r ? '<span class="rl">' + r + '</span>' : '') +
-      '<span class="tp">' + TEMPER[temperOf(st)].n + '・' + TRAITS[st.trait].n + '</span>' +
+      '<span class="tp">' + TEMPER[temperOf(st)].n + '・' + (st.dept && DEPT[st.dept] && hqStaff().indexOf(st) >= 0 ? DEPT[st.dept].n : TRAITS[st.trait].n) + '</span>' +
       '<span class="mb" title="やる気"><u class="' + (m < 30 ? 'lo' : '') + '" style="width:' + clamp(m, 0, 100) + '%"></u></span>' +
       '<span class="tp">やる気' + m + '　信頼' + Math.round(st.trust || 0) + '</span>' +
 
@@ -6259,9 +6293,10 @@
       return function () { var m0 = Math.round(st.mot || 0), t0 = Math.round(st.trust || 0); if (cost) pay(cost); moodUp(st, m, t); if (extra) extra(); if (m) st.careWeek = S.week; else st.talkWeek = S.week; SFX.good();
         var dm = Math.round(st.mot) - m0, dt = Math.round(st.trust) - t0; careStaff(st, msg + '（' + [dm ? 'やる気' + (dm > 0 ? '+' : '') + dm : '', dt ? '信頼' + (dt > 0 ? '+' : '') + dt : ''].filter(Boolean).join('、') + '）', pic); };
     };
-    view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + TRAITS[st.trait].n + '　' + statText(st) + '<br>' + moodText(st) + careStaffInfo(st) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
+    var isHq = hqStaff().indexOf(st) >= 0;
+    view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + (isHq ? '本社・' + DEPT[st.dept].n + '　' + hqSkText(st) + '<br>資格：' + certText(st) : TRAITS[st.trait].n + '　' + statText(st)) + '<br>' + moodText(st) + (isHq ? '' : careStaffInfo(st)) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="prof">気質：' + TEMPER[temperOf(st)].n + '　口ぐせ「' + KUSE[temperOf(st)] + '」<br>趣味：' + profOf(st).hobby + '　好きな食べ物：' + profOf(st).food + '<br>夢：' + ((st.epi || 0) >= 1 ? DREAMS[profOf(st).dream] : '？（もっと仲良くなると話してくれる）') +
-        (relText(st) ? '<br>' + relText(st) : '') + (romText(st) ? '<br>' + romText(st) : '') + '<br>' + aptText(st) + '</div>' +
+        (relText(st) ? '<br>' + relText(st) : '') + (romText(st) ? '<br>' + romText(st) : '') + (isHq ? '' : '<br>' + aptText(st)) + '</div>' +
       '<div class="talk"><div class="say you">' + (st.wantTalk ? '「店長…。相談したいことがあるんです」' : epiReady(st) ? '「店長、少しお話ししてもいいですか？」' : talkLine(st)) + '</div></div>' +
       (frictionOf(st).length ? '<div class="news bad">相性の不安：' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</div>' : '') + (note ? '<div class="news good">' + note + '</div>' : ''),
       [st.wantTalk ? { main: true, label: '面談の申し出に応える', sub: st.name + 'が相談したがっている', go: function () { gripeView(st); } } : null,
@@ -6503,7 +6538,7 @@
   }
   /* --- 年度末（3月）の決算と納税 --- */
   // 1年の利益にかかる税金。800万円までは25%、こえた分は35%
-  function taxOf(p) { p = Math.max(0, p); var cut = Math.min(0.24, 0.08 * deptN('acct')); return Math.round((Math.min(p, 8e6) * 0.25 + Math.max(0, p - 8e6) * 0.35) * (1 - cut) / 1000) * 1000; }
+  function taxOf(p) { p = Math.max(0, p); var cut = Math.min(0.24, 0.08 * deptPow('acct')); return Math.round((Math.min(p, 8e6) * 0.25 + Math.max(0, p - 8e6) * 0.35) * (1 - cut) / 1000) * 1000; }
   function taxView() {
     var D = S.taxDue, p = D.profit, tax = taxOf(p), crew = allStaff().filter(function (st) { return !st.owner; });
     var bonus = crew.length ? Math.min(Math.round(p * 0.2 / 1000) * 1000, 100000 * crew.length) : 0, taxB = taxOf(p - bonus);
