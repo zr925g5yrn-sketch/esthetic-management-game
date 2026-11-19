@@ -138,6 +138,18 @@
   .epbox b { display: block; margin-bottom: 6px; color: var(--accent); }
   .epbtns { display: grid; gap: 6px; }
   .epbtns button { margin: 0; padding: 8px 10px; text-align: left; }
+  .cdlist { display: grid; gap: 10px; margin: 10px 0; }
+  .cdcard { display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; gap: 6px 10px; padding: 10px; background: var(--panel); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  .cdcard canvas { grid-row: 1 / 3; width: 64px; height: 68px; image-rendering: pixelated; background: var(--chip); border: 2px solid var(--line); }
+  .cdinfo { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: .82rem; }
+  .cdinfo .nm { font-size: 1rem; }
+  .cdinfo .tr { color: var(--accent); font-size: .8rem; }
+  .cdinfo .row { display: flex; gap: 8px; align-items: baseline; }
+  .cdinfo .lb { flex: none; width: 4.2em; color: var(--sub); font-size: .76rem; }
+  .cdinfo .gs { color: var(--gold); letter-spacing: .08em; white-space: nowrap; }
+  .cdinfo .sk { color: var(--sub); font-size: .76rem; }
+  .cdinfo small { color: var(--sub); font-size: .72rem; line-height: 1.4; }
+  .cdhire { grid-column: 2; margin: 0; padding: 6px 10px; text-align: center; }
   .stcard .ep { display: block; font-size: .7rem; color: var(--accent); margin-top: 2px; }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
@@ -5293,10 +5305,10 @@
 
   /* --- 本社：3店舗目を出したら社長に就任。本社の部署で会社を支える --- */
   var HQLV = [
-    { n: '小さな本社事務所', cost: 0, rent: 100000, cap: 2 },
-    { n: 'オフィスフロア', cost: 3000000, rent: 250000, cap: 4 },
-    { n: '高層ビルの本社', cost: 8000000, rent: 500000, cap: 6 },
-    { n: 'タワー最上階の本社', cost: 20000000, rent: 900000, cap: 8 }
+    { n: '小さな本社事務所', cost: 0, rent: 100000, cap: 3 },
+    { n: 'オフィスフロア', cost: 3000000, rent: 250000, cap: 8 },
+    { n: '高層ビルの本社', cost: 8000000, rent: 500000, cap: 15 },
+    { n: 'タワー最上階の本社', cost: 20000000, rent: 900000, cap: 25 }
   ];
   var DEPT = {
     online: { n: 'オンライン販売部', d: 'オンラインショップの売上が1人ごとに1.5倍。手数料と送料も下がる' },
@@ -5852,7 +5864,7 @@
     return '「' + sayOf(st, m >= 75 ? 'hi' : m >= 45 ? 'mid' : m >= 25 ? 'low' : 'vlow') + '」';
   }
   // スタッフのドット絵（カードの小さな画面に描く）
-  var cardTimer = null;
+  var cardTimer = null, cardCands = null;
   function drawPortrait(cvs, st, now) {
     var ctx = cvs.getContext('2d'), keep = g; g = ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cvs.width, cvs.height); ctx.setTransform(cvs.width / 20, 0, 0, cvs.width / 20, 0, 0);
@@ -5869,10 +5881,10 @@
   function cardLoop() {
     if (cardTimer) clearInterval(cardTimer);
     var tick = function () {
-      var cs = document.querySelectorAll('#app .stcard canvas');
+      var cs = document.querySelectorAll('#app .stcard canvas, #app .cdcard canvas');
       if (!cs.length) { clearInterval(cardTimer); cardTimer = null; return; }
-      var now = performance.now(), all = allStaff();
-      Array.prototype.forEach.call(cs, function (c) { var st = all.filter(function (x) { return x.id === c.getAttribute('data-sid'); })[0]; if (st) drawPortrait(c, st, now); });
+      var now = performance.now(), all = allStaff(), cands = cardCands || [];
+      Array.prototype.forEach.call(cs, function (c) { var cid = c.getAttribute('data-cid'), st = cid !== null ? cands[+cid] : all.filter(function (x) { return x.id === c.getAttribute('data-sid'); })[0]; if (st) drawPortrait(c, st, now); });
     };
     tick(); if (!reduce) cardTimer = setInterval(tick, 120);
   }
@@ -7155,12 +7167,25 @@
       Object.keys(S.cands).forEach(function (k) { S.cands[k].forEach(function (c) { taken[c.name] = true; }); });
       S.cands[ck] = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function () { return genCand(taken, pool, dest ? dest.area : null); });
     }
-    var room = maxOf(dest || null) - (dest ? dest.staff : S.staff).length;
-    view('<h1>採用' + (dest ? '（' + dest.name + '）' : '') + '</h1><p class="lead">今月の応募者' + S.cands[ck].length + '人。' + (pool ? '現地で募集した。' : '') + '何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用費' + yen(HIRE) + 'と、毎月の給与がかかる。</p>' + (hireNote ? '<div class="news good">' + hireNote + '</div>' : ''),
-      S.cands[ck].map(function (cd) {
-        return { label: cd.name + '　' + TRAITS[cd.trait].n, sub: TRAITS[cd.trait].d + '　気質：' + TEMPER[cd.temper || 'sunao'].n + '　伸びしろ' + stars5(cd.gift || 3) + '　得意：' + skName(cd.fav || 'tech') + '　' + statText(cd) + '　月給' + yen(cd.wage),
-          off: S.cash < HIRE || room <= 0, go: function () { pay(HIRE); hireTo(dest || null, cd); S.cands[ck].splice(S.cands[ck].indexOf(cd), 1); SFX.hire(); var y = window.scrollY; hireView(dest || null, cd.name + 'を採用した。'); window.scrollTo(0, y); } };
-      }).concat(S.shops.length ? [{ label: 'ほかの店舗に採用する', go: function () { hireView(); } }] : []).concat([{ main: true, label: 'もどる', go: investView }]));
+    var room = maxOf(dest || null) - (dest ? dest.staff : S.staff).length, list = S.cands[ck];
+    cardCands = list;
+    var cards = list.map(function (cd, i) {
+      return '<div class="cdcard"><canvas width="120" height="126" data-cid="' + i + '" aria-hidden="true"></canvas><div class="cdinfo">' +
+        '<b class="nm">' + cd.name + '</b><span class="tr">' + TRAITS[cd.trait].n + '・' + TEMPER[cd.temper || 'sunao'].n + '</span>' +
+        '<span class="row"><span class="lb">伸びしろ</span><span class="gs">' + stars5(cd.gift || 3) + '</span></span>' +
+        '<span class="row"><span class="lb">得意</span>' + skName(cd.fav || 'tech') + '</span>' +
+        '<span class="row sk">' + statText(cd) + '</span>' +
+        '<span class="row"><span class="lb">月給</span>' + yen(cd.wage) + '</span>' +
+        '<small>' + TRAITS[cd.trait].d + '</small></div>' +
+        '<button type="button" class="cdhire" data-hire="' + i + '"' + (S.cash < HIRE || room <= 0 ? ' disabled' : '') + '>採用する<small>' + yen(HIRE) + '</small></button></div>';
+    }).join('');
+    view('<h1>採用' + (dest ? '（' + dest.name + '）' : '') + '</h1><p class="lead">今月の応募者' + S.cands[ck].length + '人。' + (pool ? '現地で募集した。' : '') + '何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用費' + yen(HIRE) + 'と、毎月の給与がかかる。</p>' + (hireNote ? '<div class="news good">' + hireNote + '</div>' : '') + '<div class="cdlist">' + cards + '</div>',
+      (S.shops.length ? [{ label: 'ほかの店舗に採用する', go: function () { hireView(); } }] : []).concat([{ main: true, label: 'もどる', go: investView }]));
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-hire]'), function (bt) {
+      bt.addEventListener('click', function () { var cd = list[+bt.getAttribute('data-hire')]; if (!cd || S.cash < HIRE || room <= 0) return;
+        pay(HIRE); hireTo(dest || null, cd); list.splice(list.indexOf(cd), 1); SFX.hire(); var y = window.scrollY; hireView(dest || null, cd.name + 'を採用した。'); window.scrollTo(0, y); });
+    });
+    cardLoop();
   }
 
   /* --- 結果 --- */
