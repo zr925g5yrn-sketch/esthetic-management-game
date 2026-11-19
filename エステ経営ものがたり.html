@@ -238,6 +238,7 @@
   .olist > button.picked, details.fold.grp > .opts > button.picked { background: var(--chip); }
   .olist > button.picked b::before { content: '✓ '; color: var(--accent); }
   details.fold.grp > .opts { gap: 0; padding: 0 !important; border-top: 1px solid var(--line); }
+  .hqlist li > span:last-child { flex: none; white-space: nowrap; text-align: right; }
   .osec { margin: 10px 0 -3px; font-size: .82rem; font-weight: 700; color: var(--sub); }
   details.more { margin: 0 0 8px; }
   details.more > summary { display: inline-block; cursor: pointer; font-size: .8rem; color: var(--accent); list-style: none; padding: 2px 0; }
@@ -5623,10 +5624,23 @@
     st.hqsk = { plan: clamp(Math.round(((st.sk.know || 2) + (st.sk.listen || 2)) / 2), 1, 5), pr: clamp(Math.round(((st.sk.word || 2) + (st.sk.emp || 2)) / 2), 1, 5), num: clamp((st.sk.know || 2) - 1, 1, 5), it: 1 };
     return st.hqsk;
   }
+  // 本社の力の伸び方：部署の力に経験がたまると1上がる。5になると部長
+  var HQNEED = [0, 30, 50, 80, 120];
+  function hqKeyName(key) { return HQSK.filter(function (x) { return x[0] === key; })[0][1]; }
+  function hqExp(st, n) {
+    var key = DEPTSK[st.dept], k = hqSkFix(st), ups = [];
+    if (!key || k[key] >= 5) return ups;
+    st.hqx = (st.hqx || 0) + n;
+    while (k[key] < 5 && st.hqx >= HQNEED[k[key]]) { st.hqx -= HQNEED[k[key]]; k[key]++; ups.push(st.name + 'の' + hqKeyName(key) + 'の力が' + k[key] + 'に上がった' + (k[key] >= 5 ? '。' + DEPT[st.dept].n + 'の部長になった！' : '')); }
+    if (k[key] >= 5) st.hqx = 0;
+    return ups;
+  }
+  function hqExpText(st) { var key = DEPTSK[st.dept], k = hqSkFix(st); if (!key) return ''; return k[key] >= 5 ? DEPT[st.dept].n + 'の部長' : '経験 ' + (st.hqx || 0) + '／' + HQNEED[k[key]]; }
+  function isBucho(st) { var key = DEPTSK[st.dept]; return !!(key && hqSkFix(st)[key] >= 5); }
   function hqSkText(st) { var k = hqSkFix(st); return HQSK.map(function (x) { return x[1] + k[x[0]]; }).join(' '); }
   function certText(st) { return st.certs && st.certs.length ? st.certs.join('・') : 'なし'; }
   // 部署の力：その部署の人の力の合計（力3で、ひとり分）
-  function deptPow(k) { return hqStaff().filter(function (st) { return st.dept === k; }).reduce(function (a, st) { return a + 0.4 + 0.2 * hqSkFix(st)[DEPTSK[k]]; }, 0); }
+  function deptPow(k) { return hqStaff().filter(function (st) { return st.dept === k; }).reduce(function (a, st) { return a + 0.4 + 0.2 * hqSkFix(st)[DEPTSK[k]] + (isBucho(st) ? 0.3 : 0); }, 0); }
   function bestDept(st) { var k = hqSkFix(st), b = HQSK.slice().sort(function (x, y) { return k[y[0]] - k[x[0]]; })[0][0]; return SKDEPT[b]; }
   function webN() { return Math.min(2, Math.round(deptPow('eng'))); }
   function hqCap() { return HQLV[S.hq.lv - 1].cap; }
@@ -5644,8 +5658,8 @@
       var g = Math.round((300 + P.f * 0.02) * (0.4 + 0.2 * hqSkFix(st).pr) * (0.6 + rnd() * 0.8)); addF(pf, g); P.last = S.week;
       S.wk.hqNote = (S.wk.hqNote || []).concat([DEPT.sns.n + 'の' + st.name + 'が' + SNSPF[pf].n + 'で発信した。フォロワー +' + fmtN(g) + '人']);
     });
-    // 本社の仕事で、部署の力が少しずつ伸びる
-    hqStaff().forEach(function (st) { var key = DEPTSK[st.dept], k = hqSkFix(st); if (key && k[key] < 5 && roll(0.12)) { k[key]++; S.wk.hqNote = (S.wk.hqNote || []).concat([st.name + 'の' + HQSK.filter(function (x) { return x[0] === key; })[0][1] + 'の力が' + k[key] + 'に上がった']); } });
+    // 本社の仕事で、部署の力が育つ（毎月の経験。やる気が高いほど多い）
+    hqStaff().forEach(function (st) { hqExp(st, 6 + ((st.mot || 60) >= 70 ? 3 : 0)).forEach(function (u) { S.wk.hqNote = (S.wk.hqNote || []).concat([u]); }); });
     return cost;
   }
   function coClean(v) { return String(v || '').replace(/[<>&"'\\]/g, '').trim().slice(0, 16); }
@@ -5729,12 +5743,33 @@
       '<ul class="who-list">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name; }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul>',
       [{ label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? BOSS[S.boss].d : 'いくつかの質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } },
        { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人や、接客が合わない人にも。本社では手を使わないので、痛みも治る', off: hs.length >= L.cap, go: transferHqView },
+       { label: '本社の研修と資格取得', sub: S.hqTrainWk === S.week ? '今月の研修はすんだ' : '社内勉強会・外部セミナー（月1回）、資格の勉強の支援', off: !hs.length, go: function () { hqTrainView(); } },
        { label: '本社で新しく採用する', sub: '今月の応募者の一覧から、何人でも選べる（あと' + Math.max(0, L.cap - hs.length) + '人まで）', off: hs.length >= L.cap, go: function () { hqHireView(false); } }]
-      .concat(hs.map(function (st) { return { grp: '本社のスタッフ', label: st.name + '（' + DEPT[st.dept].n + '）', sub: hqSkText(st) + '　月給' + yen(payOf(st)), go: function () { hqStaffView(st); } }; }))
+      .concat(hs.map(function (st) { return { grp: '本社のスタッフ', label: st.name + '（' + DEPT[st.dept].n + '）', sub: hqSkText(st) + '　' + hqExpText(st) + '　月給' + yen(payOf(st)), go: function () { hqStaffView(st); } }; }))
       .concat(S.staff.filter(function (st) { return !st.owner; }).length ? [{ label: '本店の店長を決めなおす', sub: mgr ? 'いまは' + mgr.name : 'いまはいない', go: function () { mgrView(); } }] : [])
       .concat(nx ? [{ label: '本社を「' + nx.n + '」に移す　' + yen(nx.cost), sub: '家賃 月' + yen(nx.rent) + '、本社のスタッフ' + nx.cap + '人まで。社長室も豪華になる', off: S.cash < nx.cost,
         go: function () { pay(nx.cost); H.lv++; S.rep = clamp(S.rep + 3, 0, 100); mxpAdd(60); showCut({ kicker: '移転', title: nx.n, sub: '社長室も新しくなった', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, function () { hqView(); }); } }] : [])
       .concat([{ main: true, label: '月末の画面にもどる', go: investView }]));
+  }
+  // 本社の研修（月1回）と、資格取得の支援（1人ずつ）
+  function hqCert(st) { var key = DEPTSK[st.dept], have = st.certs || []; return CERTS.filter(function (c) { return c.sk === key && have.indexOf(c.n) < 0; }).sort(function (a, b) { return a.v - b.v; })[0] || null; }
+  function hqTrainView(note) {
+    bar(); scene.shop = 'hq'; setScene('idle');
+    var hs = hqStaff(), done = S.hqTrainWk === S.week, semi = 30000 * hs.length;
+    var run = function (n, m, msg) { var ups = []; hs.forEach(function (st) { moodUp(st, m, 0); ups = ups.concat(hqExp(st, n)); }); S.hqTrainWk = S.week; SFX.hire(); hqTrainView(msg + '（全員の経験+' + n + '）' + (ups.length ? '<br>' + ups.join('<br>') : '')); };
+    view('<h1>本社の研修</h1><p class="lead">本社のスタッフは、部署の仕事で経験を積んで育つ。研修は月1回。資格の勉強は1人ずつ支援できる。力が5になると、その部署の部長になる。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+      '<ul class="who-list hqlist">' + hs.map(function (st) { return '<li><span>' + st.name + (isBucho(st) ? '（部長）' : '') + '<br><small>' + DEPT[st.dept].n + '　資格：' + certText(st) + '</small></span><span>' + (DEPTSK[st.dept] ? hqKeyName(DEPTSK[st.dept]) + ' <b>' + hqSkFix(st)[DEPTSK[st.dept]] + '</b>／5' : '') + '<br><small>' + hqExpText(st) + '</small></span></li>'; }).join('') + '</ul>',
+      [{ sec: '研修（月1回）', label: '社内勉強会を開く', sub: done ? '今月はもう研修した' : '無料。部長や先輩が教える', off: done || !hs.length, go: function () { run(12, 2, '社内勉強会を開いた。'); } },
+       { sec: '研修（月1回）', label: '外部セミナーに参加させる　' + yen(semi), sub: done ? '今月はもう研修した' : '全員が参加する', off: done || !hs.length || S.cash < semi, go: function () { pay(semi); run(30, 4, '外部のセミナーに参加させた。'); } }]
+      .concat(hs.map(function (st) {
+        var c = hqCert(st), cost = c ? 40000 * c.v + 20000 : 0, tried = st.certWk === S.week;
+        return { sec: '資格取得の支援', label: c ? st.name + '：' + c.n + '　' + yen(cost) : st.name + '：部署の資格はすべて持っている', sub: c ? (tried ? '今月はもう受けた' : DEPT[st.dept].n + 'の資格。受験料と教材費を会社が出す') : '', off: !c || tried || S.cash < cost, go: function () {
+          pay(cost); st.certWk = S.week; var key = DEPTSK[st.dept], k = hqSkFix(st), pass = roll(clamp(0.35 + 0.12 * k[key] + ((st.mot || 60) >= 70 ? 0.1 : 0), 0.3, 0.92)), msg;
+          if (pass) { st.certs = (st.certs || []).concat([c.n]); var before = k[key]; k[key] = Math.min(5, k[key] + c.v); moodUp(st, 8, 5); SFX.fanfare(false); msg = st.name + 'が' + c.n + 'に合格した！ ' + hqKeyName(key) + 'の力が' + before + '→' + k[key] + 'に上がった。' + (k[key] >= 5 && before < 5 ? DEPT[st.dept].n + 'の部長になった！' : ''); }
+          else { var ups = hqExp(st, 15); moodUp(st, -3, 2); SFX.event(false); msg = st.name + 'は' + c.n + 'に、あと一歩で届かなかった。勉強した分、経験+15。' + (ups.length ? '<br>' + ups.join('<br>') : ''); }
+          hqTrainView(msg); } };
+      }))
+      .concat([{ main: true, label: '本社の画面にもどる', go: function () { hqView(); } }]));
   }
   function deptPick(then) {
     bar();
@@ -6886,6 +6921,7 @@
       T.push(S.renoWeek === S.week ? { t: '内装のアップデート', s: '今月はアップデートした', done: true } : { t: '内装をアップデートする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
     // 本社のタスク
     if (S.hq) {
+      if (hqStaff().length) T.push(S.hqTrainWk === S.week ? { t: '本社の研修', s: '今月はすんだ', done: true } : { t: '本社の研修', s: '勉強会・セミナー・資格の支援で、本社のスタッフを育てる', go: function () { hqTrainView(); } });
       var HL = HQLV[S.hq.lv - 1], hroom = HL.cap - hqStaff().length;
       var emptyD = Object.keys(DEPT).filter(function (k) { return !deptN(k); }).map(function (k) { return DEPT[k].n; });
       if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.join('、') + 'がいない' : ''), go: function () { hqHireView(false); } });
@@ -7643,7 +7679,7 @@
         var d = tDone(g2.key), m = g2.mem.length ? tBest(g2) : null, pl = m ? tPlan(g2, m) : null;
         return { grp: regionOf(g2.sh), label: g2.name + 'の研修　' + g2.mem.length + '人', sub: !g2.mem.length ? '研修できるスタッフがいない' : d ? '今月は研修ずみ' : 'おすすめ：' + TMETH[m].n + '（◎' + pl.cnt['◎'] + '人）　' + yen(pl.cost),
           off: !g2.mem.length, go: function () { shopTrain(g2.key); } };
-      })).concat([{ main: true, label: 'もどる', go: investView }]));
+      })).concat(S.hq && hqStaff().length ? [{ label: '本社の研修と資格取得', sub: '本社のスタッフを育てる（店舗の研修とは別）', go: function () { hqTrainView(); } }] : []).concat([{ main: true, label: 'もどる', go: investView }]));
   }
   function shopTrain(key, note) {
     bar();
