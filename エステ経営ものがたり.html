@@ -5707,7 +5707,7 @@
         deptPick(function (k) {
           pay(HIRE);
           var st = { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: baseWage(cd), cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: !!dis, male: !!cd.male };
-          S.hq.staff.push(st); list.splice(list.indexOf(cd), 1); if (dis) hum(2); SFX.hire();
+          S.hq.staff.push(st); list.splice(list.indexOf(cd), 1); if (dis) hum(2); S.hqHireWk = S.week; SFX.hire();
           hqHireView(dis, st.name + 'を' + DEPT[k].n + 'に採用した。' + (DEPTFIT[cd.fav || 'tech'] === k ? '得意を活かせる部署だ。' : '') + (dis ? '働きやすいよう、仕事の進め方を一緒に考えた。' : ''));
         });
       });
@@ -6792,8 +6792,16 @@
     var rl = renoLeftList();
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
       T.push(S.renoWeek === S.week ? { t: '内装のアップデート', s: '今月はアップデートした', done: true } : { t: '内装をアップデートする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
+    // 本社のタスク
+    if (S.hq) {
+      var HL = HQLV[S.hq.lv - 1], hroom = HL.cap - hqStaff().length, dneed = disNeed(), dhave = disHave();
+      var emptyD = Object.keys(DEPT).filter(function (k) { return !deptN(k); }).map(function (k) { return DEPT[k].n; });
+      if (dneed > dhave) T.push({ t: '本社で障害者雇用を進める', s: 'あと' + (dneed - dhave) + '人必要。足りない分、毎月' + yen((dneed - dhave) * 50000) + 'の納付金', go: function () { hqHireView(true); } });
+      if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.join('、') + 'がいない' : ''), go: function () { hqHireView(false); } });
+      if (!S.staff.some(function (st) { return st.id === S.mainMgr; }) && S.staff.some(function (st) { return !st.owner; })) T.push({ t: '本店の店長を決める', s: '社長になったので、本店をまかせる人が必要', go: function () { mgrView(); } });
+    }
     if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
-    var asks = allStaff().filter(function (x) { return !x.owner && x.wantTalk; });
+    var asks = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && x.wantTalk; });
     if (asks.length) T.unshift({ t: '面談の申し出に応える', s: asks.map(function (x) { return x.name; }).slice(0, 3).join('・') + 'が相談したがっている', go: careView });
     var ready = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && epiReady(x); });
     if (ready.length) T.unshift({ t: ready.length >= 2 ? 'スタッフの話をまとめて聞く' : 'スタッフの話を聞く', s: ready.map(function (x) { return x.name; }).slice(0, 3).join('・') + (ready.length > 3 ? 'ほか' : '') + 'が話をしたがっている', go: ready.length >= 2 ? function () { epiBulk(); } : careView });
