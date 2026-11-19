@@ -153,6 +153,33 @@
   .cdinfo small { color: var(--sub); font-size: .72rem; line-height: 1.4; }
   .cdhire { grid-column: 2; margin: 0; padding: 6px 10px; text-align: center; }
   .stcard .ep { display: block; font-size: .7rem; color: var(--accent); margin-top: 2px; }
+  /* dot.（メッセージアプリ）の画面 */
+  .dotapp { margin: 8px 0 12px; background: var(--panel); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); overflow: hidden; }
+  .dotapp .dh { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--ink); color: var(--bg); }
+  .dotapp .dh b { font-size: 1.05rem; letter-spacing: .04em; }
+  .dotapp .dh span { font-size: .82rem; opacity: .85; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dotapp .dh .cnt { flex: none; padding: 0 8px; background: var(--accent); color: var(--accent-ink); font-size: .74rem; }
+  .dotapp.off .dh { background: #3E5A78; color: #FFFFFF; }
+  .dotrow { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; width: 100%; margin: 0; padding: 10px 12px; text-align: left; border: 0; border-bottom: 1px solid var(--line); box-shadow: none; background: transparent; }
+  .dotrow:last-child { border-bottom: 0; }
+  .dotrow .nm { display: block; font-size: .95rem; color: var(--ink); }
+  .dotrow .pv { display: block; font-size: .78rem; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dotrow .st { white-space: nowrap; font-size: .72rem; padding: 1px 8px; border: 1px solid var(--line); color: var(--sub); }
+  .dotrow .st.new { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .dav { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; color: #FFFFFF; font-size: .95rem; font-weight: 700; flex: none; }
+  .dchat { display: grid; gap: 10px; padding: 12px; background: var(--bg); }
+  .dmsg { display: flex; gap: 8px; align-items: flex-end; }
+  .dmsg .dav { width: 30px; height: 30px; font-size: .8rem; }
+  .dmsg .bb { max-width: 78%; padding: 8px 12px; font-size: .9rem; line-height: 1.55; background: var(--panel); border: 2px solid var(--ink); border-radius: 14px 14px 14px 2px; }
+  .dmsg .bb .who { display: block; font-size: .7rem; color: var(--sub); margin-bottom: 2px; }
+  .dmsg.me { justify-content: flex-end; }
+  .dmsg.me .bb { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); border-radius: 14px 14px 2px 14px; }
+  .dnote { justify-self: center; padding: 4px 12px; font-size: .78rem; color: var(--sub); background: var(--panel); border: 1px dashed var(--line); }
+  .dreply { display: grid; gap: 8px; padding: 10px 12px 12px; border-top: 2px solid var(--line); background: var(--panel); }
+  .dreply .lb { font-size: .76rem; color: var(--sub); }
+  .dreply button { margin: 0; padding: 8px 14px; text-align: left; border-radius: 18px; box-shadow: none; border: 2px solid var(--accent); color: var(--ink); background: var(--panel); }
+  .dreply button small { display: inline; margin-left: 6px; }
+  .dreply button.later { border-color: var(--line); color: var(--sub); text-align: center; }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
   .say.bad { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -6518,27 +6545,40 @@
   var DOTOFF = { reg: 1, review: 1, resched: 1, vip: 1, maker: 1 };
   function dotList(off) { return (off ? S.odot : S.dot) || []; }
   function dotUnread(off) { return dotList(off).filter(function (m) { return m.done < 0; }).length; }
-  function dotHead(off, sub) { return '<h1>' + (off ? 'お店の公式アカウント' : 'メッセージ') + '</h1><div class="dotbar"><b>' + (off ? '公式dot.' : 'dot.') + '</b><span>' + sub + '</span></div>'; }
+  // 名前の頭文字の丸いアイコン（色は名前で決まる）
+  var DAVC = ['#E0567A', '#5AA9E6', '#7FC49A', '#E8A93A', '#B48CFF', '#3AC0C8', '#C8604A', '#5C6E9E'];
+  function dav(name, me) { var n = String(name || '？').replace(/^(本社の|サロンのみんな.*)/, ''); return '<span class="dav" style="background:' + (me ? '#2B2238' : DAVC[hashOf(name) % DAVC.length]) + '">' + (me ? '私' : n.charAt(0) || '？') + '</span>'; }
+  function dotHead(off, sub, cnt) { return '<div class="dh"><b>' + (off ? '公式dot.' : 'dot.') + '</b><span>' + sub + '</span>' + (cnt ? '<span class="cnt">未返信 ' + cnt + '</span>' : '') + '</div>'; }
   function dotView(off) {
     bar();
-    var list = dotList(off);
-    view(dotHead(off, (off ? (S.brand || 'お店') + '　' : '') + 'メッセージ ' + list.length + '件' + (dotUnread(off) ? '（未返信 ' + dotUnread(off) + '）' : '')) +
-      (list.length ? '' : '<p class="lead">新しいメッセージはない。</p>'),
-      list.map(function (m) {
-        return { label: (m.done >= 0 ? '✓ ' : '● ') + m.from, sub: m.lines[m.lines.length - 1].t.slice(0, 34), go: function () { dotThread(m); } };
-      }).concat([{ main: true, label: '月末の画面にもどる', go: investView }]));
+    var list = dotList(off), u = dotUnread(off);
+    view('<h1>' + (off ? 'お店の公式アカウント' : 'メッセージ') + '</h1><div class="dotapp' + (off ? ' off' : '') + '">' + dotHead(off, off ? (S.brand || 'お店') + ' の公式アカウント' : 'あなたのメッセージ', u) +
+      (list.length ? list.map(function (m, i) {
+        var last = m.done >= 0 ? m.reps[m.done].res : m.lines[m.lines.length - 1].t;
+        return '<button type="button" class="dotrow" data-dot="' + i + '">' + dav(m.from) + '<span><span class="nm">' + m.from + '</span><span class="pv">' + last + '</span></span>' +
+          '<span class="st' + (m.done < 0 ? ' new' : '') + '">' + (m.done < 0 ? '未返信' : '返信ずみ') + '</span></button>';
+      }).join('') : '<p class="lead" style="padding:12px">新しいメッセージはない。</p>') + '</div>',
+      [{ main: true, label: '月末の画面にもどる', go: investView }]);
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-dot]'), function (bt) { bt.addEventListener('click', function () { SFX.click(); dotThread(list[+bt.getAttribute('data-dot')]); }); });
   }
   function dotThread(m, note) {
     bar();
     var back = function () { dotView(!!m.off); };
-    var h = dotHead(m.off, m.from) + '<div class="talk">' +
-      m.lines.map(function (l) { return '<div class="say you">' + (l.who ? '<span class="who">' + l.who + '</span>' : '') + l.t + '</div>'; }).join('');
-    if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="say me">' + rp.t.replace(/　¥[\d,]+$/, '') + '</div><div class="say you">' + rp.res + '</div>' + (note || m.note ? '<div class="say note">' + (note || m.note) + '</div>' : ''); }
+    var h = '<h1>' + (m.off ? 'お店の公式アカウント' : 'メッセージ') + '</h1><div class="dotapp' + (m.off ? ' off' : '') + '">' + dotHead(m.off, '‹ ' + m.from) + '<div class="dchat">' +
+      m.lines.map(function (l) { var w = l.who || m.from; return '<div class="dmsg">' + dav(w) + '<div class="bb">' + (l.who || m.from.indexOf('・') >= 0 ? '<span class="who">' + w + '</span>' : '') + l.t + '</div></div>'; }).join('');
+    if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="dmsg me"><div class="bb">' + rp.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</div></div><div class="dmsg">' + dav(m.from) + '<div class="bb">' + rp.res + '</div></div>' + (note || m.note ? '<div class="dnote">' + (note || m.note) + '</div>' : ''); }
     h += '</div>';
-    view(h, m.done >= 0 ? [{ main: true, label: 'メッセージ一覧にもどる', go: back }] :
-      m.reps.map(function (rp, i) {
-        return { label: rp.t, off: !!rp.cost && S.cash < rp.cost, go: function () { m.done = i; m.note = dotFx(m, rp); if (rp.fx === 'party') dinnerScene(crewAll()); if (rp.fx === 'bday') evScene(['v_cake']); SFX.good(); saveGame('night'); dotThread(m); } };
-      }).concat([{ label: 'あとで返信する', go: back }]));
+    if (m.done < 0) h += '<div class="dreply"><span class="lb">返信を選ぶ</span>' + m.reps.map(function (rp, i) {
+      var cost = rp.t.match(/　(¥[\d,]+)$/);
+      return '<button type="button" data-rep="' + i + '"' + (rp.cost && S.cash < rp.cost ? ' disabled' : '') + '>' + rp.t.replace(/　¥[\d,]+$/, '') + (cost ? '<small>' + cost[1] + '</small>' : '') + '</button>';
+    }).join('') + '<button type="button" class="later" data-later="1">あとで返信する</button></div>';
+    h += '</div>';
+    view(h, [{ main: true, label: 'メッセージ一覧にもどる', go: back }]);
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-rep]'), function (bt) { bt.addEventListener('click', function () {
+      var i = +bt.getAttribute('data-rep'), rp = m.reps[i]; if (rp.cost && S.cash < rp.cost) return;
+      m.done = i; m.note = dotFx(m, rp); if (rp.fx === 'party') dinnerScene(crewAll()); if (rp.fx === 'bday') evScene(['v_cake']); SFX.good(); saveGame('night'); dotThread(m);
+    }); });
+    var lt = document.querySelector('#app [data-later]'); if (lt) lt.addEventListener('click', function () { SFX.click(); back(); });
   }
   // 今月できること。まだのものは ○、すんだものは ✓。押すとその画面へ
   function monthTasks() {
