@@ -4000,7 +4000,7 @@
       }));
   }
   function prepServe(st) {
-    st.used++; C.st = st; scene.st = st;
+    st.used++; C.st = st; scene.st = st; if (!st.owner) C.stId = st.id;
     expAdd(st, 2);
     if (has(st, 'aura') && C.isNew) C.grd = clamp(C.grd - 14, 0, 100);
     if (has(st, 'machine') && C.isNew) C.int += 14;
@@ -4125,13 +4125,14 @@
     var match = menu === need ? 45 : (catOf(menu) === catOf(need) ? 30 : (NEAR[catOf(need)].indexOf(catOf(menu)) >= 0 ? 22 : 12));
     var order = ['soft', 'mid', 'strong'], gap = Math.abs(order.indexOf(press) - order.indexOf(C.pref));
     var p = gap === 0 ? 25 : (gap === 1 ? 12 : 0);
-    var sat = clamp(Math.round(4 + (C.royal ? 6 : 0) + (st.owner && boss() === 'field' ? 5 : 0) + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
+    var sat = clamp(Math.round(4 + (C.missSt ? -8 : 0) + (C.royal ? 6 : 0) + (st.owner && boss() === 'field' ? 5 : 0) + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
     if (bl) sat = sat + blendSat(bl);
     sat = clamp(Math.round(softSat(sat)), 5, 100);
     return { sat: sat, match: match, gap: gap };
   }
   function doTreat(press) {
     var r = satCalc(C.sub, press, C.st, C.blend);
+    C.missSt = null;
     if (C.vipN && C.vipSubs && C.vipSubs.length) {
       var need = C.isNew ? C.concern : C.today, c2 = concern2(C), best = null, bonus = 0;
       C.vipSubs.forEach(function (k) { var x = satCalc(k, press, C.st, k === 'aroma' ? C.blend : null); if (!best || x.sat > best.sat) { best = x; C.sub = k; } });
@@ -4346,6 +4347,7 @@
     var line = C.royal ? 'いつものをお願いね。VIPルームって、やっぱり落ち着くわ。' : C.plan ? 'いつものコースでお願いします。' : (C.member ? '今月もよろしくお願いします。' : '予約していた' + C.name + 'です。');
     if (C.today !== C.concern) line += cLine(C.today, 'today');
     say('you', line);
+    if (C.missSt) say('you', C.missSt + 'さん、ほかのお店に移っちゃったんですね…。ちょっとさみしいな。', 'bad');
     treatMenu();
   }
   function regScore(st) { return (S.ekarte ? 4 : 0) + C.sat * 0.45 + C.loy * 0.35 + (st.talk - 1) * 4 - C.grd * 0.3 + (S.hum - 30) * 0.1; }
@@ -4399,7 +4401,7 @@
     var oils = myOils(), bl = menu === 'aroma' ? (oils.length && C.budget >= 1 && roll(0.6) ? 'my:' + oils[0].k : (S.aromaPro && C.budget >= 2 ? 'premium' : (C.budget >= 1 ? 'season' : 'relax'))) : null;
     C.menu = catOf(menu); C.sub = menu; C.blend = bl;
     var press = (!C.isNew || st.trait === 'listen' || roll(0.25 + 0.1 * sk(st, 'listen') + 0.03 * sk(st, 'emp'))) ? C.pref : pick(Object.keys(PRESS));
-    C.sat = satCalc(menu, press, st, bl).sat;
+    C.sat = satCalc(menu, press, st, bl).sat; C.missSt = null;
     pressLoad(st, press);
     blendPay(bl);
     reputeBySat();
@@ -5893,7 +5895,8 @@
       (list.filter(function (x) { return frictionOf(x).length; }).length ? '<div class="frbox"><b>相性が気になるスタッフ</b>' + list.filter(function (x) { return frictionOf(x).length; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + '（' + placeOf(st) + '）<small>' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</small></button>'; }).join('') + '</div>' : '') +
       (list.filter(epiReady).length ? '<div class="epbox"><b>● 話がありそうなスタッフ</b><div class="epbtns">' + list.filter(epiReady).map(function (st) { return '<button type="button" data-epi="' + st.id + '">' + st.name + 'の話を聞く<small>物語 ' + (epiNext(st).n + 1) + '／3</small></button>'; }).join('') + '</div></div>' : '') +
       (list.length ? cards : '<p class="lead">まだスタッフがいない。</p>'),
-      partyOpts(list).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
+      (S.shops.length && list.some(function (x) { return frictionOf(x).length; }) ? [{ label: '相性を一括で最適化する', sub: 'スタッフを入れかえて、全体の相性をよくする。指名していた常連さんの満足度は下がる', go: optView }] : [])
+      .concat(partyOpts(list)).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-epi]'), function (bt) {
       bt.addEventListener('click', function () { var st = list.filter(function (x) { return x.id === bt.getAttribute('data-epi'); })[0]; if (st) { SFX.click(); S.careNote = ''; epiView(st); } });
     });
@@ -5901,6 +5904,47 @@
       bt.addEventListener('click', function () { var st = list.filter(function (x) { return x.id === bt.getAttribute('data-card'); })[0]; if (st) { SFX.click(); S.careNote = ''; careStaff(st); } });
     });
     cardLoop();
+  }
+  // 相性の一括最適化：スタッフ同士を入れかえて、全体の相性をよくする（店長と、休み中の人は動かさない）
+  function optGroups() { return [{ sh: null, list: S.staff }].concat(S.shops.map(function (b) { return { sh: b, list: b.staff }; })); }
+  function optFixed(st, gp) { return st.owner || onLeave(st) || (gp.sh && gp.list[0] === st) || (!gp.sh && S.mainMgr === st.id); }
+  function optScore(st, gp, list) { var v = shopFit(st, gp.sh) * 2; list.forEach(function (x) { if (x === st || x.owner) return; var r = relOf(st, x); if (r === 'rival') v -= 1.5; if (r === 'pal') v += 0.5; }); return v; }
+  function optPlan() {
+    var G = optGroups().map(function (gp) { return { sh: gp.sh, list: gp.list.slice() }; }), moved = {};
+    for (var it = 0; it < 60; it++) {
+      var best = null;
+      G.forEach(function (A, ai) { G.forEach(function (B, bi) { if (bi <= ai) return;
+        A.list.forEach(function (a) { if (optFixed(a, A)) return; B.list.forEach(function (b) { if (optFixed(b, B)) return;
+          var A2 = A.list.map(function (x) { return x === a ? b : x; }), B2 = B.list.map(function (x) { return x === b ? a : x; });
+          var before = optScore(a, A, A.list) + optScore(b, B, B.list), after = optScore(b, A, A2) + optScore(a, B, B2);
+          if (after - before > 0.01 && (!best || after - before > best.d)) best = { d: after - before, A: A, B: B, a: a, b: b };
+        }); });
+      }); });
+      if (!best) break;
+      best.A.list[best.A.list.indexOf(best.a)] = best.b; best.B.list[best.B.list.indexOf(best.b)] = best.a;
+    }
+    var moves = [];
+    G.forEach(function (gp) { gp.list.forEach(function (st) { if (st.owner) return; var from = shopOf(st); if (from !== gp.sh) moves.push({ st: st, from: from, to: gp.sh }); }); });
+    return { G: G, moves: moves };
+  }
+  function optRegs(st) { return S.clients.filter(function (c) { return c.active && c.stId === st.id; }).length; }
+  function optView() {
+    bar();
+    var P = optPlan(), nm = function (sh) { return sh ? sh.name : (S.brand ? homeName() : '本店'); };
+    if (!P.moves.length) return view('<h1>相性の一括最適化</h1><p class="lead">いまの配置が、いちばん相性のいい形になっている。入れかえる必要はない。</p>', [{ main: true, label: 'もどる', go: careView }]);
+    var regs = 0, brs = 0; P.moves.forEach(function (m) { if (!m.from) regs += optRegs(m.st); else brs++; });
+    view('<h1>相性の一括最適化</h1><p class="lead">店長と、休み中のスタッフはそのまま。ほかのスタッフを入れかえて、お店との相性とライバル関係が全体でいちばんよくなるようにする。</p>' +
+      '<div class="prof">' + P.moves.map(function (m) { return '<b>' + m.st.name + '</b>　' + nm(m.from) + '（' + fitMark(shopFit(m.st, m.from)) + '）→ ' + nm(m.to) + '（' + fitMark(shopFit(m.st, m.to)) + '）'; }).join('<br>') + '</div>' +
+      '<div class="news bad">注意：指名していたスタッフがいなくなるので、常連さんの満足度が下がる。' + (regs ? '<br>本店の常連さん' + regs + '人：信頼−15、次の来店で満足度が下がる' : '') + (brs ? '<br>スタッフが抜ける支店：評判が少し下がる' : '') + '</div>',
+      [{ main: true, label: 'この配置にする（' + P.moves.length + '人が異動）', go: function () {
+        P.moves.forEach(function (m) {
+          var f0 = shopFit(m.st, m.from), f1 = shopFit(m.st, m.to); moodUp(m.st, f1 > f0 ? 10 : f1 < f0 ? -6 : 0, 0); if (m.st.leader) m.st.leader = false;
+          S.clients.forEach(function (c) { if (c.active && c.stId === m.st.id) { c.loy = clamp(c.loy - 15, 0, 100); c.missSt = m.st.name; c.stId = null; } });
+          if (m.from) m.from.rep = clamp(m.from.rep - 2, 0, 100);
+        });
+        P.G.forEach(function (gp) { var dst = gp.sh ? gp.sh.staff : S.staff; dst.length = 0; gp.list.forEach(function (x) { dst.push(x); }); });
+        SFX.hire(); S.careNote = P.moves.length + '人の配置を入れかえた。' + P.moves.map(function (m) { return m.st.name + '→' + nm(m.to); }).join('、'); careView();
+      } }, { label: 'やめる', go: careView }]);
   }
   // 食事会：店ごと、または全店合同。どれも月1回（合同を開くと、その月は店ごとの会はなし）
   function partyOpts(list) {
