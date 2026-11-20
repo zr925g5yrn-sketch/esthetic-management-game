@@ -1558,6 +1558,37 @@
       { label: 'みんなで黙とうする', go: function () { hum(1); done('閉店後、みんなで黙とうした。'); } }]);
     view(box, [{ main: true, label: 'つづける', go: function () { done(''); } }]);
   }
+  function eraY() { return S && S.startYear ? nowYear() : 2026; }
+  function dotNm(off) { var y = eraY(); return off ? (y < 1997 ? 'お店の電話' : y < 2012 ? 'お店のメール' : '公式dot.') : (y < 1995 ? '電話と手紙' : y < 2000 ? 'ポケベル' : y < 2012 ? '携帯メール' : 'dot.'); }
+  function aiNm() { return eraY() >= 2023 ? 'AI' : '受付スタッフ'; }
+  var PFYEAR = { yt: 2006, ig: 2012, tt: 2017 };
+  function pfOn(k) { return eraY() >= PFYEAR[k]; }
+  function pfList() { return Object.keys(SNSPF).filter(pfOn); }
+  function snsOn() { return pfList().length > 0; }
+  function eraText(t) {
+    if (!S || !S.startYear || t == null) return t;
+    t = String(t); var y = eraY();
+    if (y < 2012) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
+    if (y < 2023) t = t.replace(/AI(?=[がにのへ])/g, '受付スタッフ');
+    if (!snsOn()) t = t.replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して、バランスよく伸ばす/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる');
+    if (y < 1997) t = t.replace(/オンラインショップ/g, 'カタログ通販');
+    return t;
+  }
+  // 時代の景気（予算と、新しいお客様の数）
+  function eraEcon() {
+    if (!S || !S.startYear) return { bud: 0, n: 0, d: '' };
+    var y = nowYear(), m = monthOf(), t = y + (m - 1) / 12;
+    if (t >= 1986.9 && t < 1991.2) return { bud: 0.15, n: 1, d: 'バブル景気で、お客様の財布のひもがゆるい' };
+    if (t >= 1991.2 && t < 1994) return { bud: -0.05, n: 0, d: 'バブルがはじけ、高いコースが決まりにくい' };
+    if (t >= 1998 && t < 2004) return { bud: -0.08, n: 0, d: '不景気で、お客様は値段に敏感' };
+    if (t >= 2008.7 && t < 2010) return { bud: -0.1, n: -1, d: '世界的な不況で、お客様が減っている' };
+    return { bud: 0, n: 0, d: '' };
+  }
+  // 時代の広告
+  function adNm(i) { var y = eraY(), a = ADLV[i]; if (i === 1) return y < 1998 ? 'チラシと新聞の折り込み' : y < 2010 ? 'チラシとホームページ' : a.n; if (i === 2) return y < 2006 ? '女性誌とタウン誌' : y < 2012 ? 'ネット広告と雑誌' : a.n; return a.n; }
+  // 機械や設備が登場した年
+  var INVYEAR = { headSpa: 2000, hifu: 1995, rfFace: 2000, aromaPro: 1990, cavi: 2005, lymphM: 1995, devFace: 1995, devEms: 2000 };
+  function invOn(k) { return eraY() >= (INVYEAR[k] || 0); }
   var ERAS = [
     { y: 1985, n: '1985年（昭和60年）', d: 'バブルの少し前。エステはまだ珍しく、チラシと雑誌、電話で集客する時代' },
     { y: 1995, n: '1995年（平成7年）', d: 'エステブーム。ポケベルと雑誌の時代。インターネットが広まり始める' },
@@ -2409,8 +2440,8 @@
     var app = $('app');
     // 選択肢が多い画面は、上にも「もどる」を出す
     var bk = (opts || []).length >= 6 ? (opts || []).filter(function (o) { return !o.off && /もどる/.test(o.label); }).slice(-1)[0] : null;
-    app.innerHTML = (bk ? '<button type="button" class="topback" id="topback"></button>' : '') + foldLeads(html) + '<div class="opts ' + (cls || '') + '" id="opts"></div>';
-    if (bk) { var tb = $('topback'); tb.textContent = '‹ ' + bk.label; tb.addEventListener('click', function () { SFX.click(); bk.go(); }); }
+    app.innerHTML = (bk ? '<button type="button" class="topback" id="topback"></button>' : '') + foldLeads(eraText(html)) + '<div class="opts ' + (cls || '') + '" id="opts"></div>';
+    if (bk) { var tb = $('topback'); tb.textContent = '‹ ' + eraText(bk.label); tb.addEventListener('click', function () { SFX.click(); bk.go(); }); }
     var box = $('opts'), gbox = {};
     var multi = {}; (opts || []).forEach(function (o) { if (o.grp) multi[o.grp] = (multi[o.grp] || 0) + 1; });
     var useG = Object.keys(multi).length > 1, listy = !/two|replies/.test(cls || ''), olist = null, curSec = null;
@@ -2435,8 +2466,8 @@
       b.type = 'button';
       b.className = (o.main ? 'main' : '') + (o.picked ? ' picked' : '');
       b.innerHTML = '<b></b>' + (o.sub ? '<small></small>' : '');
-      b.firstChild.textContent = o.label;
-      if (o.sub) b.lastChild.textContent = o.sub;
+      b.firstChild.textContent = eraText(o.label);
+      if (o.sub) b.lastChild.textContent = eraText(o.sub);
       if (o.off) b.disabled = true;
       else b.addEventListener('click', function () { SFX.click(); o.go(); });
       host.appendChild(b);
@@ -2629,7 +2660,7 @@
       if (EVOK[k] && !EVOK[k]()) return false;
       return !(S.evLast[k] && S.week - S.evLast[k] < 4);
     });
-    var wOf = function (k) { return EV[k].w * (k === 'vip' && S.priceMode === 'premium' ? 2 : 1); };
+    var wOf = function (k) { return EV[k].w * (k === 'vip' && S.priceMode === 'premium' ? 2 : 1) * (k === 'influencer' && !snsOn() ? 0 : 1); };
     var tot = pool.reduce(function (a, k) { return a + wOf(k); }, 0), r = rnd() * tot;
     for (var i = 0; i < pool.length; i++) { r -= wOf(pool[i]); if (r <= 0) return setEvent(pool[i]); }
   }
@@ -4149,6 +4180,7 @@
     var pf = fromSns ? pfPick() : null, age = pf ? pick(SNSPF[pf].ages) : pick([20, 30, 30, 40, 40, 50, 60]);
     if (pf) r += SNSPF[pf].bud;
     if (S.concept && CONCEPTS[S.concept]) r += CONCEPTS[S.concept].bud || 0;
+    r += eraEcon().bud;
     if (rg && !OA.names) male = male && roll(0.6);
     if (!OA && S.home && S.home.key === 'osaka' && roll(0.2)) pers = 'price';
     var osk = !OA && S.home && S.home.key === 'osaka' ? -5 : 0;
@@ -4240,6 +4272,7 @@
       if (nw[5] === 'covidEnd') S.covid = 0; }
     if (S.covid && S.startYear) newN = Math.round(newN * (nowYear() === 2020 && monthOf() <= 9 ? 0.5 : 0.8));
     if ((S.taxDipUntil || 0) >= S.week) newN -= 1;
+    newN += eraEcon().n;
     newN = Math.max(1, newN + pm().newAdj);
     S.ad = 0;
     if (!S.special && !opArea() && hotelReady()) { var hk2 = hotelNextKey(); S.special = 'hotel'; S.hotelVisit = { k: hk2, week: S.week }; S.hotelNext = S.week + 6;
@@ -5605,7 +5638,7 @@
     return S.sns;
   }
   // 媒体のかたよりで効き目が変わる。1つだけなら0.65倍、3つ均等なら1.25倍
-  function snsBal() { var m = snsFix().mix, mx = Math.max(m.ig, m.tt, m.yt); return clamp(1.25 - 0.9 * (mx - 1 / 3), 0.65, 1.25); }
+  function snsBal() { var m = snsFix().mix, L = pfList(); if (!L.length) return 0.65; var mx = Math.max.apply(null, L.map(function (k) { return m[k]; })); return clamp(1.25 - 0.9 * (mx - 1 / L.length), 0.65, 1.25); }
   function snsQ() { var P = snsFix(), f = P.f * snsBal(); return f / (f + 5000); }
   function pfN(pf) { var P = snsFix(); return Math.round(P.f * P.mix[pf]); }
   function pfPick() { var m = snsFix().mix, x = rnd(); return x < m.ig ? 'ig' : (x < m.ig + m.tt ? 'tt' : 'yt'); }
@@ -5630,18 +5663,28 @@
   var LIVEMIN = 300;
   function snsLeft() { var P = snsFix(); if (P.wk !== S.week) { P.wk = S.week; P.n = 0; P.used = {}; } return 2 - P.n; }
   function starsQ(q) { var n = Math.max(1, Math.round(q * 5)); return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n); }
+  // SNSがまだない時代：雑誌とニュースレターで宣伝する（月2回まで）
+  function adPrView(note) {
+    bar(); var P = snsFix(), left = snsLeft();
+    var use = function () { P.n = (P.n || 0) + 1; };
+    view('<h1>お店の宣伝</h1><p class="lead">まだSNSがない時代。タウン誌に記事を出したり、ニュースレターを配ったりして、お店を知ってもらう。月2回まで。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
+      [{ label: 'タウン誌に記事を出す　' + yen(30000), sub: left > 0 ? '新しいお客様にお店を知ってもらう' : '今月はもう2回宣伝した', off: left <= 0 || S.cash < 30000, go: function () { pay(30000); use(); S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; SFX.good(); adPrView('タウン誌に、お店の紹介が載った。（評判+2、来月の新規+1人）'); } },
+       { label: 'ニュースレターを配る　' + yen(10000), sub: left > 0 ? '常連さんに、季節のおすすめを手紙で届ける' : '今月はもう2回宣伝した', off: left <= 0 || S.cash < 10000, go: function () { pay(10000); use(); var n = 0; S.clients.forEach(function (c) { if (c.active) { c.loy = clamp(c.loy + 3, 0, 100); n++; } }); SFX.good(); adPrView('ニュースレターを' + n + '人の常連さんに届けた。（常連の信頼+3）'); } },
+       { main: true, label: 'もどる', go: investView }]);
+  }
   function snsView(note) {
+    if (!snsOn()) return adPrView(note);
     if (!note || !scene.story || !scene.story.ev) evScene(['v_sns']);
     bar(); var P = snsFix(), left = snsLeft(), liveDone = P.live === S.week;
     view('<h1>SNSで発信する</h1><p class="lead">フォロワー合計 <b>' + fmtN(P.f) + '人</b>' + (P.best ? '　これまでの最高再生 ' + fmtN(P.best) + '回' : '') +
-      '<br>' + Object.keys(SNSPF).map(function (k) { return SNSPF[k].n + ' ' + fmtN(pfN(k)) + '人'; }).join('　') +
+      '<br>' + pfList().map(function (k) { return SNSPF[k].n + ' ' + fmtN(pfN(k)) + '人'; }).join('　') +
       '<br>バランス ' + Math.round(snsBal() * 100) + '%（3つを同じくらい伸ばすほど、来店や求人への効き目が大きい。同じ媒体ばかりだと伸びも鈍る）' +
       '<br>媒体ごとにフォロワーの年齢層が違う。力を入れた媒体によって、来るお客様と求人に集まる人が変わる。投稿は月2回まで。しばらく投稿しないと、フォロワーは少しずつ減る。</p>' + (note || ''),
-      Object.keys(SNSPF).map(function (k) {
+      pfList().map(function (k) {
         var x = SNSPF[k];
         return { label: x.n + 'に投稿する', sub: x.who + '　' + x.d, off: left <= 0, go: function () { snsPfView(k); } };
       }).concat([{ label: 'ライブ配信をする', sub: liveDone ? '今月は配信ずみ' : (P.f < LIVEMIN ? 'フォロワーが' + LIVEMIN + '人をこえるとできる' : '在庫の商品がその場でネットで売れ、フォロワーも増える。月1回まで。あなたの疲れ+8'),
-        off: liveDone || P.f < LIVEMIN, go: liveView }])
+        off: liveDone || P.f < LIVEMIN || eraY() < 2016, go: liveView }])
       .concat([{ main: true, label: 'もどる', go: investView }]));
   }
   function snsPfView(pf) {
@@ -5725,7 +5768,7 @@
     view('<h1>広告</h1><p class="lead">広告を出さないと、新しいお客様はなかなか来ない。費用は毎月かかり、店舗が多いほど高くなる（1店増えるごとに1.5倍ずつ）。</p>',
       ADLV.map(function (a, i) {
         var c = Math.round(a.cost * (1 + 0.5 * S.shops.length) / 1000) * 1000;
-        return { label: a.n + (c ? '　月' + yen(c) : ''), sub: a.d, picked: (S.adLv || 0) === i, go: function () { S.adLv = i; SFX.click(); adView(); } };
+        return { label: adNm(i) + (c ? '　月' + yen(c) : ''), sub: a.d, picked: (S.adLv || 0) === i, go: function () { S.adLv = i; SFX.click(); adView(); } };
       }).concat([{ main: true, label: 'もどる', go: investView }]));
   }
 
@@ -5785,7 +5828,7 @@
   // 部署の力：その部署の人の力の合計（力3で、ひとり分）
   function deptPow(k) { return hqStaff().filter(function (st) { return st.dept === k; }).reduce(function (a, st) { return a + 0.4 + 0.2 * hqSkFix(st)[DEPTSK[k]] + (isBucho(st) ? 0.3 : 0); }, 0); }
   function bestDept(st) { var k = hqSkFix(st), b = HQSK.slice().sort(function (x, y) { return k[y[0]] - k[x[0]]; })[0][0]; return SKDEPT[b]; }
-  function webN() { return Math.min(2, Math.round(deptPow('eng'))); }
+  function webN() { return eraY() < 1997 ? 0 : Math.min(2, Math.round(deptPow('eng'))); }
   function hqCap() { return HQLV[S.hq.lv - 1].cap; }
   function employees() { return allStaff().filter(function (st) { return !st.owner; }).length + hqStaff().length; }
   // 障害者雇用の仕組みは廃止（ゲームの中での表現が難しいため）。必要人数はいつも0、納付金もかからない
@@ -5797,7 +5840,8 @@
     var lack = Math.max(0, disNeed() - disHave()); S.wk.levy = lack * 50000; cost += S.wk.levy;
     // 広報が、フォロワーの少ないSNSに発信する（発信の力が高いほど伸びる）
     hqStaff().filter(function (st) { return st.dept === 'sns'; }).forEach(function (st) {
-      var P = snsFix(), pf = Object.keys(P.mix).sort(function (a, b) { return P.mix[a] - P.mix[b]; })[0];
+      if (!snsOn()) { S.rep = clamp(S.rep + 1, 0, 100); S.wk.hqNote = (S.wk.hqNote || []).concat([DEPT.sns.n + 'の' + st.name + 'が、雑誌に記事を出した。評判+1']); return; }
+      var P = snsFix(), pf = pfList().sort(function (a, b) { return P.mix[a] - P.mix[b]; })[0];
       var g = Math.round((300 + P.f * 0.02) * (0.4 + 0.2 * hqSkFix(st).pr) * (0.6 + rnd() * 0.8)); addF(pf, g); P.last = S.week;
       S.wk.hqNote = (S.wk.hqNote || []).concat([DEPT.sns.n + 'の' + st.name + 'が' + SNSPF[pf].n + 'で発信した。フォロワー +' + fmtN(g) + '人']);
     });
@@ -6730,7 +6774,7 @@
       (w.wage ? '<dt>スタッフ給与（役職手当込み）</dt><dd class="minus">' + yen(-w.wage) + '</dd>' : '') +
       (w.inc ? '<dt>インセンティブ</dt><dd class="minus">' + yen(-w.inc) + '</dd>' : '') +
       (w.loan && w.loan.interest ? '<dt>借入金の利息</dt><dd class="minus">' + yen(-w.loan.interest) + '</dd>' : '') +
-      (w.adCost ? '<dt>広告費（' + ADLV[S.adLv || 0].n + '）</dt><dd class="minus">' + yen(-w.adCost) + '</dd>' : '') +
+      (w.adCost ? '<dt>広告費（' + adNm(S.adLv || 0) + '）</dt><dd class="minus">' + yen(-w.adCost) + '</dd>' : '') +
       (w.hqCost ? '<dt>本社（家賃・給与）</dt><dd class="minus">' + yen(-w.hqCost) + '</dd>' : '') +
       (w.base ? '<dt>材料・光熱費</dt><dd class="minus">' + yen(-w.base.cost) + '</dd>' : '') +
       '<div class="sum"></div><dt class="big">' + (br.length ? '本店の収支' : '今月の収支') + '</dt><dd class="big' + (net < 0 ? ' minus' : '') + '">' + yen(net) + '</dd>' +
@@ -6848,7 +6892,7 @@
     opts.push({ label: '料金の方針：' + pm().n, sub: pm().d, go: priceView });
     if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店　' : '') + '会社を大きくする', go: function () { stratView(); } });
     opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); } });
-    opts.push({ label: '広告：' + ADLV[S.adLv || 0].n, sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView });
+    opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView });
     if (S.hq) opts.unshift({ label: '本社（' + HQLV[S.hq.lv - 1].n + '）', sub: '部署・本社のスタッフ・本社の移転・本店の店長', go: function () { hqView(); } });
     opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : (S.myProds.length >= MAXMINE ? '枠がいっぱい（廃番にすると作れる）' : 'オリジナル商品を作る（' + S.myProds.length + '／' + MAXMINE + '）'),
       go: devView });
@@ -6862,9 +6906,10 @@
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (team.length) { team.forEach(moodFix); var low = team.filter(function (st) { return st.mot < 30; }).length;
       opts.splice(4, 0, { label: 'スタッフと過ごす', sub: low ? 'やる気が落ちている人が' + low + '人いる' : 'ご飯に誘う、面談、ボーナス、休み', go: careView }); }
-    if (S.ekarte !== 2) opts.push(S.ekarte ? { label: '電子カルテのセキュリティを強化する　' + yen(60000), sub: '情報漏洩をしっかり防ぐ', off: S.cash < 60000, go: function () { pay(60000); S.ekarte = 2; SFX.hire(); investView(); } }
+    if (S.ekarte !== 2 && eraY() >= 2000) opts.push(S.ekarte ? { label: '電子カルテのセキュリティを強化する　' + yen(60000), sub: '情報漏洩をしっかり防ぐ', off: S.cash < 60000, go: function () { pay(60000); S.ekarte = 2; SFX.hire(); investView(); } }
       : { label: '電子カルテを導入する　' + yen(80000), sub: '常連の好みや経過を全員で共有。常連の満足度とコースの決まりやすさが上がる', off: S.cash < 80000, go: function () { pay(80000); S.ekarte = 1; SFX.hire(); investView(); } });
     INVEST.forEach(function (v) {
+      if (!invOn(v.k) && !S[v.k]) return opts.push({ label: v.n, sub: (INVYEAR[v.k]) + '年ごろに登場する', off: true, go: function () {} });
       opts.push({ label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: S[v.k] || S.cash < v.price, go: function () {
         pay(v.price); S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
       } });
@@ -7026,8 +7071,8 @@
       [{ main: true, label: '月末の画面にもどる', go: investView }]);
     if (off) {
       var on = S.dotAI !== false;
-      $('opts').insertAdjacentHTML('beforebegin', '<div class="tgl box"><div><b>AIに返信を任せる</b><small>' + (on ? 'お客様と取引先への返信は、AIがしてくれる' : '自分で返信する。ONにすると、AIが返信してくれる') + '</small></div>' +
-        '<div class="seg" role="group" aria-label="AIに返信を任せる"><button type="button" data-ai="1" aria-pressed="' + on + '"' + (on ? ' class="on"' : '') + '>ON</button><button type="button" data-ai="0" aria-pressed="' + !on + '"' + (on ? '' : ' class="on"') + '>OFF</button></div></div>');
+      $('opts').insertAdjacentHTML('beforebegin', eraText('<div class="tgl box"><div><b>AIに返信を任せる</b><small>' + (on ? 'お客様と取引先への返信は、AIがしてくれる' : '自分で返信する。ONにすると、AIが返信してくれる') + '</small></div>' +
+        '<div class="seg" role="group" aria-label="AIに返信を任せる"><button type="button" data-ai="1" aria-pressed="' + on + '"' + (on ? ' class="on"' : '') + '>ON</button><button type="button" data-ai="0" aria-pressed="' + !on + '"' + (on ? '' : ' class="on"') + '>OFF</button></div></div>'));
       Array.prototype.forEach.call(document.querySelectorAll('#app [data-ai]'), function (bt) { bt.addEventListener('click', function () { var v = bt.getAttribute('data-ai') === '1'; if (v === (S.dotAI !== false)) return; S.dotAI = v; SFX.click(); dotView(true); }); });
     }
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-dot]'), function (bt) { bt.addEventListener('click', function () { SFX.click(); dotThread(list[+bt.getAttribute('data-dot')]); }); });
@@ -7118,7 +7163,7 @@
     var t = null;
     if (!(S.adLv || 0) && S.week >= 1) t = '広告を出すと、新しいお客様がぐっと増える。「お店づくり」→「広告」から。';
     else if (S.staff.length <= 1 && S.week >= 2) t = 'スタッフを雇うと、受けられるお客様が増える。「スタッフ」→「スタッフを採用する」から。';
-    else if (!(S.sns && S.sns.f) && S.week >= 2) t = 'SNSに投稿すると、フォロワーが増えてお客様が来やすくなる。下の「今月のタスク」から。';
+    else if (!(S.sns && S.sns.f) && S.week >= 2) t = snsOn() ? 'SNSに投稿すると、フォロワーが増えてお客様が来やすくなる。下の「今月のタスク」から。' : 'タウン誌やニュースレターで宣伝すると、お客様が来やすくなる。下の「今月のタスク」から。';
     else if (S.cash < homeRent() * 2) t = 'お金が心細いときは、「お店づくり」→「資金調達と返済」で銀行から借りられる。';
     return t ? '<div class="news good"><b>経営のヒント</b>　' + t + '</div>' : '';
   }
