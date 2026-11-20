@@ -1578,7 +1578,16 @@
     [2023, 5, 'virus', '新型コロナが5類に', '感染症の扱いが季節性インフルエンザと同じになった。街ににぎわいが戻ってきた。', 'covidEnd'],
     [2024, 1, 'quake', '能登半島地震', '石川県の能登半島で、大きな地震があった。多くの方が避難生活を送っている。', 'quake'],
     [2024, 7, 'money', '新しいお札が発行', '一万円・五千円・千円札が、20年ぶりに新しくなった。', ''],
-    [2025, 4, 'event', '大阪・関西万博が開幕', '大阪の夢洲で、万博が始まった。', '']
+    [2025, 4, 'event', '大阪・関西万博が開幕', '大阪の夢洲で、万博が始まった。', ''],
+    [1996, 7, 'beauty', 'オートキャンプが大ブーム', 'このころ、車にテントを積んで家族でキャンプに出かけるのが大流行している。', ''],
+    [1997, 11, 'sport', 'サッカー日本代表、ワールドカップ初出場が決まる', '延長戦の末に勝利し、日本が初めてワールドカップに出ることになった。日本中が歓喜にわいている。', ''],
+    [1998, 6, 'sport', '日本代表、初めてのワールドカップへ', 'フランスで開かれているワールドカップで、日本代表が初めて試合をした。深夜のテレビに、みんなが釘づけだ。', ''],
+    [1999, 8, 'beauty', '渋谷で「ガングロ」がはやる', 'このころ、真っ黒に日焼けした肌に白いアイメイクの「ガングロ」が若い女性の間で話題だ。', ''],
+    [2007, 2, 'sport', '東京で、大規模な市民マラソンが始まる', '3万人が都心を走る市民マラソンが初めて開かれた。走ることが、ちょっとしたブームになりそうだ。', ''],
+    [2009, 12, 'beauty', '「草食男子」「歴女」が流行語に', 'がつがつしない男性「草食男子」や、歴史好きの女性「歴女」という言葉が、今年の流行語に選ばれた。', ''],
+    [2010, 7, 'beauty', 'おしゃれな登山ファッションの「山ガール」', 'このころ、カラフルな服で山に登る「山ガール」が増えている。', ''],
+    [2010, 12, 'beauty', '「女子会」が流行語に', '女性だけで集まる「女子会」が、今年の流行語に選ばれた。', ''],
+    [2020, 11, 'beauty', 'ソロキャンプが人気に', 'このころ、ひとりでキャンプを楽しむ「ソロキャンプ」が人気になっている。', '']
   ];
   function newsNow() { if (!S || !S.startYear) return null; var y = nowYear(), m = monthOf(); return NEWSDB.filter(function (n) { return n[0] === y && n[1] === m; })[0] || null; }
   // 今月のニュースの画面（つづける／災害のときは、募金や黙とう）
@@ -1630,6 +1639,7 @@
   ];
   // スタッフの年齢（生まれ年がない人は、名前から決めておく）
   function ageOf(st) { if (!st || st.owner) return null; if (!st.born) st.born = nowYear() - (24 + hashOf(String(st.id || st.name)) % 14); return nowYear() - st.born; }
+  function ptn(married) { return S && S.ownerMale ? (married ? '奥さん' : '彼女') : (married ? '旦那さん' : '彼'); }
   function ownerAge() { if (!S.ownerBorn) S.ownerBorn = nowYear() - 28 - Math.floor((S.week - 1) / 12); return nowYear() - S.ownerBorn; }
   // 子ども（暮らしのイベントで生まれる）。名前は、生まれた年のはやりから
   function kidsFix() {
@@ -1793,7 +1803,7 @@
     inbound: 'v_travel', st_marry: 'v_wedding', st_baby: 'v_baby',
     s_sakura: 'v_sakura', s_mother: 'v_gift', s_summer: 'v_beach', s_halloween: 'v_halloween', s_xmas: 'v_xmas', s_newyear: 'v_newyear', s_valentine: 'v_valentine', s_white: 'v_valentine',
     s_june: 'v_rain', s_obon: 'v_fireworks', s_moon: 'v_moon', s_bonus: 'v_party' };
-  var LIFEPIC = { e_jiage: 'v_talk', e_disco: 'v_party', e_tip: 'v_vip', e_golf: 'v_vip', e_golfdown: 'v_rain', e_pager: 'v_phone', e_pet: 'v_shopping', e_nostra: 'v_moon', e_y2k: 'v_idea', e_ringtone: 'v_phone', e_shame: 'v_sns', e_tapioca: 'v_cafe', e_mask: 'v_spa', meet: 'v_date', propose: 'v_wedding', quarrel: 'v_talk', baby: 'v_baby', dog: 'v_dog', dogbd: 'v_dog', parent: 'v_phone', reunion: 'v_cafe', hobby: 'v_idea', volunteer: 'v_charity' };
+  var LIFEPIC = { e_taxi: 'v_vip', e_jiage: 'v_talk', e_disco: 'v_party', e_tip: 'v_vip', e_golf: 'v_vip', e_golfdown: 'v_rain', e_pager: 'v_phone', e_pet: 'v_shopping', e_nostra: 'v_moon', e_y2k: 'v_idea', e_ringtone: 'v_phone', e_shame: 'v_sns', e_tapioca: 'v_cafe', e_mask: 'v_spa', meet: 'v_date', propose: 'v_wedding', quarrel: 'v_talk', baby: 'v_baby', dog: 'v_dog', dogbd: 'v_dog', parent: 'v_phone', reunion: 'v_cafe', hobby: 'v_idea', volunteer: 'v_charity' };
   var HOLPIC = [[/いちご/, 'v_picnic'], [/花見|花冷え/, 'v_sakura'], [/ハイキング/, 'v_mountain'], [/紫陽花/, 'v_rain'], [/海|日焼け/, 'v_beach'], [/花火|人混み/, 'v_fireworks'], [/グランピング/, 'v_camp'],
     [/芸術|美術/, 'v_museum'], [/温泉|雪見/, 'v_onsen'], [/クリスマス/, 'v_xmas'], [/スキー|転んで/, 'v_ski'], [/初詣/, 'v_newyear'], [/再会|マルチ|あやしい|お金が戻らない/, 'v_cafe'],
     [/筋トレ|筋肉痛|ヨガ|プール|パーソナル/, 'v_gym'], [/ランニング|サイクリング|登山|ご来光/, 'v_mountain'], [/セミナー/, 'v_stage'], [/買い|お買い物/, 'v_shopping'], [/カフェ|集中/, 'v_cafe'], [/スパ|予約ミス/, 'v_spa'], [/ピラティス|筋肉痛/, 'v_gym'], [/推し|チケット|グッズ/, 'v_concert'],
@@ -2712,7 +2722,7 @@
     intern:     { n: '美容学生のインターン', w: 2, choice: true, d: '美容専門学校から「学生をインターンで受け入れてもらえませんか」と相談があった。' },
     inbound:    { n: 'インバウンドのお客様', w: 2, d: '海外からの観光客が予約した。施術に満足してもらえれば、おみやげに商品を爆買いしてくれるかも。在庫が足りなくても、取り寄せでまとめて売れる。' }
   };
-  function capOf(st) { if (st.owner && S.hq && !st.sick) return boss() === 'field' ? 2 : 1; return st.sick || (st.leaveUntil && st.leaveUntil > S.week) ? 0 : Math.max(0, st.cap + (has(st, 'tough') ? 1 : 0) - (st.pracWeek === S.week ? 1 : 0) - ((st.hurtUntil || 0) > S.week ? 2 : 0)); }
+  function capOf(st) { if (st.owner && S.ownerMale) return 0; if (st.owner && S.hq && !st.sick) return boss() === 'field' ? 2 : 1; return st.sick || (st.leaveUntil && st.leaveUntil > S.week) ? 0 : Math.max(0, st.cap + (S.ownerMale && !st.owner ? 1 : 0) + (has(st, 'tough') ? 1 : 0) - (st.pracWeek === S.week ? 1 : 0) - ((st.hurtUntil || 0) > S.week ? 2 : 0)); }
   function totalCap() { return S.staff.reduce(function (a, st) { return a + capOf(st); }, 0); }
   function staffPick() { var a = S.staff.filter(function (st) { return !st.owner; }); return a.length ? pick(a) : null; }
   var ROYALOFF = 0.8;
@@ -4118,7 +4128,7 @@
     (function show() {
       cardCands = cands;
       view('<h1>開業の準備　スタッフ</h1><p class="lead">求人を出したら、3人が応募してきた。雇えるのは1人だけ。採用費' + yen(HIRE) + 'と、毎月の給与がかかる。雇わずにひとりで始めてもいい。</p><p class="lead">所持金 ' + yen(S.cash) + '</p>' + '<div class="cdlist">' + cands.map(function (cd, i) { return candCard(cd, i, S.cash < HIRE, '', 'この人を雇う'); }).join('') + '</div>',
-        [{ label: '雇わずに、ひとりで始める', sub: '給与がかからない。接客はすべて自分で', go: function () { openInvest(''); } }]);
+        (S.ownerMale ? [] : [{ label: '雇わずに、ひとりで始める', sub: '給与がかからない。接客はすべて自分で', go: function () { openInvest(''); } }]));
       Array.prototype.forEach.call(document.querySelectorAll('#app [data-hire]'), function (bt) { bt.addEventListener('click', function () { var cd = cands[+bt.getAttribute('data-hire')]; if (!cd || S.cash < HIRE) return; pay(HIRE); hireTo(null, cd); SFX.hire(); openInvest(cd.name + 'を採用した。'); }); });
       cardLoop();
     })();
@@ -4227,10 +4237,11 @@
     bar();
     view('<h1>あなたの名前</h1><p class="lead">これから開業する店長、つまりあなたの名前を決めよう。</p>' +
       '<div class="form"><label>名前（6文字まで）<input id="heroName" type="text" maxlength="6" autocomplete="off" placeholder="あかり"></label>' +
+      '<label>性別<select id="heroSex"><option value="f">女性（自分も施術に入る）</option><option value="m">男性（施術には入らず、経営に専念する）</option></select></label>' +
       '<label>出身地<select id="heroPref">' + PREFS.map(function (p) { return '<option' + (p === '東京都' ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></label></div>',
       [{ main: true, label: 'この名前で決める', go: function () {
         var nm = clean($('heroName').value).slice(0, 6) || 'あかり', pf = $('heroPref') ? $('heroPref').value : '東京都';
-        heroQ({ name: nm, pref: pf, pts: {}, i: 0, qs: pickQs() });
+        heroQ({ name: nm, pref: pf, male: $('heroSex') && $('heroSex').value === 'm', pts: {}, i: 0, qs: pickQs() });
       } }, { label: 'もどる', go: function () { slotView(n); } }]);
     setTimeout(function () { try { $('heroName').focus(); } catch (e) {} }, 50);
   }
@@ -4263,6 +4274,7 @@
   function applyHero(h) {
     var o = S.staff[0], P = PERSONA[h.persona] || {};
     S.ownerName = h.name; S.persona = h.persona;
+    if (h.male) { S.ownerMale = true; S.ownerLook = { style: 'short', top: '#2E3A52', bottom: '#2E3A52', uniform: false }; Object.assign(OWNER_LOOK, OWNER_LOOK0, S.ownerLook); }
     Object.keys(P.sk || {}).forEach(function (k) { o.sk[k] = Math.min(5, o.sk[k] + P.sk[k]); });
     skFix(o);
     if (P.sp) o.sp = [P.sp];
@@ -4365,7 +4377,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth();
+    ageMonth(); uniSync(); machMonth(); healthMonth();
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -4478,8 +4490,8 @@
     if (avail.length === 1) return serve(avail[0]);
     bar();
     C.log = [];
-    view(karte() + stepHtml('担当を決める', '自分で接客するか、スタッフに任せるか。任せた分は自動で結果が出る。'),
-      S.staff.map(function (st) {
+    view(karte() + stepHtml('担当を決める', S.ownerMale ? 'だれに任せるか。結果は自動で出る。' : '自分で接客するか、スタッフに任せるか。任せた分は自動で結果が出る。'),
+      S.staff.filter(function (st) { return !(st.owner && S.ownerMale); }).map(function (st) {
         var left = capOf(st) - st.used;
         return { label: st.owner ? '自分で接客する' : st.name + 'に任せる',
           sub: (st.owner ? '' : TRAITS[st.trait].n + '　' + statText(st) + '　やる気' + Math.round(st.mot || 60) + '　') + (st.sick ? (st.owner ? '今月はお休み' : (st.restWeek === S.week ? '今月はお休み' : '体調不良で休み')) : '今月あと' + left + '人'),
@@ -5026,6 +5038,9 @@
     { k: 'e_tip', ok: EY(1987, 1991), t: '「釣りはいらないよ」', d: '景気のいい社長さんが、会計で一万円札を何枚もひらひらさせた。「釣りはいらない。みんなでうまいもんでも食べな」',
       c: [['ありがたく受け取って、スタッフと食事に行く', '', 0, function () { crewAll().forEach(function (st) { moodUp(st, 6, 2); }); return 'その夜、みんなで焼き肉を食べた。「バブルってすごいですね…」とスタッフ。'; }],
           ['丁重にお返しする', '', 0, function () { hum(3); return '「欲がないねえ。気に入った！」。社長は次の予約を3回分入れていった。'; }]] },
+    { k: 'e_taxi', ok: EY(1987, 1991), t: 'タクシーがつかまらない', d: '終電を逃した夜の街。タクシーがまったくつかまらない。まわりの人は、一万円札をひらひらさせて車を止めている。',
+      c: [['あなたも一万円札をなびかせる　' + yen(10000), '', 10000, function () { fat(-5); return '一万円札をかかげたら、すっと1台止まった。「お客さん、景気いいねえ」。家まで送ってもらった。'; }],
+          ['始発まで、喫茶店で待つ', '', 0, function () { fat(10); hum(1); return 'コーヒーを3杯おかわりして、始発を待った。窓の外は、朝までネオンがまぶしかった。'; }]] },
     { k: 'e_golf', ok: EY(1987, 1990), t: 'ゴルフ会員権のおさそい', d: '銀行の担当者がやってきた。「社長、ゴルフ会員権はいかがですか。値上がり確実、資産になりますよ」',
       c: [['買う　' + yen(3000000), '', 3000000, function () { S.golf = { price: 3000000, y: eraY() }; S.rep = clamp(S.rep + 3, 0, 100); return '会員権を手に入れた。休日のゴルフで、顔が広くなった。（評判+3）'; }],
           ['やめておく', '', 0, function () { return '「もったいないなあ」と言いながら、担当者は帰っていった。'; }]] },
@@ -5082,9 +5097,19 @@
     return opts.concat([{ label: '今回は見送る', sub: '変化なし（お金が足りないとき）', go: skip }]);
   }
   // 店長の疲れと体力のバロメーター
+  function health(n) { S.risk = clamp((S.risk || 20) + n, 0, 100); }
+  function healthMonth() {
+    if ((S.fatigue || 0) >= 70) health(3);
+    if (ownerAge() >= 40) health(S.ownerMale ? 1 : 0.5);
+    if ((S.risk || 20) > 45 && roll(((S.risk || 20) - 45) / 300)) {
+      var cost = 200000; pay(cost); S.awayUntil = S.week + 1; S.risk = 25; fat(-30);
+      S.news.push({ bad: true, t: (S.ownerMale && (S.dineN || 0) > 3 ? '会食つづきがたたって' : '無理がたたって') + '、体をこわして入院した。来月はお店に出られない。（治療費' + yen(cost) + '）' });
+    }
+  }
   function fatigueBars() {
     var f = Math.round(S.fatigue || 0), s = Math.round(S.stamina || 0);
-    return '<div class="gauges"><span>疲れ</span><i><u class="grd" style="width:' + f + '%"></u></i><b>' + f + '</b><span>体力</span><i><u style="width:' + s + '%"></u></i><b>' + s + '</b></div>';
+    var hl = 100 - Math.round(S.risk || 20);
+    return '<div class="gauges"><span>疲れ</span><i><u class="grd" style="width:' + f + '%"></u></i><b>' + f + '</b><span>体力</span><i><u style="width:' + s + '%"></u></i><b>' + s + '</b><span>健康</span><i><u style="width:' + hl + '%;background:var(--good)"></u></i><b>' + hl + '</b></div>';
   }
   function fat(n) { S.fatigue = clamp((S.fatigue || 0) + n, 0, 100); }
   function stam(n) { S.stamina = clamp((S.stamina || 0) + n, 0, 100); }
@@ -5153,10 +5178,10 @@
     o.push({ label: 'スパでゆっくりする', sub: '疲れ−55', cost: 12000, r: function () {
       if (roll(0.1)) { fat(-25); return ['予約ミス', '予約が取れておらず、待ち時間が長かった…。それでも施術で少し楽になった。（疲れ−25）']; }
       fat(-55); return ['スパでリフレッシュ', '他のお店の施術を受けて、体も心もほぐれた。（疲れ−55）']; } });
-    o.push({ label: 'ジムで筋トレする', sub: '体力+12、疲れ+5', cost: 2000, r: function () {
+    o.push({ label: 'ジムで筋トレする', sub: '体力+12、疲れ+5', cost: 2000, r: function () { health(-6);
       stam(12); if (roll(0.2)) { fat(12); return ['ひどい筋肉痛', '張り切って重いバーベルに挑戦したら、次の日は階段がつらい…。（体力+12、疲れ+12）']; }
       fat(5); return ['ジムで筋トレ', 'マシンとダンベルで、全身をしっかり鍛えた。施術の腕にも力が入りそう。（体力+12、疲れ+5）']; } });
-    o.push({ label: '朝のランニングをする', sub: '体力+8、疲れ+2', cost: 0, r: function () {
+    o.push({ label: '朝のランニングをする', sub: '体力+8、疲れ+2', cost: 0, r: function () { health(-5);
       stam(8); if (roll(0.15)) { stam(-4); fat(-3); return ['雨のランニング', '途中で雨が降ってきて、早めに引き返した。（体力+4、疲れ−3）']; }
       fat(2); return ['朝のランニング', '川沿いを5キロ走った。朝の空気が気持ちいい。（体力+8、疲れ+2）']; } });
     o.push({ label: 'プールで泳ぐ', sub: '体力+10、疲れ±0', cost: 1500, r: function () {
@@ -5174,8 +5199,8 @@
       if (x < 0.35) { pay(10000); fat(-25); hum(1); return ['グッズを買いすぎた', '推しのライブは最高だった！ でもグッズを買いすぎた…。（さらに' + yen(10000) + '、疲れ−25、人間力+1）']; }
       fat(-25); hum(1); return ['推し活', '推しのライブで思いきり声を出した。明日からまたがんばれる！（疲れ−25、人間力+1）']; } });
     if (L.dog) o.push({ label: '犬と散歩する', sub: '疲れ−15、人間力+2', cost: 0, r: function () { fat(-15); hum(2); return ['犬と散歩', '公園をのんびり歩いた。しっぽを振る姿にいやされた。（疲れ−15、人間力+2）']; } });
-    if (L.partner === 'dating' || L.partner === 'married') o.push({ label: (L.partner === 'married' ? '旦那さん' : '彼') + 'とデートする', sub: '疲れ−20、人間力+3', cost: 10000, r: function () {
-      fat(-20); hum(3); return ['デート', (L.partner === 'married' ? '旦那さん' : '彼') + 'と、話題のお店で食事をした。（疲れ−20、人間力+3）']; } });
+    if (L.partner === 'dating' || L.partner === 'married') o.push({ label: ptn(L.partner === 'married') + 'とデートする', sub: '疲れ−20、人間力+3', cost: 10000, r: function () {
+      fat(-20); hum(3); return ['デート', ptn(L.partner === 'married') + 'と、話題のお店で食事をした。（疲れ−20、人間力+3）']; } });
     if (L.baby) o.push({ label: '家族でお出かけする', sub: '疲れ−25、人間力+4', cost: 15000, r: function () { fat(-25); hum(4); return ['家族でお出かけ', '家族で動物園へ。子どもの笑顔に元気をもらった。（疲れ−25、人間力+4）']; } });
     // 時代の過ごし方
     var yy = eraY(), ERAHOL = [
@@ -5189,6 +5214,26 @@
       [2015, 2026, '動画配信サービスで映画を一気に見る', 1000, -30, ['動画配信', '気づいたら、ドラマを1シーズン見終わっていた。']]
     ];
     ERAHOL.forEach(function (e) { if (yy >= e[0] && yy <= e[1]) o.push({ label: e[2], sub: '', cost: e[3], r: function () { fat(e[4]); hum(1); return [e[5][0], e[5][1] + '（疲れ' + e[4] + '、人間力+1）']; } }); });
+    // 時代の流行と、男女で変わる過ごし方。[から, まで, 名前, 費用, 疲れ, 体力, 男女(m/f/空), 健康, [見出し, 文]]
+    var mm = !!S.ownerMale, kid = S.life && S.life.baby, HOL2 = [
+      [1985, 1995, 'ボウリング場で遊ぶ', 2000, -15, 3, '', -2, ['ボウリング', 'ストライクが3回続いて、大さわぎした。']],
+      [1985, 1991, 'ディスコで踊りあかす', 5000, -10, 2, '', 3, ['ディスコ', 'ミラーボールの下で、朝まで踊った。']],
+      [1993, 1999, '家族でオートキャンプに行く', 15000, -25, 3, 'kid', -3, ['オートキャンプ', '車にテントを積んで、川のそばでバーベキューをした。']],
+      [1995, 2005, 'シール写真機で友だちと写真を撮る', 400, -10, 0, 'f', 0, ['シール写真', '落書きしたシールを、手帳にぺたぺた貼った。']],
+      [2007, 2026, '市民マラソンに出る', 8000, 10, 15, '', -8, ['市民マラソン', '沿道の声援を受けながら、最後まで走りきった。']],
+      [2009, 2013, '山ガールの服で山に登る', 6000, -10, 8, 'f', -6, ['山ガール', 'カラフルなウェアで山頂へ。お弁当がおいしかった。']],
+      [2009, 2012, '歴史の名所めぐり（歴女）', 4000, -15, 2, 'f', -2, ['歴史めぐり', 'お城の石垣を見上げて、戦国の世に思いをはせた。']],
+      [2010, 2026, '女子会をする', 6000, -20, 0, 'f', 1, ['女子会', 'おしゃべりが止まらず、気づけば終電だった。']],
+      [2010, 2016, '一眼カメラで街を撮る（カメラ女子）', 3000, -15, 2, 'f', -1, ['カメラ女子', '夕暮れの街並みを、何枚も撮った。']],
+      [2019, 2026, 'ソロキャンプに行く', 8000, -25, 4, '', -3, ['ソロキャンプ', 'たき火を見ながら、ひとりでぼんやり過ごした。']],
+      [1985, 2026, '釣りに行く', 3000, -25, 2, 'm', -2, ['釣り', '夜明けの海で、大きなアジが釣れた。']],
+      [2002, 2026, 'フットサルをする', 2000, 5, 10, 'm', -8, ['フットサル', '汗だくになってボールを追いかけた。']],
+      [1985, 2026, 'ゴルフの打ちっぱなしに行く', 3000, -10, 4, 'm', -3, ['打ちっぱなし', '芯に当たった打球が、まっすぐ飛んでいった。']],
+      [1985, 2026, '家族でキャンプに行く', 12000, -20, 4, 'mkid', -3, ['家族でキャンプ', 'テントで子どもと星を数えた。']]
+    ];
+    HOL2.forEach(function (e) { if (yy < e[0] || yy > e[1]) return; if (e[6] === 'f' && mm) return; if (e[6] === 'm' && !mm) return; if (e[6] === 'kid' && !kid) return; if (e[6] === 'mkid' && !(mm && kid)) return;
+      o.push({ label: e[2], sub: '', cost: e[3], r: function () { fat(e[4]); stam(e[5]); health(e[7]); return [e[8][0], e[8][1] + '（疲れ' + (e[4] >= 0 ? '+' : '') + e[4] + (e[5] ? '、体力+' + e[5] : '') + '）']; } }); });
+    if (mm) o = o.filter(function (x) { return !/ヨガ|ピラティス|推し活/.test(x.label); });
     // その時代にはなかった過ごし方は出さない
     var HOLYEAR = { 'パーソナルトレーニングを受ける': 2010, 'ピラティスに行く': 2005, '推し活をする': 2015, 'ヨガ教室に行く': 2003, 'グランピングに行く': 2015, 'カフェで勉強する': 1995 };
     o = o.filter(function (x) { return !HOLYEAR[x.label] || yy >= HOLYEAR[x.label]; });
@@ -5350,6 +5395,7 @@
   function lvTitle(L) { var t = LVTITLE[0][1]; LVTITLE.forEach(function (x) { if (L >= x[0]) t = x[1]; }); return t; }
   function mxpAdd(n) {
     if (!S || !n) return;
+    if (S.ownerMale) n = Math.round(n * 1.3);
     var a = mlv(); S.mxp += n; var b = mlv();
     if (b > a && S.wk) {
       var opened = Object.keys(AREALV).filter(function (k) { return AREALV[k] > a && AREALV[k] <= b; });
@@ -5457,7 +5503,7 @@
   var CUNI = { relax: ['#7FA36E', '#E8E2D0'], skin: ['#F08DAE', '#FFFFFF'], body: ['#3AC0C8', '#2E4560'], luxe: ['#2B2238', '#C9A227'], casual: ['#F2C230', '#5C78B0'] };
   function uniSync() {
     if (!S) return;
-    var put = function (list, c) { var u = CUNI[c] || UNI[0]; list.forEach(function (st) { var lk = st.owner ? OWNER_LOOK : st.look; if (lk && lk.uniform !== false) { lk.top = u[0]; lk.bottom = u[1]; } }); };
+    var put = function (list, c) { var u = CUNI[c] || UNI[0]; list.forEach(function (st) { var lk = st.owner ? OWNER_LOOK : st.look; if (st.owner && S.ownerMale) return; if (lk && lk.uniform !== false) { lk.top = u[0]; lk.bottom = u[1]; } }); };
     put(S.staff, S.concept); S.shops.forEach(function (b) { put(b.staff, b.concept); });
     hqStaff().forEach(function (st) { if (st.look) { st.look.top = '#3E5A78'; st.look.bottom = '#2E3A52'; } });
   }
@@ -5546,7 +5592,7 @@
     if (A.tier === 'world' || A.tier === 'resort' || A.intl) { r.fx = S.fx || 1; r.sales = Math.round(r.sales * r.fx); r.cost = Math.round(r.cost * r.fx); }
     if (!b.home) r.sales = Math.round(r.sales * areaRev(A));
     mgrEffect(b, r);
-    if (!b.home) r.sales = Math.round(r.sales * bossMult());
+    if (!b.home) r.sales = Math.round(r.sales * bossMult() * (S.ownerMale ? 1.06 : 1));
     if (A.hotel) {
       b.hmem = b.hmem || []; var hj = 0, hr = 0, hl = 0, hcap = 6 + 2 * (b.interiorLv || 0);
       b.hmem = b.hmem.filter(function (m) {
@@ -6619,7 +6665,7 @@
       if (st.owner || onLeave(st)) return;
       moodFix(st);
       var sh = shopOf(st), busy = sh ? !!(sh.last && sh.last.turned > 0) : (capOf(st) > 0 && st.used >= capOf(st));
-      st.mot = clamp(st.mot - (busy ? 5 : 2) / (has(st, 'iron') ? 2 : 1) + Math.min(2, Math.floor(S.hum / 40)) - (st.mot > 75 ? Math.round((st.mot - 75) * 0.25) : 0) + Math.round((rnd() - 0.5) * 6), 0, 100);
+      st.mot = clamp(st.mot - (busy ? 5 : 2) / (has(st, 'iron') ? 2 : 1) + Math.min(2, Math.floor(S.hum / 40)) + (S.ownerMale ? 1 : 0) - (st.mot > 75 ? Math.round((st.mot - 75) * 0.25) : 0) + Math.round((rnd() - 0.5) * 6), 0, 100);
       // 信頼は、面談やかかわりがないと少しずつ薄れる
       if (st.talkWeek !== S.week && st.careWeek !== S.week && (st.trust || 0) > 50) st.trust = clamp(st.trust - (st.trust > 80 ? 2 : 1), 0, 100);
       // お店との相性
@@ -7127,6 +7173,17 @@
       } });
     });
     opts.push({ label: 'お店と会社の名前を変える', sub: 'いま：' + (S.brand || '（未設定）') + (S.company ? '／' + S.company : '') + '　支店の名前もまとめて変わる', go: nameView });
+    if (S.ownerMale && S.dineWk !== S.week) {
+      var dy = eraY(), place = dy < 1990 ? 'キャバレー' : dy < 1996 ? 'キャバレーとキャバクラ' : 'キャバクラ', dc = dy < 1992 ? 150000 : 100000;
+      opts.push({ label: '取引先と会食に行く（' + place + '）　' + yen(dc), sub: '夜の付き合いで、仕事の話がまとまることも。健康には気をつけたい', off: S.cash < dc, go: function () {
+        pay(dc); S.dineWk = S.week; S.dineN = (S.dineN || 0) + 1; fat(15); health(10);
+        var r = rnd(), msg;
+        if (r < 0.3) { S.sale = true; msg = '卸の社長と意気投合した。今月の仕入れは半額にしてもらえることになった。'; }
+        else if (r < 0.55) { S.rep = clamp(S.rep + 3, 0, 100); msg = '銀行の支店長と話がはずんだ。お店の評判が、経営者仲間に広まった。（評判+3）'; }
+        else if (r < 0.75) { S.vipNext = S.week + 1; msg = '「うちの家内を紹介するよ」。来月、お金持ちのお客様が来てくれそうだ。'; }
+        else msg = '楽しい夜だったが、仕事の話は特にまとまらなかった。翌朝、少し頭が重い。';
+        SFX.coin(); S.trainNote = place + 'で会食した。' + msg + '（疲れ+15）'; curCat = null; investView(); } });
+    }
     opts.push({ label: '公式dot.を見る', sub: 'お客様と取引先からの連絡。AIに返信を任せる：' + (S.dotAI !== false ? 'ON' : 'OFF'), go: function () { dotView(true); } });
     opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（dot.など）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
     if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
@@ -7180,7 +7237,7 @@
     if (crew.length >= 2) { var a = crew[0], b = crew[1], cost = 3000 * crew.length; C2.push({ kind: 'group', from: 'サロンのみんな（' + (crew.length + 1) + '人）', w: 2,
       lines: [{ who: a.name, t: '今月もおつかれさまでした！' }, { who: b.name, t: '打ち上げ、行きたいです〜！' }],
       reps: [{ t: 'みんなでご飯に行こう！　' + yen(cost), fx: 'party', cost: cost, res: 'やったー！ 店長ありがとうございます！' }, { t: '今月はゆっくり休んでね。', fx: 'none', res: 'はーい！ おつかれさまでした！' }] }); }
-    if (L.partner === 'dating' || L.partner === 'married') { var pn = L.partner === 'married' ? '旦那さん' : '彼'; C2.push({ kind: 'partner', from: pn, w: 2,
+    if (L.partner === 'dating' || L.partner === 'married') { var pn = ptn(L.partner === 'married'); C2.push({ kind: 'partner', from: pn, w: 2,
       lines: [{ t: '今日は早く帰れそう？' }, { t: pick(['ごはん作って待ってるね。', 'たまには一緒に映画でも見ない？']) }],
       reps: [{ t: '急いで帰る！', fx: 'home', res: '気をつけて帰ってきてね。' }, { t: 'ごめん、今日は遅くなりそう。', fx: 'none', res: 'わかった。無理しないでね。' }] }); }
     C2.push({ kind: 'family', from: '母', w: 1, lines: [{ t: pick(['お店、順調？ 体には気をつけてね。', 'テレビでエステの特集を見たよ。あなたのお店も負けてないね。', '野菜をたくさん送ったから、ちゃんと食べてね。']) }],
@@ -8020,7 +8077,7 @@
   // 研修で伸ばす余地がある人（神技・神対応の両方に届いた人は対象外）
   function trainable(st) { skFix(st); return !onLeave(st) && (st.sk.tech < 6 || st.sk.word < 6); }
   function tCost1(st) { skFix(st); var low = Math.min.apply(null, SKILLS.map(function (x) { return st.sk[x[0]]; })); return 2 * TCOST[clamp(low, 1, 4)] + (low >= 5 ? 2 * TCOST5 : 0); }
-  function tGain(st, meth) { var base = meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth]; return Math.round(base * (st.trait === 'rookie' ? 1.2 : st.trait === 'vet' ? 0.8 : 1) * (has(st, 'sense') ? 2 : 1) * GIFTMUL[talentOf(st).gift] * (1 + Math.min(0.6, 0.15 * (hqOn() ? deptPow('train') : 0)))); }
+  function tGain(st, meth) { var base = meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth]; return Math.round(base * (st.trait === 'rookie' ? 1.2 : st.trait === 'vet' ? 0.8 : 1) * (has(st, 'sense') ? 2 : 1) * GIFTMUL[talentOf(st).gift] * (1 + Math.min(0.6, 0.15 * (hqOn() ? deptPow('train') : 0))) * (S && S.ownerMale ? 1.15 : 1)); }
   function tGroups() {
     var gs = [{ key: 'main', sh: null, name: S.shops.length ? '本店' : 'お店', mem: S.staff }];
     S.shops.forEach(function (b) { gs.push({ key: b.id, sh: b, name: b.name, mem: b.staff }); });
