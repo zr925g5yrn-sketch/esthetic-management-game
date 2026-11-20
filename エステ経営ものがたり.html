@@ -1,10 +1,10 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=20261117"><link rel="icon" type="image/png" href="favicon.png?v=20261117"><meta name="apple-mobile-web-app-title" content="エステ経営"></head><body>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>エステ経営ものがたり</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=20261117"><link rel="icon" type="image/png" href="favicon.png?v=20261117"><meta name="apple-mobile-web-app-title" content="エステ経営">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
 <style>
   :root {
@@ -18,6 +18,7 @@
     --gold: #8A6105;
     --good: #1E7556;
     --frame: #2B2238;  /* 枠と影の色。ライトでは文字と同じ濃い紫 */
+    --rule: #B3A48E;   /* 見るだけの欄の枠 */
     --chip: #F6EEE1;
     --int: #D99A1E;
     box-sizing: border-box;
@@ -28,6 +29,7 @@
       --bg: #1C1726; --panel: #2A2336; --ink: #F3ECDF; --sub: #B5A9C6; --line: #4A3F62;
       --accent: #FF7FA0; --accent-ink: #1C1726; --gold: #E8C15A; --good: #6FD3A8; --chip: #352C47; --int: #F0B840;
       --frame: #8E7FB0;  /* ダークでは枠と影をくすんだラベンダーに（クリーム色の太線はまぶしい） */
+      --rule: #5E5280;
     }
   }
   :root[data-theme="dark"] {
@@ -35,6 +37,7 @@
     --bg: #1C1726; --panel: #2A2336; --ink: #F3ECDF; --sub: #B5A9C6; --line: #4A3F62;
     --accent: #FF7FA0; --accent-ink: #1C1726; --gold: #E8C15A; --good: #6FD3A8; --chip: #352C47; --int: #F0B840;
       --frame: #8E7FB0;  /* ダークでは枠と影をくすんだラベンダーに（クリーム色の太線はまぶしい） */
+      --rule: #5E5280;
   }
   *, *::before, *::after { box-sizing: inherit; }
   body {
@@ -78,7 +81,7 @@
   .qlist .si { display: block; margin-top: 2px; font-weight: 400; font-size: .78rem; color: var(--accent); }
   .qlist .who-list { margin: 0 10px 10px; }
   .epsum { display: grid; gap: 8px; margin: 0 0 10px; }
-  .epsum .es { padding: 8px 12px; background: var(--panel); border: 2px solid var(--line); }
+  .epsum .es { padding: 8px 12px; background: var(--panel); border: 2px solid var(--rule); }
   .epsum .es b { font-size: .92rem; } .epsum .es small { margin-left: 8px; font-size: .74rem; color: var(--sub); }
   .epsum .es p { margin: 4px 0 0; font-size: .86rem; line-height: 1.55; }
   .epsum .es p.l2 { margin-top: 2px; color: var(--sub); }
@@ -122,9 +125,18 @@
   }
 
   /* 接客中：上の帯を短くして、選択肢を画面の中に出す（絵の大きさは fitScene() で決める） */
-  body.serving .bar .sub { display: none; }
-  body.serving .bar { padding: 4px 0 4px; }
+  @media (max-width: 899px) {
+    body.serving .bar .sub { display: none; }
+    body.serving .bar { padding: 4px 0 4px; }
+  }
   body.serving .karte { margin-top: 8px; }
+
+  @media (min-width: 900px) {
+    .wrap { max-width: none; display: grid; grid-template-columns: minmax(0, 540px) minmax(0, 520px); justify-content: center; align-items: start; gap: 0 32px; padding: 0 24px 40px; }
+    .head { margin: 0; padding: 16px 0 12px; border-bottom: 0; }
+    .scene { justify-content: flex-start; }
+    #app { grid-column: 2; padding-top: 12px; min-width: 0; }
+  }
 
   h1 { font-weight: 400; font-size: 1.6rem; line-height: 1.3; margin: 18px 0 6px; }
   p { margin: 0 0 10px; }
@@ -337,14 +349,14 @@
   @media (prefers-reduced-motion: reduce) { .cutin.on, .cutin.on::after, .cutin.on .cut-box { animation: none; } }
   ul.plain { margin: 6px 0 0; padding-left: 1.2em; font-size: .88rem; color: var(--sub); }
   .who-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; font-size: .88rem; }
-  .who-list li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; background: var(--panel); border: 2px solid var(--line); }
+  .who-list li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; background: var(--panel); border: 2px solid var(--rule); }
   .who-list li span:last-child { color: var(--sub); font-size: .8rem; text-align: right; }
   .who-list.dept li { display: block; padding: 6px 10px; }
   .who-list.dept li span { display: block; }
   .who-list.dept li span:first-child b { font-weight: 400; }
   .who-list.dept li span:last-child { margin-top: 2px; text-align: left; line-height: 1.5; }
   .sec { margin: 18px 0 6px; font-size: 1rem; }
-  .staffsec { margin: 0 0 6px; border: 2px solid var(--line); background: var(--panel); }
+  .staffsec { margin: 0 0 8px; border: 2px solid var(--frame); box-shadow: 2px 2px 0 var(--frame); background: var(--panel); }
   .staffsec summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; list-style: none; font-size: .9rem; font-weight: 700; }
   .staffsec summary::-webkit-details-marker { display: none; }
   .staffsec summary::before { content: '▶'; font-size: .7rem; color: var(--sub); }
@@ -382,16 +394,19 @@
   .tasks .task.todo .mk { color: var(--accent, #D9466F); }
   .tasks .task.done { opacity: .55; cursor: default; }
   .tasks .task small { display: block; opacity: .75; }
-  .notes { margin: 18px 0 10px; background: var(--panel); border: 2px solid var(--line); }
+  .notes { margin: 18px 0 10px; background: var(--panel); border: 2px solid var(--rule); }
   .notes h2 { margin: 0; padding: 8px 12px; font-size: .95rem; border-bottom: 1px solid var(--line); }
   .notes > .news, .notes > .lead, .notes > details.fold { margin: 0; border-left-width: 4px; border-bottom: 1px solid var(--line); }
   .notes > .lead { padding: 8px 12px; }
   .notes > details.fold { border: 0; border-bottom: 1px solid var(--line); }
   .notes > :last-child { border-bottom: 0; }
-  .sumline { font-size: 1rem; margin: 4px 0 8px; padding: 8px 10px; border: 2px solid var(--line); background: var(--panel); }
+  .sumline { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: 1rem; margin: 4px 0 8px; padding: 8px 10px; border: 2px solid var(--rule); background: var(--panel); }
+  .sumline .sumlink { width: auto; min-height: 36px; margin: 0 0 0 auto; padding: 2px 10px; font-size: .8rem; text-align: center; box-shadow: 2px 2px 0 var(--frame); border-width: 2px; }
+  details.ledger { scroll-margin-top: 12px; }
   .sumline b { font-size: 1.2rem; }
   .sumline.minus b { color: var(--accent); }
-  details.fold { margin: 0 0 8px; border: 2px solid var(--line); background: var(--panel); }
+  details.fold { margin: 0 0 8px; border: 2px solid var(--frame); background: var(--panel); }
+  #app > details.fold { box-shadow: 2px 2px 0 var(--frame); }
   details.fold > summary { padding: 8px 10px; cursor: pointer; font-size: .9rem; font-weight: 700; list-style: none; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold > summary::before { content: '▶ '; font-size: .7rem; color: var(--sub); }
@@ -427,7 +442,8 @@
   function lerp(a, b, t) { return a + (b - a) * t; }
   function yen(n) { return (n < 0 ? '−' : '') + '¥' + Math.abs(Math.round(n)).toLocaleString('ja-JP'); }
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
-  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reduceMq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null, reduce = !!(reduceMq && reduceMq.matches);
+  if (reduceMq) { var onReduce = function (e) { reduce = e.matches; }; if (reduceMq.addEventListener) reduceMq.addEventListener('change', onReduce); else if (reduceMq.addListener) reduceMq.addListener(onReduce); }
 
   /* =========================================================
      音（その場で合成。音声ファイルは使わない）
@@ -1063,7 +1079,8 @@
     var dpr = window.devicePixelRatio || 1, box = (cv.parentNode && cv.parentNode.clientWidth) || 300;
     // 接客中は絵を小さくして、選択肢が画面の中に入るようにする
     var serving = document.body.classList.contains('serving');
-    var want = Math.min(window.innerHeight * (serving ? 0.19 : 0.26), serving ? 150 : 230) - 6;
+    var wide = window.matchMedia && window.matchMedia('(min-width: 900px)').matches;
+    var want = wide ? Math.min(window.innerHeight * 0.6, 520) - 6 : Math.min(window.innerHeight * (serving ? 0.19 : 0.26), serving ? 150 : 230) - 6;
     var k = Math.round(want * dpr / SH);
     if (k * SH / dpr > want * 1.15) k = Math.floor(want * dpr / SH);
     k = Math.max(1, Math.min(k, Math.floor((box - 6) * dpr / SW)));
@@ -7652,9 +7669,9 @@
     saveGame('night');
     bar();
     var lg = ledger(), allN = S.wk.allNet, hasBr = (S.wk.branch || []).length || S.wk.ph;
-    var h = '<h1>' + calOf(S.week) + 'の月末</h1><div class="sumline' + (allN < 0 ? ' minus' : '') + '">' + (hasBr ? '全店の収支' : '今月の収支') + '　<b>' + yen(allN) + '</b>　所持金 ' + yen(S.cash) + '</div>' +
+    var h = '<h1>' + calOf(S.week) + 'の月末</h1><div class="sumline' + (allN < 0 ? ' minus' : '') + '">' + (hasBr ? '全店の収支' : '今月の収支') + '　<b>' + yen(allN) + '</b>　<span>所持金 ' + yen(S.cash) + '</span><button type="button" class="sumlink" id="toLedger">帳簿を見る ›</button></div>' +
       '';
-    var hn = '', hb = '<details class="fold"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
+    var hn = '', hb = '<details class="fold ledger"><summary>帳簿の明細を見る</summary>' + lg + '</details>';
     if (S.wk.quit) h += '<div class="news bad">' + S.wk.quit + 'が「辞めさせてください」と言って、店を去った。</div>';
     (S.wk.left || []).forEach(function (n) { var why = S.wk.leftWhy && S.wk.leftWhy[n]; h += '<div class="news bad">' + n + (why ? 'が、' + why + '。引き止めることはできなかった。' : 'が、疲れ果てて店を辞めてしまった。やる気に気を配ろう。') + '</div>'; });
     if ((S.wk.stLife || []).length) hn += '<details class="fold"' + (S.wk.stLife.some(function (x) { return !x.good; }) ? ' open' : '') + '><summary>スタッフの近況（' + S.wk.stLife.length + '）</summary>' + S.wk.stLife.map(function (x) { return '<div class="news' + (x.good ? ' good' : ' bad') + '">' + x.t + '</div>'; }).join('') + '</details>';
@@ -7751,13 +7768,22 @@
     if (curCat && CAT[curCat]) return catView(curCat);
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
-    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
+    var tkLeft = TK.filter(function (x) { return !x.done; }).length;
+    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: [S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', tkLeft ? '今月のタスクがあと' + tkLeft + '件' : ''].filter(Boolean).join('　'), go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
       S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
       { label: '発信・記録・そのほか', sub: (snsOn() ? 'SNS' : 'お店の宣伝') + '（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]));
     $('app').insertAdjacentHTML('beforeend', below);
     taskBind(TK); shopSwBind();
+    var tl = $('toLedger'), lg2 = document.querySelector('#app details.ledger');
+    if (tl && lg2) tl.addEventListener('click', function () {
+      SFX.click(); lg2.open = true;
+      // 上に固定された帯（スマホ）の下に、帳簿の見出しが来るようにする
+      var hd = document.querySelector('.head'), off = hd && getComputedStyle(hd).position === 'sticky' && hd.getBoundingClientRect().width > innerWidth * 0.8 ? hd.offsetHeight : 0;
+      window.scrollTo({ top: lg2.getBoundingClientRect().top + window.scrollY - off - 8, behavior: reduce ? 'auto' : 'smooth' });
+    });
+    else if (tl) tl.remove();
   }
   var curCat = null;
 
@@ -9153,12 +9179,9 @@
       lastTap = now;
     }, { passive: false });
     document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
-    document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
   })();
   title();
 })();
 </script>
 </body>
 </html>
-
-</body></html>
