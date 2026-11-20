@@ -4898,7 +4898,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth(); healthMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
+    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -4976,7 +4976,7 @@
     var lf = S.lifeKey ? lifeOf(S.lifeKey) : null;
     var life = lf ? '<div class="event life box"><span class="badge">' + (lf.era ? '時代のできごと　' + nowYear() + '年' : 'あなたの暮らし') + '</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
-    var head = '<h1>' + calOf(S.week) + '</h1>' + (S.holNote && !S.holShown ? holBox() : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
+    var head = '<h1>' + calOf(S.week) + '</h1>' + (S.holNote && !S.holShown ? holBox() : '') + (S.lotNote ? '<div class="news good"><b>お年玉付き年賀はがきの当選発表</b><br>' + S.lotNote + '</div>' : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
     if (S.newsPending && S.newsItem) return newsView();
     if (S.holPending && S.holAuto) holAuto();
     if (S.holPending) { evScene([]); return holidayView(); }
@@ -6511,8 +6511,22 @@
   function postSend(kind) {
     var act = S.clients.filter(function (c) { return c.active; }), n = act.length, cost = 5000 + n * postFee();
     pay(cost); act.forEach(function (c) { c.loy = clamp(c.loy + (kind === 'nenga' ? 4 : 3), 0, 100); });
-    if (kind === 'nenga') { crewAll().forEach(function (st) { moodUp(st, 3, 2); }); S.nengaY = nowYear(); }
+    if (kind === 'nenga') { crewAll().forEach(function (st) { moodUp(st, 3, 2); }); S.nengaY = nowYear(); S.nengaN = n + crewAll().length; }
     return { n: n, cost: cost };
+  }
+  // お年玉付き年賀はがき：年賀状を出した翌年の1月、返ってきた年賀状で抽選。景品は時代に合わせる
+  function lotPrize() { var y = nowYear(); return y < 1987 ? 'ビデオデッキ' : y < 1990 ? 'ワープロ' : y < 1997 ? 'ワイドテレビ' : y < 2001 ? 'ノートパソコン' : y < 2004 ? 'デジタルカメラ' : '液晶テレビ'; }
+  function lotMonth() {
+    S.lotNote = '';
+    if (monthOf() !== 1 || !S.nengaY || S.nengaY !== nowYear() - 1) return;
+    var n = Math.max(5, Math.round((S.nengaN || 10) * 0.8)), w1 = 0, w2 = 0, w3 = 0, i;
+    for (i = 0; i < n; i++) { var r = rnd(); if (r < 0.0008) w1++; else if (r < 0.006) w2++; else if (r < 0.035) w3++; }
+    var out = ['今年の1等は' + lotPrize() + '。届いた年賀状' + n + '枚の番号を、一枚ずつ確かめた。'];
+    if (w1) { crewAll().forEach(function (st) { moodUp(st, 6, 2); }); S.rep = clamp(S.rep + 2, 0, 100); out.push('なんと1等！ ' + lotPrize() + 'が当たった。休憩室に置いたら、スタッフが大喜び。（スタッフのやる気+6、評判+2）'); }
+    if (w2) { crewAll().forEach(function (st) { moodUp(st, 3, 1); }); out.push('2等が当たった！ 地方の名産品の詰め合わせを、みんなで分けて食べた。（スタッフのやる気+3）'); }
+    if (w3) { hum(1); out.push('3等の記念切手シートが' + w3 + '枚当たった。受付に飾った。（人間力+1）'); }
+    if (!w1 && !w2 && !w3) out.push('今年は、切手シートも当たらなかった。また来年。');
+    S.lotNote = out.join('<br>');
   }
   // SNSがまだない時代：雑誌とニュースレターで宣伝する（月2回まで）
   function adPrView(note) {
