@@ -2278,7 +2278,7 @@
     inbound: 'v_travel', st_marry: 'v_wedding', st_baby: 'v_baby',
     s_sakura: 'v_sakura', s_mother: 'v_gift', s_summer: 'v_beach', s_halloween: 'v_halloween', s_xmas: 'v_xmas', s_newyear: 'v_newyear', s_valentine: 'v_valentine', s_white: 'v_valentine',
     s_june: 'v_rain', s_obon: 'v_fireworks', s_moon: 'v_moon', s_bonus: 'v_party' };
-  var LIFEPIC = { e_taxi: 'v_taxi', e_jiage: 'v_talk', e_disco: 'v_party', e_tip: 'v_vip', e_golf: 'v_vip', e_golfdown: 'v_rain', e_pager: 'v_phone', e_pet: 'v_shopping', e_nostra: 'v_moon', e_y2k: 'v_idea', e_ringtone: 'v_phone', e_shame: 'v_sns', e_tapioca: 'v_cafe', e_mask: 'v_spa', meet: 'v_date', propose: 'v_wedding', quarrel: 'v_talk', baby: 'v_baby', dog: 'v_dog', dogbd: 'v_dog', parent: 'v_phone', reunion: 'v_cafe', hobby: 'v_idea', volunteer: 'v_charity' };
+  var LIFEPIC = { move: 'v_home', buyhome: 'v_home', e_taxi: 'v_taxi', e_jiage: 'v_talk', e_disco: 'v_party', e_tip: 'v_vip', e_golf: 'v_vip', e_golfdown: 'v_rain', e_pager: 'v_phone', e_pet: 'v_shopping', e_nostra: 'v_moon', e_y2k: 'v_idea', e_ringtone: 'v_phone', e_shame: 'v_sns', e_tapioca: 'v_cafe', e_mask: 'v_spa', meet: 'v_date', propose: 'v_wedding', quarrel: 'v_talk', baby: 'v_baby', dog: 'v_dog', dogbd: 'v_dog', parent: 'v_phone', reunion: 'v_cafe', hobby: 'v_idea', volunteer: 'v_charity' };
   var HOLPIC = [[/いちご/, 'v_picnic'], [/花見|花冷え/, 'v_sakura'], [/ハイキング/, 'v_mountain'], [/紫陽花/, 'v_rain'], [/海|日焼け/, 'v_beach'], [/花火|人混み/, 'v_fireworks'], [/グランピング/, 'v_camp'],
     [/芸術|美術/, 'v_museum'], [/温泉|雪見/, 'v_onsen'], [/クリスマス/, 'v_xmas'], [/スキー|転んで/, 'v_ski'], [/初詣/, 'v_newyear'], [/再会|マルチ|あやしい|お金が戻らない/, 'v_cafe'],
     [/筋トレ|筋肉痛|ヨガ|プール|パーソナル/, 'v_gym'], [/ランニング|サイクリング|登山|ご来光/, 'v_mountain'], [/セミナー/, 'v_stage'], [/買い|お買い物/, 'v_shopping'], [/カフェ|集中/, 'v_cafe'], [/スパ|予約ミス/, 'v_spa'], [/ピラティス|筋肉痛/, 'v_gym'], [/推し|チケット|グッズ/, 'v_concert'],
@@ -4959,7 +4959,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
+    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); homeMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -5552,7 +5552,43 @@
   function hum(n) { S.hum = clamp(S.hum + n, 0, 100); }
   function up1(k) { skUp(own(), k); }
   // c: [ボタン, 説明, 費用, 結果]
+  /* --- 住まい：引っ越しとマイホーム。値段と住宅ローンの金利は時代と街で変わる --- */
+  function housePrice() {
+    var y = nowYear(), base = y < 1986 ? 30000000 : y < 1988 ? 45000000 : y < 1992 ? 65000000 : y < 2001 ? 45000000 : y < 2013 ? 38000000 : 55000000;
+    return Math.round(base * homeLoc().mult / 1.45 / 1000000) * 1000000;
+  }
+  function houseRate() { var y = nowYear(); return y < 1990 ? 0.055 : y < 1992 ? 0.08 : y < 1996 ? 0.04 : y < 2006 ? 0.025 : y < 2016 ? 0.015 : 0.008; }
+  function moveCost() { return nowYear() < 1992 ? 300000 : 250000; }
+  function buyHome(kind) {
+    var price = Math.round(housePrice() * (kind === 'house' ? 1.3 : 1)), down = Math.round(price * 0.2), r = houseRate(), L = S.life;
+    S.loans = S.loans || [];  // 頭金は、選んだときに払っている
+    S.loans.push({ k: 'house', n: '住宅ローン', rest: price - down, r: r / 12, left: 420, grace: 0 });
+    L.house = { kind: kind, y: nowYear(), price: price }; L.homeAsk = S.week; hum(kind === 'house' ? 6 : 5);
+    var pay1 = Math.round((price - down) * (r / 12) / (1 - Math.pow(1 + r / 12, -420)) / 1000) * 1000;
+    return (kind === 'house' ? '庭つきの一戸建て' : 'マンション') + 'を買った（' + yen(price) + '）。住宅ローンは年' + (r * 100).toFixed(1) + '%・35年で、毎月約' + yen(pay1) + '。家に帰るのが楽しみになった。' +
+      (nowYear() >= 1987 && nowYear() < 1992 ? '　土地の値段は、まだまだ上がると言われている…。' : '');
+  }
+  // マイホームと住まいの効果：毎月、家でしっかり休める（疲れが少し取れる）
+  function homeMonth() {
+    var L = S.life; if (!L) return;
+    var rest = (L.house ? (L.house.kind === 'house' ? 4 : 3) : 0) + (L.homePerk ? 2 : 0);
+    if (rest) fat(-rest);
+    if (L.house && L.house.y < 1992 && nowYear() >= 1994 && !L.house.dropTold) { L.house.dropTold = true; S.news.push({ bad: true, t: 'バブルのころに買ったマイホームの値段が、買ったときの半分ほどに下がってしまった。住宅ローンは、まだまだ続く…。' }); }
+    if (L.house && !(S.loans || []).some(function (l) { return l.k === 'house'; }) && !L.house.paidTold) { L.house.paidTold = true; hum(5); S.news.push({ good: true, t: '住宅ローンを払い終えた！ マイホームが、本当に自分のものになった。（人間力+5）' }); }
+  }
   var LIFE = [
+    { k: 'move', again: true, ok: function (L) { return !L.house && ownerAge() < 60 && S.week >= 6 && S.week - (L.moveW || 0) >= 30; },
+      t: '引っ越しを考える', get d() { return '今の部屋の契約更新が近い。お店も軌道に乗ってきたし、そろそろ住まいを変えてみる？'; },
+      get c() { var mc = moveCost(); return [
+        ['お店の近くに引っ越す', '', mc, function (L) { L.moveW = S.week; L.homePerk = 'near'; hum(1); return 'お店まで歩いて5分の部屋に引っ越した。朝の満員電車がなくなって、体が楽になった。'; }],
+        ['広くて静かな部屋に引っ越す', '', Math.round(mc * 1.4), function (L) { L.moveW = S.week; L.homePerk = 'wide'; hum(3); return '日当たりのいい、広い部屋に引っ越した。休みの日に、家でのんびりできるようになった。'; }],
+        ['今の部屋のままにする', '', 0, function (L) { L.moveW = S.week; return '住み慣れた部屋で、もう少しがんばることにした。'; }]]; } },
+    { k: 'buyhome', again: true, ok: function (L) { return !L.house && S.week >= 24 && (L.partner === 'married' || ownerAge() >= 38) && S.week - (L.homeAsk || 0) >= 36; },
+      t: 'マイホームを考える', get d() { var y = nowYear(); return (y >= 1987 && y < 1992 ? '土地の値段が、毎月のように上がっている。「今のうちに買わないと、一生買えなくなる」と、みんなが言う。' : y >= 1992 && y < 2001 ? '家の値段が、少しずつ落ち着いてきた。住宅ローンの金利も下がってきている。' : y >= 2016 ? '住宅ローンの金利が、とても低い時代になった。' : '') + '家族のこれからを考えて、そろそろマイホームを買う？（住宅ローンの金利 年' + (houseRate() * 100).toFixed(1) + '%・35年）'; },
+      get c() { var pm = housePrice(), ph = Math.round(pm * 1.3); return [
+        ['マンションを買う（' + yen(pm) + '・頭金2割）', '', Math.round(pm * 0.2), function () { return buyHome('mansion'); }],
+        ['庭つきの一戸建てを買う（' + yen(ph) + '・頭金2割）', '', Math.round(ph * 0.2), function () { return buyHome('house'); }],
+        ['今は賃貸のままにする', '', 0, function (L) { L.homeAsk = S.week; return 'まだ身軽でいることにした。お店にお金を回せる。'; }]]; } },
     { k: 'meet', ok: function (L) { return L.partner === 'none'; }, t: '新しい出会い', d: '友人の紹介で、気になる人と出会った。',
       c: [['食事に誘ってみる', '人間力+8。交際が始まる', 0, function (L) { L.partner = 'dating'; L.since = S.week; hum(8); return '交際が始まった。毎日に張りが出て、表情がやわらかくなった。'; }],
           ['今は仕事に集中する', '気遣い+1', 0, function () { up1('care'); return '仕事に打ち込んだ。気遣いが1上がった。'; }]] },
@@ -7358,7 +7394,7 @@
     }
   }
   var EVICON = { tvshow: 'mega', webnews: 'mega', storm: 'umbrella', gift: 'gift', wholesale: 'coin', rival: 'shop', campaign: 'mega', complaint: 'bubble', sick: 'thermo', raise: 'coin', growth: 'star', sponsor: 'crown', vip: 'crown', reporter: 'star', influencer: 'heart', inbound: 'gift', ekarte: 'star', leak: 'bubble', fx: 'coin', inspect: 'star', poach: 'bubble', ranking: 'crown', trouble: 'umbrella', celeb: 'star', bridal: 'ring', claimer: 'bubble', graduate: 'heart', indep: 'shop', couple: 'heart', contest: 'crown', st_marry: 'ring', st_baby: 'heart', st_promo: 'crown', st_retire: 'bubble', s_sakura: 'heart', s_mother: 'gift', s_summer: 'star', s_halloween: 'star', s_xmas: 'gift', s_newyear: 'crown', s_valentine: 'heart', s_june: 'ring', s_obon: 'star', s_moon: 'star', s_bonus: 'coin', s_white: 'gift', review: 'bubble', collab: 'heart', mistake: 'bubble', lottery: 'coin', charity: 'heart', seminar: 'mega', headhunt: 'crown', stray: 'heart', bedbreak: 'bubble', rumor: 'bubble', treat: 'gift', trip: 'star', award: 'crown', mentor: 'star', taxaudit: 'coin', neighbor: 'shop', supplier: 'gift', intern: 'star' };
-  var LIFEICON = { meet: 'heart', propose: 'ring', quarrel: 'bubble', baby: 'heart', dog: 'dog', dogbd: 'dog', parent: 'heart', reunion: 'star', hobby: 'star', volunteer: 'heart', burnout: 'thermo', mentor: 'star' };
+  var LIFEICON = { move: 'shop', buyhome: 'shop', meet: 'heart', propose: 'ring', quarrel: 'bubble', baby: 'heart', dog: 'dog', dogbd: 'dog', parent: 'heart', reunion: 'star', hobby: 'star', volunteer: 'heart', burnout: 'thermo', mentor: 'star' };
   function evCut() {
     var spc = S.special ? S.queue.filter(function (c) { return c.sp; })[0] : null;
     return { kicker: '今月のできごと', title: S.evTitle, c1: '#F2C230', c2: '#E8A93A', look: spc ? spc.look : null, icon: EVICON[S.ev] || 'star' };
