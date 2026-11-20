@@ -3476,7 +3476,8 @@
     S.origin = k;
   }
   function originView(h) {
-    scene.story = null;
+    scene.story = null; scene.heroMale = !!h.male;
+    Object.assign(OWNER_LOOK, OWNER_LOOK0, h.male ? { style: 'short', hair: '#2B2238' } : {});
     bar();
     view('<h1>開業までの道のり</h1><p class="lead">' + h.name + 'さんは、どんな道を歩いてきた？</p>',
       Object.keys(ORIGINS).map(function (k) {
@@ -3518,7 +3519,7 @@
   // 本社の社長室。本社のグレードで内装が変わる（1：小さな事務所、2：オフィス、3：高層ビル、4：タワー最上階）
   function drawOffice(now) {
     var lv = S.hq.lv, night = !!(S.wk && S.wk.closed), i, x, t = reduce ? 0 : now / 1000;
-    var boss = { hair: OWNER_LOOK.hair, skin: OWNER_LOOK.skin, top: '#2E3A52', bottom: '#2E3A52', style: 'bob' };
+    var boss = { hair: OWNER_LOOK.hair, skin: OWNER_LOOK.skin, top: '#2E3A52', bottom: '#2E3A52', style: OWNER_LOOK.style || 'bob' };
     var sky = night ? ['#1E2246', '#252A55'] : ['#9FD8F0', '#C2E6F7'];
     var city = function (y0, x0, w, h, n) {  // 窓の外のビル街
       R(x0, y0, w, h, sky[0]); R(x0, y0 + h / 2, w, h / 2, sky[1]);
@@ -3549,7 +3550,8 @@
   }
   function drawStory(now) {
     var k = scene.story.pic || 'open', t = reduce ? 0 : Math.max(0, (now - scene.story.t0) / 1000), i, x, y;
-    var me = { hair: OWNER_LOOK.hair, skin: OWNER_LOOK.skin, top: '#F08DAE', bottom: '#5C4E6E', style: 'bob' }, meU = OWNER_LOOK;
+    var mMale = S ? !!S.ownerMale : !!scene.heroMale;
+    var me = { hair: OWNER_LOOK.hair, skin: OWNER_LOOK.skin, top: mMale ? '#5C78B0' : '#F08DAE', bottom: mMale ? '#3A3A50' : '#5C4E6E', style: OWNER_LOOK.style || 'bob' }, meU = OWNER_LOOK;
     var wob = function (sp, ph) { return reduce ? 0 : Math.round(Math.sin(now / sp + (ph || 0))); };
     var bands = function (cs) { var hh = Math.ceil(SH / cs.length); cs.forEach(function (c, j) { R(0, j * hh, SW, hh, c); }); };
     var sea = function (y0, c1, c2) { R(0, y0, SW, SH - y0, c1); for (i = 0; i < 12; i++) { var wx = ((i * 23 + t * 8) % (SW + 12)) - 6; R(wx, y0 + 2 + (i % 4) * 5, 6, 1, c2); } };
@@ -3566,9 +3568,10 @@
     // ---- できごとの場面で使う部品 ----
     var team = S ? allStaff().filter(function (x) { return !x.owner; }).slice(0, 5).map(staffLook) : [];
     var tm = function (j) { return team.length ? team[j % team.length] : crew(j); };
-    var casual = function (lk, top, bottom) { return { hair: lk.hair, skin: lk.skin, top: top, bottom: bottom || '#4A4A68', style: lk.style }; };
+    var MPINK = { '#E0567A': '#3E6E9E', '#F7B5C8': '#9FC8E8', '#F08DAE': '#5C78B0', '#FF7FA0': '#5C78B0' };
+    var casual = function (lk, top, bottom) { if (lk === meU && mMale && MPINK[top]) top = MPINK[top]; return { hair: lk.hair, skin: lk.skin, top: top, bottom: bottom || '#4A4A68', style: lk.style }; };
     var meC = casual(meU, '#F7B5C8', '#5C78B0');
-    var partner = { hair: '#2B2238', skin: '#F2CFB0', top: '#5C6E9E', bottom: '#3A3A50', style: 'short' };
+    var partner = mMale ? { hair: '#5A3A28', skin: '#F8D9BE', top: '#F08DAE', bottom: '#5C4E6E', style: 'long' } : { hair: '#2B2238', skin: '#F2CFB0', top: '#5C6E9E', bottom: '#3A3A50', style: 'short' };
     var disc = function (cx, cy, r, col) { for (var dy = -r; dy <= r; dy++) { var w = Math.floor(Math.sqrt(r * r - dy * dy)); R(cx - w, cy + dy, w * 2 + 1, 1, col); } };
     var pine = function (cx, y0, h, col) { for (var j = 0; j < h; j++) R(cx - Math.floor(j / 2), y0 + j, Math.floor(j / 2) * 2 + 1, 1, col); R(cx, y0 + h, 1, 3, '#6B4E3A'); };
     var stars = function (n, h) { for (var j = 0; j < n; j++) if (reduce || (j + Math.floor(now / 500)) % 4) R((j * 37) % SW, (j * 23) % h, 1, 1, '#FFFFFF'); };
@@ -3647,7 +3650,7 @@
       R(58, 36, 10, 10, '#FFFFFF'); R(62, 38, 1, 4, '#2B2238'); R(62, 41, 3, 1, '#2B2238');
       R(0, 58, SW, 4, '#8A8090'); R(0, 62, SW, 22, '#4A4460');
       [8, 96].forEach(function (mx) { R(mx, 46, 18, 12, '#2B2238'); g.globalAlpha = reduce ? 1 : 0.8 + Math.sin(now / 300 + mx) * 0.2; R(mx + 1, 47, 16, 10, '#7FC8E8'); g.globalAlpha = 1; });
-      big({ hair: me.hair, skin: me.skin, top: '#5C6E9E', bottom: '#3A3A50', style: 'bob' }, 50, 30, 2, { face: 'trouble' });
+      big({ hair: me.hair, skin: me.skin, top: '#5C6E9E', bottom: '#3A3A50', style: me.style }, 50, 30, 2, { face: 'trouble' });
       R(40, 54, 48, 4, '#6A6080'); icon('sweat', 76, 34);
       floaty('zz', 74, 30, now, 0, 1);
     } else if (k === 'office2') {
@@ -4099,8 +4102,15 @@
       bands(['#BFE3F5', '#D2ECF8', '#E4F4FA', '#F2FAFC']); R(0, 64, SW, 20, '#9ED68A');
       R(44, 16, 40, 48, '#FFFFFF'); R(40, 14, 48, 3, '#E0D4C6'); R(58, 4, 12, 12, '#FFFFFF'); R(63, 0, 2, 4, '#C9A227'); R(54, 40, 20, 24, '#C8A0D8');
       y = reduce ? 0 : Math.round(Math.sin(t * 4) * 2); R(62 + y, 8, 4, 4, '#F2C230');
-      big({ hair: meU.hair, skin: meU.skin, top: '#FFFFFF', bottom: '#FFFFFF', style: 'bun' }, 20, 36, 2, { face: 'bliss' }); R(20, 34, 20, 3, '#FFFFFF');
-      big(S && S.ev === 'st_marry' && S.evStaff ? staffLook(S.evStaff) : partner, 90, 36, 2, { face: 'smile' });
+      var stW = S && S.ev === 'st_marry' && S.evStaff;
+      if (mMale && !stW) {
+        // 男性の主人公：自分はタキシード、相手は白いドレス
+        big({ hair: meU.hair, skin: meU.skin, top: '#2B2238', bottom: '#2B2238', style: meU.style }, 20, 36, 2, { face: 'bliss' });
+        big({ hair: partner.hair, skin: partner.skin, top: '#FFFFFF', bottom: '#FFFFFF', style: 'bun' }, 90, 36, 2, { face: 'smile' }); R(90, 34, 20, 3, '#FFFFFF');
+      } else {
+        big({ hair: meU.hair, skin: meU.skin, top: '#FFFFFF', bottom: '#FFFFFF', style: 'bun' }, 20, 36, 2, { face: 'bliss' }); R(20, 34, 20, 3, '#FFFFFF');
+        big(stW ? staffLook(S.evStaff) : partner, 90, 36, 2, { face: 'smile' });
+      }
       fall(['#F7B5C8', '#FFFFFF', '#FFE08A'], 18); floaty('heart', 64, 30, now, 0.4, 2);
     } else if (k === 'v_baby') {
       R(0, 0, SW, SH, '#FFF2F4'); R(0, 62, SW, 22, '#F4D8DC');
@@ -4125,6 +4135,15 @@
       x = reduce ? 50 : (t * 16) % (SW + 40) - 30; y = 24 + wob(700) * 2; R(x, y, 30, 6, '#FFFFFF'); R(x + 30, y + 1, 4, 4, '#FFFFFF'); R(x + 2, y - 5, 4, 6, '#E0567A'); R(x + 12, y + 4, 10, 2, '#D9DCE8'); R(x + 12, y - 2, 8, 2, '#D9DCE8'); for (i = 0; i < 6; i++) R(x + 8 + i * 3, y + 2, 1, 1, '#5AA9E6');
       R(0, 64, SW, 20, '#CFC6BC'); sprite(S && S.queue && S.queue[0] ? S.queue[0].look : guest(1), 40, 48, { face: 'smile' }); R(52, 56, 8, 10, '#E0567A'); R(54, 54, 4, 2, '#2B2238');
       big(meU, 80, 36, 2, { face: 'smile', bow: reduce ? 0 : (Math.floor(t / 1.5) % 2) });
+    } else if (k === 'v_hair') {
+      R(0, 0, SW, SH, '#F4EDE6'); R(0, 64, SW, 20, '#D9CFC4'); for (i = 0; i < 8; i++) R(i * 16, 64, 1, 20, '#C8BCB0');
+      R(34, 6, 60, 50, '#C9A227'); R(37, 9, 54, 44, '#DCEEF6'); g.globalAlpha = 0.35; R(40, 12, 8, 30, '#FFFFFF'); g.globalAlpha = 1;
+      big(OWNER_LOOK, 54, 16, 2, { face: 'smile' });
+      R(46, 56, 36, 6, '#5C4E6E'); R(60, 62, 8, 10, '#3A3A50');
+      big({ hair: '#2B2238', skin: '#F2D3B8', top: '#2B2238', bottom: '#2B2238', style: 'short' }, 98, 28, 1, { face: 'smile' });
+      R(108, 34, 6, 1, '#C8CCD8'); R(113, 33, 1, 3, '#C8CCD8');
+      R(8, 30, 14, 26, '#FFFFFF'); for (i = 0; i < 4; i++) R(10, 34 + i * 5, 10, 2, ['#E0567A', '#F2C230', '#7FC49A', '#5AA9E6'][i]);
+      if (!reduce) for (i = 0; i < 3; i++) floaty('spark', 44 + i * 18, 14 + (i % 2) * 6, now, i * 0.4, 1);
     } else if (k === 'v_kobo') {
       R(0, 0, SW, SH, '#F1E6D2'); R(0, 0, SW, 8, '#D9C4A0'); R(0, 62, SW, 22, '#B48A5E'); for (i = 0; i < 8; i++) R(i * 16, 62, 1, 22, '#9C744C');
       // 工房（ガラスの向こう）
@@ -4240,6 +4259,7 @@
     }
   }
   function newGame(hero) {
+    var keepHero = { style: OWNER_LOOK.style, hair: OWNER_LOOK.hair };
     Object.assign(OWNER_LOOK, OWNER_LOOK0); Object.keys(OWNER_LOOK).forEach(function (k) { if (!(k in OWNER_LOOK0)) delete OWNER_LOOK[k]; });
     S = { endless: true, px3: true, week: 1, cash: START, rep: 40, ad: 0, headSpa: false, slimMachine: false, interior: false,
       staff: [{ id: 0, owner: true, name: 'あなた', trait: null, sk: { tech: 2, know: 2, word: 2, emp: 2, listen: 2, care: 2 }, tech: 2, talk: 2, wage: 0, cap: 3, used: 0, look: OWNER_LOOK }],
@@ -4494,7 +4514,7 @@
   function applyHero(h) {
     var o = S.staff[0], P = PERSONA[h.persona] || {};
     S.ownerName = h.name; S.persona = h.persona;
-    if (h.male) { S.cash += 500000; S.ownerMale = true; S.ownerLook = { style: 'short', top: '#2E3A52', bottom: '#2E3A52', uniform: false }; Object.assign(OWNER_LOOK, OWNER_LOOK0, S.ownerLook); }
+    if (h.male) { S.cash += 500000; S.ownerMale = true; S.ownerLook = { style: 'short', hair: '#2B2238', top: '#2E3A52', bottom: '#2E3A52', uniform: false }; Object.assign(OWNER_LOOK, OWNER_LOOK0, S.ownerLook); }
     Object.keys(P.sk || {}).forEach(function (k) { o.sk[k] = Math.min(5, o.sk[k] + P.sk[k]); });
     skFix(o);
     if (P.sp) o.sp = [P.sp];
@@ -5462,15 +5482,36 @@
     o.push({ label: '家でのんびりする', sub: '疲れ−35', cost: 0, r: function () { fat(-35); return ['おうち時間', '一日パジャマで過ごして、たっぷり眠った。たまにはこんな日もいい。（疲れ−35）']; } });
     return o;
   }
+  var HAIRSTY = [['bob', 'ボブ'], ['long', 'ロング'], ['pony', 'ポニーテール'], ['bun', 'おだんご'], ['short', 'ショート']];
+  var HAIRCOL = [['#2B2238', '黒髪', 0], ['#3A2A26', 'こげ茶', 0], ['#5A3A28', 'ブラウン', 0], ['#7A5232', '明るい茶髪', 1993], ['#A0703E', 'キャラメル', 1995], ['#C7A26A', '金髪', 1995], ['#8A8A9A', 'アッシュグレー', 2015], ['#B07080', 'ピンクブラウン', 2018]];
+  function hairCost() { var y = eraY(); return y < 1995 ? 5000 : y < 2010 ? 7000 : 9000; }
+  function hairView() {
+    bar();
+    var L0 = { style: OWNER_LOOK.style, hair: OWNER_LOOK.hair }, sty = S.ownerMale ? HAIRSTY.filter(function (x) { return x[0] === 'short' || x[0] === 'bob'; }) : HAIRSTY;
+    var cols = HAIRCOL.filter(function (c) { return eraY() >= c[2]; }), cost = hairCost();
+    scene.story = { pic: 'v_hair', t0: performance.now() };
+    view('<h1>美容室</h1><p class="lead">鏡の前で、なりたい自分を伝える。選ぶと、上の鏡にすぐ映る。</p><div class="form"><label>ヘアスタイル<select id="hrSty">' + sty.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === L0.style ? ' selected' : '') + '>' + (S.ownerMale && x[0] === 'bob' ? '少し長め' : x[1]) + '</option>'; }).join('') + '</select></label>' +
+      '<label>髪の色<select id="hrCol">' + cols.map(function (c) { return '<option value="' + c[0] + '"' + (c[0] === L0.hair ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></label></div>',
+      [{ main: true, label: 'この髪形にする　' + yen(cost), off: S.cash < cost, go: function () {
+          pay(cost); S.ownerLook = Object.assign(S.ownerLook || {}, { style: OWNER_LOOK.style, hair: OWNER_LOOK.hair }); fat(-12); hum(1); SFX.good();
+          S.holSeen = S.holSeen || {}; S.holPending = false; S.holInv = null; S.holPic = 'v_hair';
+          var nm = (HAIRSTY.filter(function (x) { return x[0] === OWNER_LOOK.style; })[0] || [0, ''])[1], cn = (HAIRCOL.filter(function (c) { return c[0] === OWNER_LOOK.hair; })[0] || [0, ''])[1];
+          S.holNote = ['美容室', (S.ownerMale && OWNER_LOOK.style === 'bob' ? '少し長め' : nm) + '・' + cn + 'にした。鏡の中の自分が、ちょっと新鮮だ。スタッフにも「似合います！」と言われた。（疲れ−12、人間力+1）'];
+          weekIntro(); } },
+       { label: 'やっぱりやめておく', go: function () { Object.assign(OWNER_LOOK, L0); holidayView(); } }]);
+    var upd = function () { OWNER_LOOK.style = $('hrSty').value; OWNER_LOOK.hair = $('hrCol').value; };
+    $('hrSty').addEventListener('change', upd); $('hrCol').addEventListener('change', upd);
+  }
   function holidayView() {
     bar();
     var all = holOpts(), keep = [], rest = [], seed = S.week;
     all.forEach(function (a, i) { (/季節限定/.test(a.sub || '') || i < (S.holInv ? 1 : 0) || /家族|デート|犬|レコード|CD|ビデオ|ボウリング|ディスコ|キャンプ|MD|DVD|ジュークボックス|動画配信|マラソン|山ガール|歴史|女子会|カメラ|シール|喫茶店/.test(a.label) ? keep : rest).push(a); });
     rest = rest.filter(function (a) { return a.label !== '家でのんびりする'; }).sort(function (x, y) { return (hashOf(x.label + seed) % 97) - (hashOf(y.label + seed) % 97); });
-    var shown = keep.slice(0, 6).concat(rest.slice(0, Math.max(2, 8 - Math.min(6, keep.length)))).concat(all.filter(function (a) { return a.label === '家でのんびりする'; }));
+    var shown = keep.slice(0, 6).concat(rest.slice(0, Math.max(2, 8 - Math.min(6, keep.length)))).concat([{ label: '美容室で、髪形と髪の色を変える', cost: hairCost(), hair: true }]).concat(all.filter(function (a) { return a.label === '家でのんびりする'; }));
     view('<h1>今日は何する？</h1><p class="lead">お店のお休みの日。疲れが70をこえると施術の質が落ち、90をこえると寝こんで1か月お店に立てない。体力が高いほど疲れがたまりにくい。</p>' + fatigueBars(),
       shown.map(function (a) {
         S.holSeen = S.holSeen || {};
+        if (a.hair) return { label: a.label + '　' + yen(a.cost), sub: '', off: S.cash < a.cost, go: hairView };
         return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: '', off: a.cost > 0 && S.cash < a.cost, go: function () {
           S.holSeen[a.label] = true;
           if (a.cost) pay(a.cost);
