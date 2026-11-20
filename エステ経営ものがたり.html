@@ -7033,7 +7033,7 @@
           '<span class="row"><span class="lb">月給</span>' + yen(cd.wage) + '</span></div>' +
           '<button type="button" class="cdhire" data-hire="' + i + '"' + (S.cash < HIRE || room <= 0 ? ' disabled' : '') + '>採用する<small>' + yen(HIRE) + '</small></button></div>';
       }).join('') + '</div>',
-      [{ main: true, label: '本社の画面にもどる', go: function () { hqView(); } }]);
+      [repostOpt(REPOST * 2, function () { delete S.hqCands[dis ? 'dis' : 'gen']; hqHireView(dis, '求人を出し直した。新しい応募者が来た。'); }), { main: true, label: '本社の画面にもどる', go: function () { hqView(); } }]);
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-hire]'), function (bt) {
       bt.addEventListener('click', function () {
         var cd = list[+bt.getAttribute('data-hire')]; if (!cd || S.cash < HIRE || room <= 0) return;
@@ -9112,6 +9112,12 @@
       '<small>' + TRAITS[cd.trait].d + '</small></div>' +
       '<button type="button" class="cdhire" data-hire="' + i + '"' + (off ? ' disabled' : '') + '>' + (btn || '採用する') + '<small>' + yen(HIRE) + '</small></button></div>';
   }
+  // 意中の応募者がいないとき：お金を払って求人を出し直すと、応募者が入れかわる
+  var REPOST = 40000;
+  function repostOpt(cost, again) {
+    var y = eraY(), media = y < 2000 ? '求人誌' : '求人サイト';
+    return { label: media + 'に求人を出し直す　' + yen(cost), sub: '応募者がまるごと入れかわる。意中の人がいないときに', off: S.cash < cost, go: function () { pay(cost); SFX.click(); again(); } };
+  }
   function hireView(dest, hireNote) {
     bar();
     if (dest === undefined && S.shops.length) {
@@ -9135,7 +9141,7 @@
     cardCands = list;
     var cards = list.map(function (cd, i) { return candCard(cd, i, S.cash < HIRE || room <= 0); }).join('');
     view('<h1>採用' + (dest ? '（' + dest.name + '）' : '') + '</h1><p class="lead">今月の応募者' + S.cands[ck].length + '人。' + (pool ? '現地で募集した。' : '') + '何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用費' + yen(HIRE) + 'と、毎月の給与がかかる。</p>' + (hireNote ? '<div class="news good">' + hireNote + '</div>' : '') + '<div class="cdlist">' + cards + '</div>',
-      (S.shops.length ? [{ label: 'ほかの店舗に採用する', go: function () { hireView(); } }] : []).concat([{ main: true, label: 'もどる', go: investView }]));
+      [repostOpt(REPOST, function () { delete S.cands[ck]; hireView(dest || null, '求人を出し直した。新しい応募者が来た。'); })].concat(S.shops.length ? [{ label: 'ほかの店舗に採用する', go: function () { hireView(); } }] : []).concat([{ main: true, label: 'もどる', go: investView }]));
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-hire]'), function (bt) {
       bt.addEventListener('click', function () { var cd = list[+bt.getAttribute('data-hire')]; if (!cd || S.cash < HIRE || room <= 0) return;
         pay(HIRE); hireTo(dest || null, cd); list.splice(list.indexOf(cd), 1); SFX.hire(); var y = window.scrollY; hireView(dest || null, cd.name + 'を採用した。'); window.scrollTo(0, y); });
