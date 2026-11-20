@@ -2044,6 +2044,20 @@
     if (y < 2000) t = t.replace(/アパレルのEC担当/g, 'アパレルの通販担当');
     if (y < 1997) t = t.replace(/Web制作会社/g, '印刷会社');
     if (y < 1990) t = t.replace(/システム会社/g, 'コンピューター会社');
+    // 全文チェックで見つかった、時代に合わない言葉
+    if (y < 2015) t = t.replace(/インバウンドのお客様/g, '海外からのお客様').replace(/爆買い/g, 'まとめ買い').replace(/インフルエンサー/g, '人気ブロガー');
+    if (y < 2011) t = t.replace(/クラウドファンディング/g, '支援の呼びかけ').replace(/夢を動画で発信したら/g, y < 2005 ? '夢を新聞の投書欄で語ったら' : '夢をブログで発信したら').replace(/思いきって、夢を動画にしてネットで発信した。/g, y < 2005 ? '思いきって、夢を新聞の投書欄に書いた。' : '思いきって、夢をブログに書いた。');
+    if (y < 2005) t = t.replace(/研修動画/g, '研修ビデオ').replace(/動画に撮って/g, 'ビデオに撮って').replace(/動画/g, 'ビデオ').replace(/「客の秘密を売る店」と炎上した/g, '「客の秘密を売る店」とうわさが広まった').replace(/炎上した/g, '悪い評判が広まった');
+    if (y < 2006) t = t.replace(/まだSNSがない時代。/g, '').replace(/SNSのお店のファン/g, 'お店のファン').replace(/SNSのフォロワー/g, 'お店のファン').replace(/SNSも伸びる/g, 'お店の評判も広がる').replace(/SNSが伸びやすい/g, 'お店の評判が広がりやすい')
+      .replace(/「SNSの発信も、手伝ってほしい」/g, '「お店の宣伝も、手伝ってほしい」').replace(/オンライン販売・SNS・/g, y < 2000 ? '通信販売・広報・' : 'オンライン販売・広報・');
+    if (y < 2016) t = t.replace(/とライブ配信/g, '');
+    if (y < 2010) t = t.replace(/推しのライブに当選して/g, '好きな歌手のコンサートのチケットが取れて').replace(/推し活/g, 'コンサート通い');
+    if (y < 2003) t = t.replace(/お店のブログ、/g, 'お店のニュースレター、');
+    if (y < 1992) t = t.replace(/産休・育休/g, '産休').replace(/育休/g, '産休');
+    if (y < 1990) t = t.replace(/アロマトリートメント/g, 'オイルトリートメント').replace(/プレミアムアロマ/g, 'プレミアムオイル').replace(/アロマ入浴剤/g, 'ハーブ入浴剤').replace(/アロマミスト/g, 'ハーブミスト')
+      .replace(/アロマオイル/g, '香りのオイル').replace(/アロマのブレンド/g, 'オイルのブレンド').replace(/アロマの奥深さ/g, '香りの奥深さ').replace(/アロマ/g, 'ハーブ');
+    if (y < 1995) t = t.replace(/リンパドレナージュ/g, 'むくみ取りマッサージ').replace(/ネットで発覚した/g, '週刊誌の記事で発覚した');
+    if (y < 2012) t = t.replace(/お店のbaeglam見たよ！/g, y < 1997 ? 'お店のチラシ見たよ！' : 'お店のホームページ見たよ！');
     // 「バズる」は2010年代の言葉。それまでは「話題になる」
     if (y < 2010) t = t.replace(/バズりやすく/g, '話題になりやすく').replace(/バズった/g, '話題になった').replace(/バズる/g, '話題になる').replace(/バズり/g, '話題').replace(/バズ/g, '話題');
     // 「IT」という言葉が広まったのは2000年ごろ。それまでは「コンピューター」
@@ -4686,7 +4700,7 @@
   var OPENINV = ['headSpa', 'hifu', 'rfFace', 'slimMachine', 'aromaPro'];
   function openInvest(note) {
     bar();
-    var items = INVEST.filter(function (v) { return OPENINV.indexOf(v.k) >= 0; }), any = items.some(function (v) { return S[v.k]; });
+    var items = INVEST.filter(function (v) { return OPENINV.indexOf(v.k) >= 0 && invOn(v.k); }), any = items.some(function (v) { return S[v.k]; });
     // コンセプトのお客様の悩みに、いまは応えられない設備を1つすすめる（家賃2か月分は残る範囲で）
     var fav = (CONCEPTS[S.concept] || {}).fav || [], want = null;
     fav.forEach(function (sk) { var x = SUBMENU[sk], m = MENU[x.cat]; [m.need, x.need].forEach(function (k) { if (!want && k && !needOk(k)) want = k; }); });
@@ -6631,7 +6645,7 @@
         var x = SNSPF[k];
         return { label: x.n + 'に投稿する', sub: x.who, off: left <= 0, go: function () { snsPfView(k); } };
       }).concat(postOn() ? [{ label: 'お知らせのハガキを送る', sub: '常連さんにお礼とおすすめを届ける（1枚' + postFee() + '円＋印刷代）', off: P.post === S.week, go: function () { P.post = S.week; var r = postSend('dm'); SFX.good(); snsView('<div class="news good">' + r.n + '人の常連さんにハガキを送った（' + yen(r.cost) + '）。</div>'); } }] : [])
-      .concat([{ label: 'ライブ配信をする', sub: liveDone ? '今月は配信ずみ' : (P.f < LIVEMIN ? 'フォロワーが' + LIVEMIN + '人をこえるとできる' : '在庫の商品がその場でネットで売れ、フォロワーも増える。月1回まで。あなたの疲れ+8'),
+      .concat(eraY() < 2016 ? [] : [{ label: 'ライブ配信をする', sub: liveDone ? '今月は配信ずみ' : (P.f < LIVEMIN ? 'フォロワーが' + LIVEMIN + '人をこえるとできる' : '在庫の商品がその場でネットで売れ、フォロワーも増える。月1回まで。あなたの疲れ+8'),
         off: liveDone || P.f < LIVEMIN || eraY() < 2016, go: liveView }])
       .concat([{ main: true, label: 'もどる', go: investView }]));
   }
@@ -7960,7 +7974,7 @@
     opts.push({ label: 'お店と会社の名前を変える', sub: 'いま：' + (S.brand || '（未設定）') + (S.company ? '／' + S.company : '') + '　支店の名前もまとめて変わる', go: nameView });
     if (S.holAuto) opts.push({ label: 'お休みの過ごし方：おまかせ', sub: '自分で選ぶようにもどす', go: function () { S.holAuto = false; SFX.click(); investView(); } });
     opts.push({ label: '公式dot.を見る', sub: 'お客様と取引先からの連絡。AIに返信を任せる：' + (S.dotAI !== false ? 'ON' : 'OFF'), go: function () { dotView(true); } });
-    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（dot.など）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
+    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。アプリの中のブラウザで遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
     if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
     // メニューを3つにまとめて、月末画面を短くする
     var CAT = { staff: [], shop: [], other: [] };
@@ -8183,7 +8197,7 @@
     var ready = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && epiReady(x); });
     if (ready.length) T.unshift({ t: ready.length >= 2 ? 'スタッフの話をまとめて聞く' : 'スタッフの話を聞く', s: ready.map(function (x) { return x.name; }).slice(0, 3).join('・') + (ready.length > 3 ? 'ほか' : '') + 'が話をしたがっている', go: ready.length >= 2 ? function () { epiBulk(); } : careView });
     T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
-    if (P.f >= LIVEMIN) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
+    if (P.f >= LIVEMIN && eraY() >= 2016) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
     var tg = tGroups().filter(function (g2) { return g2.mem.length; });
     if (tg.length) { var tl = tg.filter(function (g2) { return !tDone(g2.key); });
       T.push(tl.length ? { t: 'スタッフの研修', s: 'あと' + tl.length + '店舗（' + tl.map(function (g2) { return shortShop(g2.name); }).join('・') + '）', go: function () { trainView(); } } : { t: 'スタッフの研修', s: '今月はすべての店舗で研修ずみ', done: true }); }
