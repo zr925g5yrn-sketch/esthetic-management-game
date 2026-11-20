@@ -218,6 +218,17 @@
   .dotrow .st { white-space: nowrap; font-size: .72rem; padding: 1px 8px; border: 1px solid var(--line); color: var(--sub); }
   .dotrow .st.new { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .dav { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; color: #FFFFFF; font-size: .95rem; font-weight: 700; flex: none; }
+  .dotrow .via { display: grid; place-items: center; width: 40px; height: 40px; font-size: .72rem; font-weight: 700; border: 2px solid var(--ink); background: #FFF6D8; color: #2B2238; }
+  .dotapp.m-tel .dh, .dotapp.m-pager .dh { background: #6A5A48; color: #FFF8EC; }
+  .dotapp.m-mail .dh { background: #4A6A8A; color: #FFFFFF; }
+  .paper { padding: 10px 12px; font-size: .9rem; line-height: 1.6; color: #2B2238; border: 2px solid var(--ink); }
+  .paper .ph { font-size: .74rem; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px dashed #8A7A68; color: #5A4A3A; }
+  .paper p { margin: 0 0 4px; }
+  .paper.memo { background: #FFF6C8; background-image: repeating-linear-gradient(transparent 0 23px, rgba(138,122,104,.25) 23px 24px); }
+  .paper.fax { background: #F7F5EE; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; box-shadow: inset 0 0 0 4px #F7F5EE, inset 0 0 0 5px #C8C2B4; }
+  .paper.mail { background: #F2F6FA; }
+  .paper.me { margin-left: 18%; background: #E8F2E4; }
+  .dnote { margin: 0; font-size: .82rem; color: var(--sub); }
   .dchat { display: grid; gap: 10px; padding: 12px; background: var(--bg); }
   .dmsg { display: flex; gap: 8px; align-items: flex-end; }
   .dmsg .dav { width: 30px; height: 30px; font-size: .8rem; }
@@ -889,7 +900,25 @@
     if (c.sub && !SUBMENU[c.sub]) c.sub = null;
   }
   function catOf(k) { return SUBMENU[k] ? SUBMENU[k].cat : 'body'; }
-  function subOk(k) { var x = SUBMENU[k], m = MENU[x.cat]; return (!m.need || !!S[m.need]) && (!x.need || !!S[x.need]); }
+  function subOk(k) { var x = SUBMENU[k], m = MENU[x.cat]; return needOk(m.need) && needOk(x.need); }
+  // 機械がまだ世の中にない時代は、手技で提供できる。その時代に開業したお店は、機械が出たあとも手技を続けられる
+  var HANDYEAR = { headSpa: 2000, hifu: 1995, rfFace: 2000 };
+  function handOk(k) { var y0 = HANDYEAR[k]; return !!y0 && !!S && (eraY() < y0 || !!(S.startYear && S.startYear < y0)); }
+  function needOk(k) { return !k || !!(S && S[k]) || handOk(k); }
+  // 施術の名前を時代に合わせる（ヘッドスパという言葉が広まる前はヘッドマッサージ、など）
+  function menuEra() {
+    var y = eraY(), hand = function (k) { return S && !S[k] && handOk(k); };
+    MENU.head.n = y < 2005 ? 'ヘッドマッサージ' : 'ヘッドスパ';
+    SUBMENU.dry.n = y < 2005 ? '頭と目のほぐし' : y < 2015 ? 'ほぐしのヘッドスパ' : 'ドライヘッドスパ';
+    SUBMENU.scalp.n = y < 2005 ? '頭皮マッサージ' : '頭皮クレンジング';
+    SUBMENU.lymph.n = y < 1995 ? 'むくみ取りマッサージ' : 'リンパドレナージュ';
+    SUBMENU.aroma.n = y < 1990 ? 'オイルトリートメント' : 'アロマトリートメント';
+    SUBMENU.aging.n = hand('rfFace') ? 'リフトアップマッサージ' : 'エイジングケア';
+    SUBMENU.pore.n = hand('hifu') ? 'スチーム毛穴ケア' : '毛穴ケア';
+    var hs = INVEST.filter(function (v) { return v.k === 'headSpa'; })[0];
+    hs.n = y < 2005 ? 'シャンプー台' : 'ヘッドスパ台';
+    hs.d = y < 2005 ? '専用の台で、ヘッドマッサージの満足度が上がる' : 'ヘッドスパ（' + SUBMENU.dry.n + '・頭皮クレンジング）を提供できる';
+  }
   // 自社のエッセンシャルオイル（在庫があるもの）
   function myOils() { return ((S && S.myProds) || []).filter(function (p) { return p.cat === 'oil' && S.stock[p.k] > 0; }); }
   function blendOf(bl) {
@@ -909,7 +938,7 @@
   function newConcern() {
     var ks = Object.keys(CONCERN);
     // 開業した月は、設備がなければヘッドスパと痩身を望むお客様は来ない
-    if (S.week <= 1) ks = ks.filter(function (k) { return (catOf(k) !== 'head' || S.headSpa) && (k !== 'slim' || S.slimMachine); });
+    if (S.week <= 1) ks = ks.filter(function (k) { return (catOf(k) !== 'head' || needOk('headSpa')) && (k !== 'slim' || S.slimMachine); });
     var cf = S.concept && CONCEPTS[S.concept] && CONCEPTS[S.concept].fav;
     if (cf && roll(0.35)) { var f2 = ks.filter(function (k) { return cf.indexOf(k) >= 0; }); if (f2.length) return pick(f2); }
     return pick(ks);
@@ -979,7 +1008,7 @@
   ];
   var MACHB = { slim: 'cavi', lymph: 'lymphM' };
   // 機械の「型」が出た年。新しい型が出ると、古い型は効き目が落ちる。8年をこえると壊れやすい
-  var MACHGEN = { headSpa: [2000, 2012, 2022], slimMachine: [1985, 1998, 2010, 2020], hifu: [1995, 2008, 2018], rfFace: [2000, 2010, 2020], cavi: [2005, 2015, 2023], lymphM: [1995, 2007, 2019] };
+  var MACHGEN = { headSpa: [2000, 2012, 2022], slimMachine: [1985, 1998, 2010, 2020], hifu: [1995, 2008, 2018], rfFace: [2000, 2010, 2020], cavi: [2008, 2015, 2023], lymphM: [1995, 2007, 2019] };
   function curGen(k) { var y = S && S.startYear ? nowYear() : 2026; return Math.max(0, MACHGEN[k].filter(function (g) { return g <= y; }).length - 1); }
   function genName(k, g) { return g >= curGen(k) ? '最新型' : g === 0 ? '初代' : '第' + (g + 1) + '世代'; }
   function machFix() { S.mach = S.mach || {}; Object.keys(MACHGEN).forEach(function (k) { if (S[k] && !S.mach[k]) S.mach[k] = { gen: curGen(k), wk: S.week, told: curGen(k) }; if (!S[k]) delete S.mach[k]; }); return S.mach; }
@@ -1982,7 +2011,7 @@
     view(box, [{ main: true, label: 'つづける', go: function () { done(''); } }]);
   }
   function eraY() { return S && S.startYear ? nowYear() : 2026; }
-  function dotNm(off) { var y = eraY(); return off ? (y < 1997 ? 'お店の電話' : y < 2012 ? 'お店のメール' : '公式dot.') : (y < 1995 ? '電話とファックス' : y < 2000 ? 'ポケベルとファックス' : y < 2012 ? '携帯メール' : 'dot.'); }
+  function dotNm(off) { var y = eraY(); return off ? (y < 1997 ? 'お店の電話' : y < 2012 ? 'お店のメール' : '公式dot.') : (y < 1995 ? '電話とFAX' : y < 2000 ? 'ポケベルとFAX' : y < 2012 ? '携帯メール' : 'dot.'); }
   function aiNm() { return eraY() >= 2023 ? 'AI' : '受付スタッフ'; }
   var PFYEAR = { yt: 2006, ig: 2012, tt: 2017 };
   function pfOn(k) { return eraY() >= PFYEAR[k]; }
@@ -1992,6 +2021,8 @@
     if (!S || !S.startYear || t == null) return t;
     t = String(t); var y = eraY();
     if (y < 2003) t = t.replace(/口コミサイト/g, '雑誌の読者投稿');
+    if (y < 2005) t = t.replace(/ドライヘッドスパ/g, '頭と目のほぐし').replace(/ヘッドスパ/g, 'ヘッドマッサージ');
+    else if (y < 2015) t = t.replace(/ドライヘッドスパ/g, 'ほぐしのヘッドスパ');
     if (y < 1995) t = t.replace(/メールで/g, '手紙で').replace(/メール/g, '手紙');
     if (y < 2012) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
     if (y < 2023) t = t.replace(/AI(?=[がにのへ])/g, '受付スタッフ');
@@ -2011,7 +2042,7 @@
   // 時代の広告
   function adNm(i) { var y = eraY(), a = ADLV[i]; if (i === 1) return y < 1998 ? 'チラシと新聞の折り込み' : y < 2010 ? 'チラシとホームページ' : a.n; if (i === 2) return y < 2006 ? '女性誌とタウン誌' : y < 2012 ? 'ネット広告と雑誌' : a.n; return a.n; }
   // 機械や設備が登場した年
-  var INVYEAR = { headSpa: 2000, hifu: 1995, rfFace: 2000, aromaPro: 1990, cavi: 2005, lymphM: 1995, devFace: 1995, devEms: 2000, eshop: 2000 };
+  var INVYEAR = { hifu: 1995, rfFace: 2000, aromaPro: 1990, cavi: 2008, lymphM: 1995, devFace: 1995, devEms: 2000, eshop: 2000 };
   function invOn(k) { return eraY() >= (INVYEAR[k] || 0); }
   var ERAS = [
     { y: 1985, n: '1985年（昭和60年）', d: 'バブルの少し前。エステはまだ珍しく、チラシと雑誌、電話で集客する時代' },
@@ -2921,7 +2952,7 @@
     });
   }
   function view(html, opts, cls) {
-    onTitle = false;
+    onTitle = false; menuEra();
     var app = $('app');
     // 選択肢が多い画面は、上にも「もどる」を出す
     var bk = (opts || []).length >= 6 ? (opts || []).filter(function (o) { return !o.off && /もどる/.test(o.label); }).slice(-1)[0] : null;
@@ -2965,7 +2996,7 @@
   function karte() {
     var c = C, k = c.known;
     var tag = (c.vip ? 'セレブ　' : (c.hotel ? c.hotelName + 'の支配人（視察）　' : c.press ? '雑誌の記者　' : (c.influ ? 'インフルエンサー　' : ''))) + (c.isNew ? (c.ref ? '紹介で来店' : c.walkin ? '飛び込みで来店' : '初めての来店') + (c.via ? '（' + c.via + '）' : '') :
-      ('常連・' + (c.visits + 1) + '回目' + (c.plan ? '　' + courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回' : (c.member ? '　会員' : (c.royal ? '　ロイヤル会員' : '')))));
+      (c.friend && !c.visits ? '地元の知り合い・はじめての来店（開店祝いに5回券を買ってくれた）' : '常連・' + (c.visits + 1) + '回目' + (c.plan ? '　' + courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回' : (c.member ? '　会員' : (c.royal ? '　ロイヤル会員' : '')))));
     var h = '<section class="karte box"><div class="kh"><b>' + c.name + (c.hotel ? ' 支配人' : c.vip ? ' さま' : ' さん') + '</b><span>' + c.age + '代 ' + (c.male ? '男性' : '女性') + '</span></div>' +
       '<div class="ag">' + tag + (c.st ? '　担当 ' + stName(c.st) : '') + '</div><div class="chips">';
     var today = !c.isNew && c.today && c.phase !== 'meet0';
@@ -4691,7 +4722,7 @@
       return { label: nm + 'で開業する　家賃 月' + yen(L.rent), sub: '◎ ' + L.good + (isLocal && k !== 'local' ? '・地元なので知り合いが常連に、評判+10' : '') + '　× ' + L.bad, go: function () {
         S.home = { key: k, pref: pref, local: !!isLocal };
         S.rep = clamp(S.rep + (L.rep || 0) + (isLocal && k !== 'local' ? 10 : 0), 0, 100);
-        if (isLocal) { var used = {}; for (var i = 0; i < 2; i++) { var c = makeCustomer(used, true); c.isNew = false; c.active = true; c.visits = 3; c.loy = 55; c.last = 0; c.plan = { k: 'c5', left: 3 }; c.friend = true; S.clients.push(c); } }
+        if (isLocal) { var used = {}; for (var i = 0; i < 2; i++) { var c = makeCustomer(used, true); c.isNew = false; c.active = true; c.visits = 0; c.loy = 55; c.last = 0; c.plan = { k: 'c5', left: 5 }; c.friend = true; S.clients.push(c); } }
         openFund();
       } };
     };
@@ -4857,7 +4888,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth(); healthMonth(); S.holNote = null;
+    ageMonth(); uniSync(); machMonth(); healthMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -4911,9 +4942,15 @@
     if (c.bride) return '式を控えた花嫁・新規';
     if (c.sns && c.isNew) return (SNSPF[c.sns] ? SNSPF[c.sns].n : 'SNS') + 'を見て来店・新規';
     if (c.isNew) return c.ref ? '紹介・新規' : '新規';
+    if (c.friend && !c.visits) return '地元の知り合い・開店祝いに5回券';
     if (c.plan) return courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回';
     if (c.member) return '会員';
     return '予約の来店';
+  }
+  function holBox() {
+    var fx = S.holFx || '';
+    var tx = fx ? String(S.holNote[1]).replace(/（[^（）]*[+−\-]\d[^（）]*）\s*$/, '') : S.holNote[1];
+    return '<div class="news good"><b>あなたの休日：' + S.holNote[0] + '</b><br>' + tx + '</div>' + (fx ? '<div class="news"><b>休日の効果</b>　' + fx + '</div>' : '');
   }
   function weekIntro() {
     if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), weekIntro);
@@ -4929,11 +4966,12 @@
     var lf = S.lifeKey ? lifeOf(S.lifeKey) : null;
     var life = lf ? '<div class="event life box"><span class="badge">' + (lf.era ? '時代のできごと　' + nowYear() + '年' : 'あなたの暮らし') + '</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
-    var head = '<h1>' + calOf(S.week) + '</h1>' + (S.holNote ? '<div class="news good"><b>あなたの休日：' + S.holNote[0] + '</b><br>' + S.holNote[1] + '</div>' : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
+    var head = '<h1>' + calOf(S.week) + '</h1>' + (S.holNote && !S.holShown ? holBox() : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
     if (S.newsPending && S.newsItem) return newsView();
     if (S.holPending && S.holAuto) holAuto();
     if (S.holPending) { evScene([]); return holidayView(); }
     var only = '<h1>' + calOf(S.week) + '</h1>';
+    if (S.holJust && S.holNote) { S.holJust = false; S.holShown = true; evScene(S.holPic ? [S.holPic] : []); return view(only + holBox(), [{ main: true, label: 'つづける', go: weekIntro }]); }
     // 選んだ直後は、その結果だけを見せる
     if (S.evJust && ((S.evJust === 'lifeDecl' && S.lifePending) || (S.evJust === 'sevDecl' && S.sevPending) || (S.evJust === 'evDecl' && S.evPending))) S.evJust = null;
     if (S.evJust) { var jb = S.evJust === 'lifeDecl' ? life : S.evJust === 'sevDecl' ? sev : ev, jp = S.evJust === 'lifeDecl' ? (S.lifeDecl ? null : LIFEPIC[S.lifeKey]) : S.evJust === 'sevDecl' ? (S.sevDecl ? null : EVPIC[S.sevKey]) : (S.evDecl ? null : S.evDeclAlt || EVPIC[S.ev]);
@@ -5036,7 +5074,7 @@
     bar(); setScene('talk');
     view(karte() + talkHtml() + stepHtml(C.vipN ? 'VIPコース　' + (C.vipSubs.length + 1) + '／' + C.vipN + 'か所目のメニュー' : '施術メニューを選ぶ', tip('menu', '選んだあとに、もう一段くわしく聞いてケアを決める。')),
       Object.keys(MENU).map(function (k) {
-        var m = MENU[k], locked = m.need && !S[m.need];
+        var m = MENU[k], locked = !needOk(m.need);
         return { label: m.n, sub: locked ? '設備がないので提供できない' : m.subs.map(function (x) { return SUBMENU[x].n; }).join('・'), off: locked, go: function () { C.menu = k; treatSub(); } };
       }).concat(C.vipN ? [{ label: 'VIPコースをやめる', go: function () { C.vipN = 0; C.vipSubs = []; treatMenu(); } }] : [].map(function (n) {
         return { label: 'VIPコース（' + n + 'か所）　+' + yen(vipAdd(n)), sub: '一度に' + n + 'か所の悩みをケアする', go: function () {
@@ -5736,8 +5774,8 @@
           pay(cost); S.ownerLook = Object.assign(S.ownerLook || {}, { style: OWNER_LOOK.style, hair: OWNER_LOOK.hair }); fat(-12); hum(1); SFX.good();
           S.holSeen = S.holSeen || {}; S.holPending = false; S.holInv = null; S.holPic = 'v_hair';
           var nm = (HAIRSTY.filter(function (x) { return x[0] === OWNER_LOOK.style; })[0] || [0, ''])[1], cn = (HAIRCOL.filter(function (c) { return c[0] === OWNER_LOOK.hair; })[0] || [0, ''])[1];
-          S.holNote = ['美容室', (S.ownerMale && OWNER_LOOK.style === 'bob' ? '少し長め' : nm) + '・' + cn + 'にした。鏡の中の自分が、ちょっと新鮮だ。スタッフにも「似合います！」と言われた。（疲れ−12、人間力+1）'];
-          weekIntro(); } },
+          S.holNote = ['美容室', (S.ownerMale && OWNER_LOOK.style === 'bob' ? '少し長め' : nm) + '・' + cn + 'にした。鏡の中の自分が、ちょっと新鮮だ。スタッフにも「似合います！」と言われた。'];
+          S.holFx = '所持金−' + yen(cost) + '、疲れ−12、人間力+1'; S.holJust = true; weekIntro(); } },
        { label: 'やっぱりやめておく', go: function () { Object.assign(OWNER_LOOK, L0); holidayView(); } }]);
     var upd = function () { OWNER_LOOK.style = $('hrSty').value; OWNER_LOOK.hair = $('hrCol').value; };
     $('hrSty').addEventListener('change', upd); $('hrCol').addEventListener('change', upd);
@@ -5754,8 +5792,8 @@
         if (a.hair) return { label: a.label + '　' + yen(a.cost), sub: '', off: S.cash < a.cost, go: hairView };
         return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: '', off: a.cost > 0 && S.cash < a.cost, go: function () {
           S.holSeen[a.label] = true;
-          if (a.cost) pay(a.cost);
-          var res = a.r(); S.holPending = false; S.holInv = null; SFX.good(); S.holPic = holPic(res[0]); S.holNote = res; weekIntro();
+          var sn = evSnap(); if (a.cost) pay(a.cost);
+          var res = a.r(); S.holPending = false; S.holInv = null; SFX.good(); S.holPic = holPic(res[0]); S.holNote = res; S.holFx = evDiff(sn); S.holJust = true; weekIntro();
         } };
       }).concat([{ label: 'これからは、おまかせにする', sub: '毎月、疲れぐあいに合わせて過ごし方を選んでくれる（あとで「そのほか」から戻せる）', go: function () { S.holAuto = true; holAuto(); weekIntro(); } }]));
   }
@@ -5764,8 +5802,8 @@
     var L = holOpts().filter(function (a) { return !(a.cost > 0 && S.cash < a.cost * 3) && !/勧誘|投資話|セミナー|連絡が来た/.test(a.label); });
     if (!L.length) L = holOpts().filter(function (a) { return !a.cost; });
     var a = (S.fatigue || 0) >= 50 ? L.filter(function (x) { return /のんびり|スパ|温泉|家族/.test(x.label); })[0] || L[0] : pick(L);
-    S.holSeen = S.holSeen || {}; S.holSeen[a.label] = true; if (a.cost) pay(a.cost);
-    var res = a.r(); S.holPending = false; S.holInv = null; S.holPic = holPic(res[0]); S.holNote = res;
+    S.holSeen = S.holSeen || {}; S.holSeen[a.label] = true; var sn = evSnap(); if (a.cost) pay(a.cost);
+    var res = a.r(); S.holPending = false; S.holInv = null; S.holPic = holPic(res[0]); S.holNote = res; S.holFx = evDiff(sn);
   }
   function lifeChoices() {
     var e = lifeOf(S.lifeKey);
@@ -7696,10 +7734,10 @@
     if ((S.wk.incList || []).length) hn += '<div class="news good">インセンティブ（コースと商品の売上に応じて）：' + S.wk.incList.join('、') + '</div>';
     if (S.wk.loan && (S.wk.loan.principal || S.wk.loan.notes.length)) hn += '<div class="news">借入金の返済（元金）' + yen(S.wk.loan.principal) + '。残り ' + yen(loanRest()) + (S.wk.loan.notes.length ? '<br>' + S.wk.loan.notes.join('<br>') : '') + '</div>';
     if ((S.wk.stratNote || []).length) hn += S.wk.stratNote.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
-    if ((S.wk.mgrNotes || []).length) hn += '<div class="news">' + (eraY() < 2000 ? '各店からファックスで届いた報告：' : '店長の采配：') + '<br>' + S.wk.mgrNotes.join('<br>') + '</div>';
+    if ((S.wk.mgrNotes || []).length) hn += '<div class="news">' + (eraY() < 2000 ? '各店からFAXで届いた報告：' : '店長の采配：') + '<br>' + S.wk.mgrNotes.join('<br>') + '</div>';
     if ((S.wk.romNotes || []).length) hn += S.wk.romNotes.map(function (x) { return '<div class="news' + (x.bad ? ' bad' : ' good') + '">' + x.t + '</div>'; }).join('');
     if ((S.wk.relNote || []).length) hn += '<div class="news good">' + S.wk.relNote.join('<br>') + '</div>';
-    if ((S.wk.hqNote || []).length) hn += '<div class="news good">' + (eraY() < 2000 ? '本社からのファックス：' : '本社：') + S.wk.hqNote.join('<br>') + '</div>';
+    if ((S.wk.hqNote || []).length) hn += '<div class="news good">' + (eraY() < 2000 ? '本社からのFAX：' : '本社：') + S.wk.hqNote.join('<br>') + '</div>';
     if (S.wk.taxNote) hn += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
     if (S.wk.lv) hn += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
       (S.wk.lv.areas.length ? '<br>新しく出店できる街：' + S.wk.lv.areas.map(function (k) { return AREAS[k].n; }).join('、') : '') + '</div>';
@@ -7906,16 +7944,23 @@
   // 名前の頭文字の丸いアイコン（色は名前で決まる）
   var DAVC = ['#E0567A', '#5AA9E6', '#7FC49A', '#E8A93A', '#B48CFF', '#3AC0C8', '#C8604A', '#5C6E9E'];
   function dav(name, me) { var n = String(name || '？').replace(/^(本社の|サロンのみんな.*)/, ''); return '<span class="dav" style="background:' + (me ? '#2B2238' : DAVC[hashOf(name) % DAVC.length]) + '">' + (me ? '私' : n.charAt(0) || '？') + '</span>'; }
-  function dotHead(off, sub, cnt) { return '<div class="dh"><b>' + (off ? '公式dot.' : 'dot.') + '</b><span>' + sub + '</span>' + (cnt ? '<span class="cnt">未返信 ' + cnt + '</span>' : '') + '</div>'; }
+  // 時代ごとの連絡手段：tel（電話とFAX）、pager（ポケベルとFAX）、mail（メール）、dot（メッセージアプリ）
+  function commMode(off) { var y = eraY(); return off ? (y < 1997 ? 'tel' : y < 2012 ? 'mail' : 'dot') : (y < 1995 ? 'tel' : y < 2000 ? 'pager' : y < 2012 ? 'mail' : 'dot'); }
+  function isMemo(off) { var c = commMode(off); return c === 'tel' || c === 'pager'; }
+  // 伝言メモの時代：書類のような連絡はFAX、それ以外は電話（ポケベルの時代は、家族や友だちからはポケベル）
+  function viaOf(m) { if (!isMemo(m.off)) return ''; if (/本社|経理|取引|業者|メーカー|商事|組合|協会|支店|事務所|編集部|銀行|会社|工房|農園|生産者/.test(m.from) || /biz|hq|supp|trade|press|maker|farm/.test(m.kind || '')) return 'FAX'; return commMode(m.off) === 'pager' && !m.off && hashOf(m.from) % 2 ? 'ポケベル' : '電話'; }
+  function dotHead(off, sub, cnt) { var md = commMode(off); return '<div class="dh"><b>' + (md === 'dot' ? (off ? '公式dot.' : 'dot.') : dotNm(off)) + '</b><span>' + sub + '</span>' + (cnt ? '<span class="cnt">' + (isMemo(off) ? '折り返しまだ ' : '未返信 ') + cnt + '</span>' : '') + '</div>'; }
   function dotView(off) {
     bar();
     var list = dotList(off), u = dotUnread(off);
-    view('<h1>' + (off ? 'お店の公式アカウント' : 'メッセージ') + '</h1><div class="dotapp' + (off ? ' off' : '') + '">' + dotHead(off, off ? (S.brand || 'お店') + ' の公式アカウント' : 'あなたのメッセージ', u) +
+    var md = commMode(off), memo = isMemo(off);
+    view('<h1>' + (memo ? (off ? 'お店への電話とFAX' : '電話とFAXの伝言') : md === 'mail' ? (off ? 'お店へのメール' : 'メール') : (off ? 'お店の公式アカウント' : 'メッセージ')) + '</h1><div class="dotapp m-' + md + (off ? ' off' : '') + '">' + dotHead(off, memo ? '伝言メモ' : md === 'mail' ? '受信箱' : off ? (S.brand || 'お店') + ' の公式アカウント' : 'あなたのメッセージ', u) +
       (list.length ? list.map(function (m, i) {
         var last = m.done >= 0 ? m.reps[m.done].res : m.lines[m.lines.length - 1].t;
-        return '<button type="button" class="dotrow" data-dot="' + i + '">' + dav(m.from) + '<span><span class="nm">' + m.from + '</span><span class="pv">' + last + '</span></span>' +
-          '<span class="st' + (m.done < 0 ? ' new' : '') + '">' + (m.done < 0 ? '未返信' : '返信ずみ') + '</span></button>';
-      }).join('') : '<p class="lead" style="padding:12px">新しいメッセージはない。</p>') + '</div>',
+        var via = viaOf(m);
+        return '<button type="button" class="dotrow" data-dot="' + i + '">' + (memo ? '<span class="via">' + via + '</span>' : dav(m.from)) + '<span><span class="nm">' + m.from + '</span><span class="pv">' + last + '</span></span>' +
+          '<span class="st' + (m.done < 0 ? ' new' : '') + '">' + (m.done < 0 ? (memo ? '折り返しまだ' : '未返信') : (memo ? '折り返しずみ' : '返信ずみ')) + '</span></button>';
+      }).join('') : '<p class="lead" style="padding:12px">' + (memo ? '新しい伝言はない。' : '新しいメッセージはない。') + '</p>') + '</div>',
       [{ main: true, label: '月末の画面にもどる', go: investView }]);
     if (off) {
       var on = S.dotAI !== false;
@@ -7929,16 +7974,22 @@
     bar();
     var back = function () { dotView(!!m.off); };
     if (m.ai && !note) note = 'AIが返信した。' + (m.note || '');
-    var h = '<h1>' + (m.off ? 'お店の公式アカウント' : 'メッセージ') + '</h1><div class="dotapp' + (m.off ? ' off' : '') + '">' + dotHead(m.off, '‹ ' + m.from) + '<div class="dchat">' +
-      m.lines.map(function (l) { var w = l.who || m.from; return '<div class="dmsg">' + dav(w) + '<div class="bb">' + (l.who || m.from.indexOf('・') >= 0 ? '<span class="who">' + w + '</span>' : '') + l.t + '</div></div>'; }).join('');
-    if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="dmsg me"><div class="bb">' + rp.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</div></div><div class="dmsg">' + dav(m.from) + '<div class="bb">' + rp.res + '</div></div>' + (note || m.note ? '<div class="dnote">' + (note || m.note) + '</div>' : ''); }
+    var md = commMode(m.off), memo = isMemo(m.off), via = viaOf(m), mailM = md === 'mail';
+    var h = '<h1>' + (memo ? (via === 'FAX' ? 'FAX' : via === 'ポケベル' ? 'ポケベルの呼び出し' : '電話の伝言') : mailM ? 'メール' : (m.off ? 'お店の公式アカウント' : 'メッセージ')) + '</h1><div class="dotapp m-' + md + (m.off ? ' off' : '') + '">' + dotHead(m.off, '‹ ' + m.from) + '<div class="dchat">';
+    if (memo || mailM) {
+      var cls = via === 'FAX' ? 'fax' : mailM ? 'mail' : 'memo';
+      var top = via === 'FAX' ? 'FAX　送信元：' + m.from + '　' + nowYear() + '年' + monthOf() + '月' : via === 'ポケベル' ? 'ポケベルに呼び出し：' + m.from + '（電話をかけて話した）' : mailM ? '差出人：' + m.from : '電話の伝言メモ：' + m.from + 'から';
+      h += '<div class="paper ' + cls + '"><div class="ph">' + top + '</div>' + m.lines.map(function (l) { return '<p>' + (l.who ? '<b>' + l.who + '</b>　' : '') + l.t + '</p>'; }).join('') + '</div>';
+    } else h += m.lines.map(function (l) { var w = l.who || m.from; return '<div class="dmsg">' + dav(w) + '<div class="bb">' + (l.who || m.from.indexOf('・') >= 0 ? '<span class="who">' + w + '</span>' : '') + l.t + '</div></div>'; }).join('');
+    if (m.done >= 0 && (memo || mailM)) { var rq = m.reps[m.done]; h += '<div class="paper me ' + (mailM ? 'mail' : via === 'FAX' ? 'fax' : 'memo') + '"><div class="ph">' + (mailM ? 'あなたの返信' : via === 'FAX' ? 'FAXで返事を送った' : 'あなたが電話をかけた') + '</div><p>' + rq.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</p></div><div class="paper ' + (mailM ? 'mail' : 'memo') + '"><div class="ph">' + m.from + (mailM ? 'からの返信' : 'の返事') + '</div><p>' + rq.res + '</p></div>' + (note ? '<p class="dnote">' + note + '</p>' : ''); }
+    else if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="dmsg me"><div class="bb">' + rp.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</div></div><div class="dmsg">' + dav(m.from) + '<div class="bb">' + rp.res + '</div></div>' + (note || m.note ? '<div class="dnote">' + (note || m.note) + '</div>' : ''); }
     h += '</div>';
-    if (m.done < 0) h += '<div class="dreply"><span class="lb">返信を選ぶ</span>' + m.reps.map(function (rp, i) {
+    if (m.done < 0) h += '<div class="dreply"><span class="lb">' + (memo ? (via === 'FAX' ? 'どう返事をする？' : '折り返しの電話で、なんと言う？') : '返信を選ぶ') + '</span>' + m.reps.map(function (rp, i) {
       var cost = rp.t.match(/　(¥[\d,]+)$/);
       return '<button type="button" data-rep="' + i + '"' + (rp.cost && S.cash < rp.cost ? ' disabled' : '') + '>' + rp.t.replace(/　¥[\d,]+$/, '') + (cost ? '<small>' + cost[1] + '</small>' : '') + '</button>';
-    }).join('') + '<button type="button" class="later" data-later="1">あとで返信する</button></div>';
+    }).join('') + '<button type="button" class="later" data-later="1">' + (memo ? 'あとで折り返す' : 'あとで返信する') + '</button></div>';
     h += '</div>';
-    view(h, [{ main: true, label: 'メッセージ一覧にもどる', go: back }]);
+    view(h, [{ main: true, label: memo ? '伝言の一覧にもどる' : mailM ? 'メールの一覧にもどる' : 'メッセージ一覧にもどる', go: back }]);
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-rep]'), function (bt) { bt.addEventListener('click', function () {
       var i = +bt.getAttribute('data-rep'), rp = m.reps[i]; if (rp.cost && S.cash < rp.cost) return;
       m.done = i; m.note = dotFx(m, rp); if (rp.fx === 'party') dinnerScene(crewAll()); if (rp.fx === 'bday') evScene(['v_cake']); SFX.good(); saveGame('night'); dotThread(m);
