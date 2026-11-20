@@ -95,6 +95,7 @@
   .tgl b { display: block; font-size: .95rem; }
   .tgl small { display: block; font-size: .76rem; color: var(--sub); line-height: 1.45; }
   .seg { display: flex; flex: none; border: 2px solid var(--ink); }
+  .stkall { margin: 0 0 12px; padding: 10px 12px; } .stkall b { display: block; } .stkall small { display: block; margin: 2px 0 8px; color: var(--sub); font-size: .78rem; } .stkall .seg { display: inline-flex; flex-wrap: wrap; }
   .seg button { margin: 0; width: auto; min-width: 54px; min-height: 36px; padding: 4px 10px; text-align: center; font-weight: 700; border: 0; box-shadow: none; background: var(--panel); color: var(--sub); }
   .seg button + button { border-left: 2px solid var(--ink); }
   .seg button.on { background: var(--accent); color: var(--accent-ink); }
@@ -7222,10 +7223,11 @@
           go: function () { S.priceMode = k; SFX.good(); investView(); } };
       }).concat([{ main: true, label: 'もどる', go: investView }]));
   }
+  function autoOf(p) { var A = S.autoStock || {}; return A[p.k] !== undefined ? A[p.k] : (S.autoAll || 0); }
   function autoRestock() {
     var got = [], cost = 0;
     prods().forEach(function (p) {
-      var n = ((S.autoStock || {})[p.k] || 0) - S.stock[p.k];
+      var A = S.autoStock || {}, n = (A[p.k] !== undefined ? A[p.k] : (S.autoAll || 0)) - (S.stock[p.k] || 0);
       var pc = costOf(p);
       if (n > 0 && S.cash < n * pc) n = Math.max(0, Math.floor(S.cash / pc));
       if (n > 0) { S.cash -= n * pc; S.total.cost += n * pc; S.stock[p.k] += n; cost += n * pc; got.push(p.n + '×' + n); }
@@ -8043,7 +8045,7 @@
     view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
       S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); }, rec: catRec('staff') },
-      { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); }, rec: catRec('shop') },
+      { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); }, rec: catRec('shop') },
       { label: '発信・記録・そのほか', sub: (snsOn() ? 'SNS' : 'お店の宣伝') + '（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); }, rec: catRec('other') }]));
     $('app').insertAdjacentHTML('beforeend', below);
     taskBind(TK); shopSwBind();
@@ -8246,7 +8248,7 @@
       T.push(tl.length ? { t: 'スタッフの研修', s: 'あと' + tl.length + '店舗（' + tl.map(function (g2) { return shortShop(g2.name); }).join('・') + '）', go: function () { trainView(); } } : { t: 'スタッフの研修', s: '今月はすべての店舗で研修ずみ', done: true }); }
     var low = team.filter(function (st) { moodFix(st); return st.mot < 40; });
     if (low.length) T.push({ t: 'やる気が落ちているスタッフと過ごす', s: low.map(function (st) { return st.name; }).slice(0, 3).join('・') + (low.length > 3 ? 'ほか' : ''), go: careView });
-    var lowStock = prods().filter(function (p) { return S.stock[p.k] <= 1 && !S.autoStock[p.k]; });
+    var lowStock = prods().filter(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); });
     if (lowStock.length) T.push({ t: '商品を仕入れる', s: '在庫が少ない：' + lowStock.map(function (p) { return p.n; }).join('・'), go: function () { stockView(); } });
     var wait = S.lastOpen ? Math.max(0, OPENGAP - (S.week - S.lastOpen)) : 0, L = mlv();
     var canOpen = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L && S.cash >= AREAS[k].cost; });
@@ -8307,7 +8309,7 @@
     bar();
     var y = window.scrollY, list = prods(), half = S.sale ? '（半額）' : '';
     var card = function (p, i) {
-      var t = S.autoStock[p.k] || 0, n = S.stock[p.k] || 0, c5 = costOf(p) * 5, c20 = costOf(p) * 20;
+      var t = S.autoStock[p.k] !== undefined ? S.autoStock[p.k] : (S.autoAll || 0), n = S.stock[p.k] || 0, c5 = costOf(p) * 5, c20 = costOf(p) * 20;
       return '<div class="stk"><div class="stk-h"><span class="stk-sw" style="background:' + p.col + '"></span><b class="stk-nm">' + p.n + '</b>' +
         '<span class="stk-n' + (n <= 1 ? ' low' : '') + '">在庫 <b>' + n + '</b>個</span></div>' +
         '<div class="stk-sub">' + (p.d ? p.d + '<br>' : (p.mine && DEVCAT[p.cat] ? DEVCAT[p.cat].n + (p.cat === 'oil' ? '（アロマのブレンドに使える）' : '') + '<br>' : '')) +
@@ -8319,6 +8321,9 @@
     };
     var html = '', std = [], mine = [];
     list.forEach(function (p, i) { (p.mine ? mine : std).push(card(p, i)); });
+    var allT = S.autoAll || 0, BULK = [0, 6, 10, 20, 30];
+    html += '<div class="stkall box"><b>まとめて自動補充</b><small>すべての商品を同じ数に保つ。あとから増えた商品も、この数で自動補充する（商品ごとに変えることもできる）</small><div class="seg" role="group" aria-label="まとめて自動補充">' +
+      BULK.map(function (v) { return '<button type="button" data-all="' + v + '" aria-pressed="' + (allT === v) + '"' + (allT === v ? ' class="on"' : '') + '>' + (v ? v + '個' : 'しない') + '</button>'; }).join('') + '</div></div>';
     html += '<h2 class="stkgrp">定番の商品</h2>' + std.join('');
     if (mine.length) html += '<h2 class="stkgrp">オリジナル商品</h2>' + mine.join('');
     view('<h1>仕入れ</h1><p class="lead">5個ずつ、または20個まとめて仕入れる。自動補充は、毎月はじめに足りない分を仕入れ値で買い足す。売れ残っても、最後に仕入れ値で資産に数える。' + (S.sale ? '<br>今月は卸の特売で半額。' : '') + '</p>' + html,
@@ -8327,8 +8332,11 @@
       bt.addEventListener('click', function () { var a = bt.getAttribute('data-buy').split(':'), p = list[+a[0]], n = +a[1], c = costOf(p) * n;
         if (S.cash < c) return; pay(c); S.stock[p.k] = (S.stock[p.k] || 0) + n; SFX.coin(); stockView(true); });
     });
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-all]'), function (bt) {
+      bt.addEventListener('click', function () { var v = +bt.getAttribute('data-all'); S.autoAll = v; list.forEach(function (p) { S.autoStock[p.k] = v; }); SFX.click(); stockView(true); });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-auto]'), function (bt) {
-      bt.addEventListener('click', function () { var a = bt.getAttribute('data-auto').split(':'), p = list[+a[0]], d = +a[1], t = S.autoStock[p.k] || 0, i = AUTOSTEP.indexOf(t);
+      bt.addEventListener('click', function () { var a = bt.getAttribute('data-auto').split(':'), p = list[+a[0]], d = +a[1], t = S.autoStock[p.k] !== undefined ? S.autoStock[p.k] : (S.autoAll || 0), i = AUTOSTEP.indexOf(t);
         if (i < 0) i = 0; S.autoStock[p.k] = AUTOSTEP[clamp(i + d, 0, AUTOSTEP.length - 1)]; SFX.click(); stockView(true); });
     });
     if (keep) window.scrollTo(0, y);
@@ -8933,7 +8941,7 @@
   }
   function tMark(v) { return v >= 40 ? '◎' : v >= 30 ? '○' : v >= 20 ? '△' : '×'; }
   // 研修で伸ばす余地がある人（神技・神対応の両方に届いた人は対象外）
-  function trainable(st) { skFix(st); return !onLeave(st) && (st.sk.tech < 6 || st.sk.word < 6); }
+  function trainable(st) { if (st.owner && S.ownerMale) return false; skFix(st); return !onLeave(st) && (st.sk.tech < 6 || st.sk.word < 6); }
   function tCost1(st) { skFix(st); var low = Math.min.apply(null, SKILLS.map(function (x) { return st.sk[x[0]]; })); return 2 * TCOST[clamp(low, 1, 4)] + (low >= 5 ? 2 * TCOST5 : 0); }
   function tGain(st, meth) { var base = meth === 'fit' ? 40 : TEMPER[temperOf(st)].m[meth]; return Math.round(base * (st.trait === 'rookie' ? 1.2 : st.trait === 'vet' ? 0.8 : 1) * (has(st, 'sense') ? 2 : 1) * GIFTMUL[talentOf(st).gift] * (1 + Math.min(0.6, 0.15 * (hqOn() ? deptPow('train') : 0))) * (S && S.ownerMale ? 1.15 : 1)); }
   function tGroups() {
