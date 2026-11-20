@@ -7878,7 +7878,8 @@
     ];
     opts.push({ label: '料金の方針：' + pm().n, sub: pm().d, go: priceView });
     if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店　' : '') + '会社を大きくする', go: function () { stratView(); } });
-    var minBr = (function () { var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
+    // 出店のおすすめは、いま本当に出店できるときだけ（前の出店の準備期間中は出さない）
+    var minBr = (function () { if (S.lastOpen && OPENGAP - (S.week - S.lastOpen) > 0) return 0; var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
     opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); },
       rec: S.cash < burnR * 2 ? '資金が心細い。借りて立て直すと、赤字の月も乗り切れる' : (minBr && S.cash < minBr + burnR * 3 && S.cash >= burnR * 3 && !loanRest() && S.week >= 6) ? '銀行から借りると、2店舗目を早く出せる。お店が増えるほど、会社の成長が早まる' : '' });
     if (cinOn()) opts.push({ label: '集客サイト：コールドシナモン（' + CINPLAN[cinFix().plan].n + (cinFix().cpn ? '・クーポンあり' : '') + '）', sub: 'cold cinnamon。ネット予約サイトに掲載して新規を集める　星★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
