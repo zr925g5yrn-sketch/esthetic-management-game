@@ -1611,9 +1611,11 @@
   function eraText(t) {
     if (!S || !S.startYear || t == null) return t;
     t = String(t); var y = eraY();
+    if (y < 2003) t = t.replace(/口コミサイト/g, '雑誌の読者投稿');
+    if (y < 1995) t = t.replace(/メールで/g, '手紙で').replace(/メール/g, '手紙');
     if (y < 2012) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
     if (y < 2023) t = t.replace(/AI(?=[がにのへ])/g, '受付スタッフ');
-    if (!snsOn()) t = t.replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して伸ばす。人数が多いほどバズりやすく、取材も来やすい/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる。人数が多いほど、雑誌やテレビの取材が来やすい');
+    if (!snsOn()) t = t.replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/SNS広告/g, 'チラシ').replace(/SNSに載せたら/g, '雑誌に話したら').replace(/SNSに/g, '口コミで').replace(/SNSで/g, '口コミで').replace(/写真が拡散して、/g, '評判が広まって、').replace(/フォロワー/g, 'お店のファン').replace(/インフルエンサー/g, '人気の読者モデル').replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して伸ばす。人数が多いほどバズりやすく、取材も来やすい/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる。人数が多いほど、雑誌やテレビの取材が来やすい');
     return t;
   }
   // 時代の景気（予算と、新しいお客様の数）
@@ -1716,7 +1718,7 @@
   var SEASONWK = { s_sakura: 4, s_mother: 5, s_june: 6, s_summer: 7, s_obon: 8, s_moon: 9, s_halloween: 10, s_bonus: 11, s_xmas: 12, s_newyear: 1, s_valentine: 2, s_white: 3 };
   function seasonEvent() {
     var w = monthOf();
-    return Object.keys(SEASONWK).filter(function (k) { return SEASONWK[k] === w && (!S.seasonDone || S.seasonDone[k] !== yearOf()); })[0] || null;
+    return Object.keys(SEASONWK).filter(function (k) { return SEASONWK[k] === w && (k !== 's_halloween' || eraY() >= 2005) && (!S.seasonDone || S.seasonDone[k] !== yearOf()); })[0] || null;
   }
   var SEASONCH = {};
   function crewAll() { return allStaff().filter(function (st) { return !st.owner; }); }
@@ -2501,7 +2503,7 @@
         '<button class="snd" id="snd" type="button"></button>' +
         '<span class="sub"><span>評判 ' + '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5 - full) + '</span>' +
         '<span>常連 ' + S.clients.filter(function (c) { return c.active; }).length + '人</span>' +
-        '<span>人間力 ' + S.hum + '</span><span>' + (S.gen > 1 ? S.gen + '代目・' : '') + ownerAge() + '歳</span>' + (S.sns && S.sns.f ? '<span>フォロワー ' + fmtN(S.sns.f) + '</span>' : '') + (S.shops.length ? '<span>店舗 ' + (1 + S.shops.length) + '</span>' : '<span>スタッフ ' + S.staff.length + '人</span>') + '</span>';
+        '<span>人間力 ' + S.hum + '</span><span>' + (S.gen > 1 ? S.gen + '代目・' : '') + ownerAge() + '歳</span>' + (S.sns && S.sns.f ? '<span>' + (snsOn() ? 'フォロワー ' : 'ファン ') + fmtN(S.sns.f) + '</span>' : '') + (S.shops.length ? '<span>店舗 ' + (1 + S.shops.length) + '</span>' : '<span>スタッフ ' + S.staff.length + '人</span>') + '</span>';
     }
     var tb = $('toTitle');
     if (tb) tb.addEventListener('click', function () { SFX.click(); askTitle(); });
@@ -4274,7 +4276,7 @@
   function applyHero(h) {
     var o = S.staff[0], P = PERSONA[h.persona] || {};
     S.ownerName = h.name; S.persona = h.persona;
-    if (h.male) { S.ownerMale = true; S.ownerLook = { style: 'short', top: '#2E3A52', bottom: '#2E3A52', uniform: false }; Object.assign(OWNER_LOOK, OWNER_LOOK0, S.ownerLook); }
+    if (h.male) { S.cash += 500000; S.ownerMale = true; S.ownerLook = { style: 'short', top: '#2E3A52', bottom: '#2E3A52', uniform: false }; Object.assign(OWNER_LOOK, OWNER_LOOK0, S.ownerLook); }
     Object.keys(P.sk || {}).forEach(function (k) { o.sk[k] = Math.min(5, o.sk[k] + P.sk[k]); });
     skFix(o);
     if (P.sp) o.sp = [P.sp];
@@ -4377,7 +4379,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth(); healthMonth();
+    ageMonth(); uniSync(); machMonth(); healthMonth(); S.holNote = null;
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -4449,8 +4451,9 @@
     var lf = S.lifeKey ? lifeOf(S.lifeKey) : null;
     var life = lf ? '<div class="event life box"><span class="badge">' + (lf.era ? '時代のできごと　' + nowYear() + '年' : 'あなたの暮らし') + '</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
-    var head = '<h1>' + calOf(S.week) + '</h1>' + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
+    var head = '<h1>' + calOf(S.week) + '</h1>' + (S.holNote ? '<div class="news good"><b>あなたの休日：' + S.holNote[0] + '</b><br>' + S.holNote[1] + '</div>' : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
     if (S.newsPending && S.newsItem) return newsView();
+    if (S.holPending && S.holAuto) holAuto();
     if (S.holPending) { evScene([]); return holidayView(); }
     var only = '<h1>' + calOf(S.week) + '</h1>';
     // 選んだ直後は、その結果だけを見せる
@@ -4465,7 +4468,7 @@
     var opts = [{ main: true, label: S.queue.length ? (S.autoMode ? '営業を始める（おまかせ）' : '最初のお客様を迎える') : '今月の営業を終える',
       sub: S.queue.length && S.autoMode ? '特別なお客様だけ、あなたが接客する' : '', go: S.queue.length ? nextCust : night }];
     if (S.queue.length) opts.push({ label: S.autoMode ? 'ひとりずつ自分で迎えるモードにする' : 'スタッフにおまかせにする',
-      sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : 'セレブや取材など特別なお客様だけ自分で対応し、あとは自動で進む',
+      sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : S.ownerMale ? '担当を決めずに、すべて自動で進む' : 'セレブや取材など特別なお客様だけ自分で対応し、あとは自動で進む',
       go: function () { S.autoMode = !S.autoMode; weekIntro(); } });
     view(head + list, opts);
   }
@@ -5243,18 +5246,27 @@
   }
   function holidayView() {
     bar();
+    var all = holOpts(), keep = [], rest = [], seed = S.week;
+    all.forEach(function (a, i) { (/季節限定/.test(a.sub || '') || i < (S.holInv ? 1 : 0) || /家族|デート|犬|レコード|CD|ビデオ|ボウリング|ディスコ|キャンプ|MD|DVD|ジュークボックス|動画配信|マラソン|山ガール|歴史|女子会|カメラ|シール|喫茶店/.test(a.label) ? keep : rest).push(a); });
+    rest = rest.filter(function (a) { return a.label !== '家でのんびりする'; }).sort(function (x, y) { return (hashOf(x.label + seed) % 97) - (hashOf(y.label + seed) % 97); });
+    var shown = keep.slice(0, 6).concat(rest.slice(0, Math.max(2, 8 - Math.min(6, keep.length)))).concat(all.filter(function (a) { return a.label === '家でのんびりする'; }));
     view('<h1>今日は何する？</h1><p class="lead">お店のお休みの日。疲れが70をこえると施術の質が落ち、90をこえると寝こんで1か月お店に立てない。体力が高いほど疲れがたまりにくい。</p>' + fatigueBars(),
-      holOpts().map(function (a) {
+      shown.map(function (a) {
         S.holSeen = S.holSeen || {};
         return { label: a.label + (a.cost ? '　' + yen(a.cost) : ''), sub: '', off: a.cost > 0 && S.cash < a.cost, go: function () {
           S.holSeen[a.label] = true;
           if (a.cost) pay(a.cost);
-          var res = a.r(); S.holPending = false; S.holInv = null; SFX.good(); S.holPic = holPic(res[0]); evScene([S.holPic]);
-          bar();
-          view('<h1>今日のできごと</h1><div class="event life box"><span class="badge">あなたの休日</span><h2>' + res[0] + '</h2><p>' + res[1] + '</p></div>' + fatigueBars(),
-            [{ main: true, label: 'お店へ', go: weekIntro }]);
+          var res = a.r(); S.holPending = false; S.holInv = null; SFX.good(); S.holPic = holPic(res[0]); S.holNote = res; weekIntro();
         } };
-      }));
+      }).concat([{ label: 'これからは、おまかせにする', sub: '毎月、疲れぐあいに合わせて過ごし方を選んでくれる（あとで「そのほか」から戻せる）', go: function () { S.holAuto = true; holAuto(); weekIntro(); } }]));
+  }
+  // 休日のおまかせ：疲れているときは休めるものを、そうでなければ、お金の足りるものから選ぶ
+  function holAuto() {
+    var L = holOpts().filter(function (a) { return !(a.cost > 0 && S.cash < a.cost * 3) && !/勧誘|投資話|セミナー|連絡が来た/.test(a.label); });
+    if (!L.length) L = holOpts().filter(function (a) { return !a.cost; });
+    var a = (S.fatigue || 0) >= 50 ? L.filter(function (x) { return /のんびり|スパ|温泉|家族/.test(x.label); })[0] || L[0] : pick(L);
+    S.holSeen = S.holSeen || {}; S.holSeen[a.label] = true; if (a.cost) pay(a.cost);
+    var res = a.r(); S.holPending = false; S.holInv = null; S.holPic = holPic(res[0]); S.holNote = res;
   }
   function lifeChoices() {
     var e = lifeOf(S.lifeKey);
@@ -5911,6 +5923,8 @@
     if (k === 'reporter') return (y < 2000 ? 2 : y < 2012 ? 1.5 : 0.8) * pr;
     if (k === 'tvshow') return y < 2010 ? (y < 2000 ? 1.5 : 1) * pr : 0.3 * pr;
     if (k === 'webnews') return y >= 2000 && y < 2015 ? pr : 0;
+    if (k === 'ekarte') return y >= 2000 ? 1 : 0;
+    if (k === 'review') return y >= 2003 ? 1 : 0.4;
     if (k === 'influencer') return !snsOn() ? 0 : (y < 2012 ? 0.5 : 1) * pr;
     return 1;
   }
@@ -7184,6 +7198,7 @@
         else msg = '楽しい夜だったが、仕事の話は特にまとまらなかった。翌朝、少し頭が重い。';
         SFX.coin(); S.trainNote = place + 'で会食した。' + msg + '（疲れ+15）'; curCat = null; investView(); } });
     }
+    if (S.holAuto) opts.push({ label: 'お休みの過ごし方：おまかせ', sub: '自分で選ぶようにもどす', go: function () { S.holAuto = false; SFX.click(); investView(); } });
     opts.push({ label: '公式dot.を見る', sub: 'お客様と取引先からの連絡。AIに返信を任せる：' + (S.dotAI !== false ? 'ON' : 'OFF'), go: function () { dotView(true); } });
     opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。メッセージアプリ（dot.など）で遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
     if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
@@ -7211,7 +7226,7 @@
       S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
-      { label: '発信・記録・そのほか', sub: 'SNS（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]));
+      { label: '発信・記録・そのほか', sub: (snsOn() ? 'SNS' : 'お店の宣伝') + '（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]));
     $('app').insertAdjacentHTML('beforeend', below);
     taskBind(TK); shopSwBind();
   }
@@ -7386,6 +7401,8 @@
       if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.slice(0, 3).join('、') + (emptyD.length > 3 ? 'など' : '') + 'がいない' : ''), go: function () { hqHireView(false); } });
       if (!S.staff.some(function (st) { return st.id === S.mainMgr; }) && S.staff.some(function (st) { return !st.owner; })) T.push({ t: '本店の店長を決める', s: '社長になったので、本店をまかせる人が必要', go: function () { mgrView(); } });
     }
+    var burn = homeRent() + wages() + adCost(), monthsLeft = burn > 0 ? Math.floor(S.cash / burn) : 99;
+    if (S.cash < burn * 2) T.unshift({ t: '資金繰りを見直す', s: S.cash < burn ? '来月の家賃と給与が払えないかもしれない！ 銀行から借りるか、出費を見直そう' : '残りは約' + monthsLeft + 'か月分。借入・広告・人数を見直そう', go: function () { fundView(); } });
     if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
     var asks = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && x.wantTalk; });
     if (asks.length) T.unshift({ t: '面談の申し出に応える', s: asks.map(function (x) { return x.name; }).slice(0, 3).join('・') + 'が相談したがっている', go: careView });
