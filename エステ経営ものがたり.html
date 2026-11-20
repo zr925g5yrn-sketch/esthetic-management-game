@@ -2913,7 +2913,7 @@
     return m === 1 ? it.price : Math.round(it.price * m / 100) * 100;
   }
   function needOf(it) { return it.need - (it.multi && C && C.known && C.known.c2 ? 8 : 0) - (S.week <= (S.rankUntil || 0) && (it.sessions || it.member) ? 8 : 0) - (S.disc && (it.sessions || it.member) ? 12 : 0) - (S.gift && (it.cost || it.prod) ? 15 : 0) + (it.cost || it.prod ? 0 : pm().need); }
-  function costOf(p) { var c = S.cosme ? Math.round(p.cost * 0.7) : p.cost; return S.sale ? Math.round(c / 2) : c; }
+  function costOf(p) { var c = S.cosme ? Math.round(p.cost * 0.7) : p.cost; if (p.mine && S.kobo) c = Math.round(c * 0.85); return S.sale ? Math.round(c / 2) : c; }
   function rollEvent() {
     S.ev = null; S.evPending = false; S.evNote = ''; S.special = null; S.evStaff = null;
     S.disc = S.gift = S.sale = S.storm = false;
@@ -4125,6 +4125,21 @@
       x = reduce ? 50 : (t * 16) % (SW + 40) - 30; y = 24 + wob(700) * 2; R(x, y, 30, 6, '#FFFFFF'); R(x + 30, y + 1, 4, 4, '#FFFFFF'); R(x + 2, y - 5, 4, 6, '#E0567A'); R(x + 12, y + 4, 10, 2, '#D9DCE8'); R(x + 12, y - 2, 8, 2, '#D9DCE8'); for (i = 0; i < 6; i++) R(x + 8 + i * 3, y + 2, 1, 1, '#5AA9E6');
       R(0, 64, SW, 20, '#CFC6BC'); sprite(S && S.queue && S.queue[0] ? S.queue[0].look : guest(1), 40, 48, { face: 'smile' }); R(52, 56, 8, 10, '#E0567A'); R(54, 54, 4, 2, '#2B2238');
       big(meU, 80, 36, 2, { face: 'smile', bow: reduce ? 0 : (Math.floor(t / 1.5) % 2) });
+    } else if (k === 'v_kobo') {
+      R(0, 0, SW, SH, '#F1E6D2'); R(0, 0, SW, 8, '#D9C4A0'); R(0, 62, SW, 22, '#B48A5E'); for (i = 0; i < 8; i++) R(i * 16, 62, 1, 22, '#9C744C');
+      // 工房（ガラスの向こう）
+      R(4, 12, 56, 46, '#DCEEF2'); R(4, 12, 56, 2, '#8E6A4A'); R(4, 56, 56, 2, '#8E6A4A'); R(31, 12, 2, 46, '#8E6A4A');
+      disc(18, 40, 7, '#C8783C'); R(16, 26, 4, 8, '#C8783C'); R(18, 22, 14, 2, '#B0682E'); R(31, 22, 2, 16, '#B0682E'); R(28, 38, 8, 6, '#9FD8F0');
+      var drip = reduce ? 0 : Math.floor(now / 300) % 4; R(32, 39 + drip, 1, 1, '#7FC8E8');
+      for (i = 0; i < 4; i++) { R(38 + i * 5, 46, 3, 7, ['#9ED68A', '#B48CFF', '#F2C230', '#F08DAE'][i]); R(38 + i * 5, 44, 3, 2, '#5C4E6E'); }
+      big(crew(0), 40, 24, 1, {});
+      if (!reduce) { g.globalAlpha = 0.5; for (i = 0; i < 3; i++) R(14 + i * 4, 18 - ((now / 120 + i * 5) % 10), 2, 2, '#FFFFFF'); g.globalAlpha = 1; }
+      // カフェ
+      R(66, 16, 58, 8, '#7FA36E'); R(66, 16, 58, 1, '#5E8A52'); for (i = 0; i < 5; i++) R(70 + i * 11, 24, 6, 3, '#7FA36E');
+      [[72, 50], [100, 50]].forEach(function (tp, j) { R(tp[0], tp[1], 18, 3, '#8E6440'); R(tp[0] + 8, tp[1] + 3, 2, 9, '#6E4A30'); disc(tp[0] + 5, tp[1] - 1, 2, '#FFFFFF'); R(tp[0] + 3, tp[1] - 2, 4, 1, '#7FC49A'); R(tp[0] + 4, tp[1] - 2, 1, 1, '#E0567A'); disc(tp[0] + 13, tp[1] - 1, 2, '#FFFFFF'); R(tp[0] + 12, tp[1] - 2, 3, 1, '#F2C230'); });
+      big(guest(1), 64, 36, 1, { face: 'smile' }); big(guest(3), 116, 36, 1, { face: 'smile' }); big(guest(5), 86, 38, 1, { face: 'smile' });
+      R(110, 28, 10, 14, '#6E4A30'); R(111, 30, 8, 2, '#9ED68A'); R(111, 34, 8, 2, '#F2C230'); R(111, 38, 8, 2, '#E0567A');
+      R(62, 56, 6, 6, '#9C744C'); R(61, 50, 8, 7, '#7FA36E'); R(122, 56, 5, 6, '#9C744C'); R(121, 51, 7, 6, '#5E8A52');
     } else if (k === 'v_oracle') {
       var hero = scene.story.hero || OWNER_LOOK, pulse = reduce ? 0.5 : (Math.sin(now / 700) + 1) / 2;
       for (y = 0; y < SH; y++) R(0, y, SW, 1, y < 30 ? '#14122A' : y < 60 ? '#1C1A36' : '#24213F');
@@ -5906,6 +5921,65 @@
     P.members += Math.max(0, n); P.party = S.week; S.rep = clamp(S.rep + 3, 0, 100);
     showCut({ kicker: 'ペントハウス', title: '夜景のサロンパーティー', sub: n > 0 ? '新しい会員が' + n + '人' : '会員はもう満員', icon: 'star', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, investView);
   }
+  /* --- 地元の工房カフェ：自社商品をつくる工房を見学でき、精油づくり体験と、地元の食材のカフェもある --- */
+  var KOBOCOST = 30000000, FARMCOST = 300000, FARMMON = 50000, FARMMAX = 4;
+  // 産地の素材（生産者さんとつながると、商品開発で使える）
+  var SANCHI = [
+    { k: 'gagome', n: 'がごめ昆布', pref: ['北海道'], area: '北海道の海辺', cats: ['skin', 'mask', 'hair'], d: 'ねばりのある成分が、肌のうるおいを守る' },
+    { k: 'lav', n: 'ラベンダー', pref: ['北海道'], area: '北海道の丘', cats: ['aroma', 'oil', 'scent'], d: '心を落ち着かせる、やさしい香り' },
+    { k: 'apple', n: 'りんご', pref: ['青森県', '長野県'], area: '東北と信州の果樹園', cats: ['skin', 'inner', 'body'], d: '果実のエキスで、すこやかな肌に' },
+    { k: 'nuka', n: '米ぬか', pref: ['秋田県', '山形県', '新潟県', '宮城県'], area: '米どころの田んぼ', cats: ['skin', 'body', 'mask'], d: '昔ながらの、しっとりやわらかな肌へ' },
+    { k: 'sakekasu', n: '酒かす', pref: ['新潟県', '兵庫県', '広島県'], area: '酒蔵', cats: ['skin', 'mask'], d: '透明感のある肌に' },
+    { k: 'tea', n: '緑茶', pref: ['静岡県', '京都府'], area: '茶畑', cats: ['skin', 'inner', 'uv'], d: 'さっぱりと、肌を引きしめる' },
+    { k: 'tsubaki', n: '椿油', pref: ['東京都', '長崎県', '静岡県'], area: '椿の島', cats: ['hair', 'body', 'oil'], d: 'つややかな髪と肌に' },
+    { k: 'hinoki', n: 'ひのき', pref: ['岐阜県', '奈良県', '長野県'], area: '山の森', cats: ['aroma', 'oil', 'scent'], d: '森林浴のような、すがすがしい香り' },
+    { k: 'yuzu', n: 'ゆず', pref: ['高知県', '徳島県'], area: '四国の山あい', cats: ['aroma', 'oil', 'body'], d: 'さわやかで、元気が出る香り' },
+    { k: 'mikan', n: 'みかん', pref: ['愛媛県', '和歌山県', '静岡県'], area: '海の見えるみかん畑', cats: ['inner', 'aroma', 'scent'], d: 'あまずっぱい、明るい香り' },
+    { k: 'getto', n: '月桃', pref: ['沖縄県'], area: '南の島', cats: ['skin', 'aroma', 'oil'], d: '南の島のハーブ。すこやかな肌に' },
+    { k: 'salt', n: '海塩', pref: ['沖縄県', '石川県', '高知県'], area: '塩田', cats: ['body', 'scent'], d: 'ミネラルたっぷりで、体をすっきり' }
+  ];
+  function homePref() { return (S.home && S.home.pref) || S.homePref || ''; }
+  function koboOn() { return S.shops.length >= 2 && S.myProds.length >= 1; }
+  function farmN() { return Object.keys(S.farms || {}).length; }
+  function sanchiLocal(x) { return x.pref.indexOf(homePref()) >= 0; }
+  function koboOpts() {
+    if (S.kobo) return [{ label: '地元の工房カフェ', sub: '見学・精油づくり体験・地元の食材のカフェ　産地の生産者さん ' + farmN() + '／' + FARMMAX, go: function () { koboView(); } }];
+    if (!S.shops.length) return [];
+    return [{ label: '地元に工房カフェをつくる　' + yen(KOBOCOST), sub: koboOn() ? '自社商品をつくる工房を、一般の人も見学できる。精油づくり体験と、地元の食材のカフェも' : '支店2つと、オリジナル商品1つ以上でつくれる', off: !koboOn() || S.cash < KOBOCOST, go: function () {
+      pay(KOBOCOST); S.kobo = { since: S.week, visitors: 0 }; S.farms = S.farms || {}; mxpAdd(80); hum(5); S.rep = clamp(S.rep + 5, 0, 100);
+      evScene(['v_kobo']);
+      showCut({ kicker: 'グランドオープン', title: (S.brand ? S.brand + 'の' : '') + '工房カフェ', sub: '地元の人が、のんびり集まれる場所', icon: 'shop', c1: '#7FA36E', c2: '#5E8A52', sound: function () { SFX.fanfare(true); } }, function () { koboView('工房カフェが完成した。ガラス越しに、商品ができるまでを見学できる。'); }); } }];
+  }
+  // 工房カフェの1か月
+  function koboMonth() {
+    var K = S.kobo; if (!K) return null;
+    var mo = monthOf(), season = [5, 8, 10, 11].indexOf(mo) >= 0 ? 1.3 : [1, 2].indexOf(mo) >= 0 ? 0.7 : 1;
+    var v = Math.round((200 + S.rep * 6 + brandN() * 60 + farmN() * 80) * season * (0.85 + rnd() * 0.3));
+    var avg = S.myProds.reduce(function (a, x) { return a + x.price; }, 0) / Math.max(1, S.myProds.length);
+    var cafe = Math.round(v * 0.45 * 1300), work = Math.round(v * 0.08 * 3500), shop = Math.round(v * 0.06 * avg * 0.5);
+    var cost = 900000 + farmN() * FARMMON + v * 150, sales = cafe + work + shop;
+    K.visitors = v; K.total = (K.total || 0) + v;
+    if (v >= 600) S.rep = clamp(S.rep + 1, 0, 95);
+    S.ad = (S.ad || 0) + 1;
+    // 生産者さんの便り
+    var note = '';
+    if (farmN() && roll(0.12)) { var fk = pick(Object.keys(S.farms)), F = SANCHI.filter(function (x) { return x.k === fk; })[0];
+      if (roll(0.5)) { S.devHelp = 1; note = F.area + 'の生産者さんから「今年の' + F.n + 'は、とびきりいい出来です」と便りが届いた。次の商品開発の品質が上がりやすい。'; }
+      else { cost += 50000; hum(2); note = '台風で、' + F.area + 'の' + F.n + 'の収穫が減ってしまった。仕入れ値を上乗せして、生産者さんを支えた。（' + yen(50000) + '、人間力+2）'; } }
+    return { visitors: v, cafe: cafe, work: work, shop: shop, sales: sales, cost: cost, net: sales - cost, note: note };
+  }
+  function koboView(note) {
+    bar(); evScene(['v_kobo']);
+    var K = S.kobo, r = S.wk && S.wk.kobo, hp = homePref();
+    view('<h1>' + (S.brand ? S.brand + 'の' : '') + '工房カフェ</h1><p class="lead">' + (hp || '地元') + 'の、みんなが安らげる場所。ガラス越しに商品づくりを見学でき、精油づくりの体験と、地元の野菜を使ったカフェがある。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+      (r ? '<div class="box" style="padding:10px 12px"><dl class="hcond"><dt>先月の来場</dt><dd>' + fmtN(r.visitors) + '人</dd><dt>カフェ</dt><dd>' + yen(r.cafe) + '</dd><dt>精油づくり体験</dt><dd>' + yen(r.work) + '</dd><dt>商品の販売</dt><dd>' + yen(r.shop) + '</dd><dt>収支</dt><dd>' + yen(r.net) + '</dd></dl></div>' : '') +
+      '<p class="lead">自社の工房でつくるので、オリジナル商品の仕入れ値が15%安く、品質も上がりやすい。地域の生産者さんとつながると、その土地の素材で商品を開発できる。</p>',
+      SANCHI.map(function (x) {
+        var has = S.farms && S.farms[x.k], loc = sanchiLocal(x), c = loc ? FARMCOST / 2 : FARMCOST;
+        return { sec: '産地の生産者さん（' + farmN() + '／' + FARMMAX + '）', label: (has ? '✓ ' : '') + x.area + 'の' + x.n + (loc ? '（地元）' : '') + (has ? '' : '　' + yen(c)), sub: x.d + (has ? '　つながって' + Math.max(1, Math.floor((S.week - has.since) / 12) + 1) + '年目' : '　毎月の仕入れ ' + yen(FARMMON)),
+          off: !!has || farmN() >= FARMMAX || S.cash < c, go: function () { pay(c); S.farms[x.k] = { since: S.week }; hum(loc ? 3 : 2); SFX.good(); koboView(x.area + 'の生産者さんを訪ね、' + x.n + 'を分けてもらえることになった。商品開発で使える。'); } };
+      }).concat([{ main: true, label: 'もどる', go: investView }]));
+  }
   function phOpts() {
     if (!S.ph) {
       if (!hasTier('city')) return [];
@@ -6671,7 +6745,7 @@
     var opts = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone; }).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '</option>'; }).join('');
     view('<h1>商品開発</h1><p class="lead">店のオリジナル商品を作る。完成まで2か月。品質はスタッフの施術の腕と、あなたの人間力で決まる。良い品はよく売れ、話題にもなる。最大' + MAXMINE + '品。</p>' +
       '<div class="form"><label>商品名<input id="dvName" type="text" maxlength="12" autocomplete="off"></label>' +
-      '<label>種類<select id="dvCat">' + opts + '</select></label><p class="dvinfo" id="dvInfo"></p></div>' + brandHtml() + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
+      '<label>種類<select id="dvCat">' + opts + '</select></label>' + (S.farms && farmN() ? '<label>産地の素材<select id="dvMat"><option value="">使わない</option>' + SANCHI.filter(function (x) { return S.farms[x.k]; }).map(function (x) { return '<option value="' + x.k + '">' + x.area + 'の' + x.n + '</option>'; }).join('') + '</select></label>' : '') + '<p class="dvinfo" id="dvInfo"></p></div>' + brandHtml() + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
       [{ label: '標準で開発する　' + yen(150000), sub: '2か月で完成', off: S.cash < 150000, go: function () { startDev(0, 150000); } },
        { label: 'こだわって開発する　' + yen(300000), sub: '2か月で完成。品質が上がりやすい', off: S.cash < 300000, go: function () { startDev(1, 300000); } },
       ].concat(S.myProds.map(function (p) {
@@ -6704,8 +6778,9 @@
     el.innerHTML = '<span class="stk-fit">合うお悩み：' + fitText2(sel.value) + '</span><br>売値の目安 ' + yen(D.price) + (D.d ? '<br>' + D.d : '');
   }
   function startDev(plus, cost) {
-    var cat = $('dvCat').value, name = clean($('dvName').value) || 'オリジナル' + DEVCAT[cat].n;
-    pay(cost); S.dev = { name: name, cat: cat, left: 2, plus: plus + (S.devHelp ? 1 : 0) }; S.devHelp = 0; SFX.hire(); investView();
+    var cat = $('dvCat').value, mat = $('dvMat') ? $('dvMat').value : '', M = SANCHI.filter(function (x) { return x.k === mat; })[0];
+    var name = clean($('dvName').value) || (M ? M.n + 'の' + DEVCAT[cat].n : 'オリジナル' + DEVCAT[cat].n);
+    pay(cost); S.dev = { name: name, cat: cat, mat: mat, left: 2, plus: plus + (S.devHelp ? 1 : 0) }; S.devHelp = 0; SFX.hire(); investView();
   }
   // 開発中の商品を1か月進める。完成したら商品を返す
   function devTick() {
@@ -6714,11 +6789,12 @@
     if (S.dev.left > 0) { S.news.push({ t: '新商品「' + S.dev.name + '」を開発中。あと' + S.dev.left + 'か月。' }); return null; }
     var d = S.dev, cat = DEVCAT[d.cat], all = allStaff();
     var tech = all.reduce(function (a, st) { return a + st.tech; }, 0) / all.length;
-    var q = clamp(Math.round(1.6 + rnd() * 2 + (tech - 2) * 0.4 + d.plus + (S.hum - 30) / 40), 1, 5);
+    var M = SANCHI.filter(function (x) { return x.k === d.mat; })[0], mfit = M && M.cats.indexOf(d.cat) >= 0;
+    var q = clamp(Math.round(1.6 + rnd() * 2 + (tech - 2) * 0.4 + d.plus + (S.hum - 30) / 40 + (S.kobo ? 0.5 : 0) + (M ? (mfit ? 1.5 : 0.7) : 0)), 1, 5);
     var p = { k: 'my' + (S.uid++), n: d.name, cost: Math.round(cat.cost * (0.9 + 0.05 * q)), price: Math.round(cat.price * (0.85 + 0.1 * q) / 100) * 100,
-      need: cat.need - 3 * q, tier: cat.tier, col: cat.col, cap: cat.cap, q: q, mine: true, cat: d.cat };
+      need: cat.need - 3 * q, tier: cat.tier, col: cat.col, cap: cat.cap, q: q, mine: true, cat: d.cat, mat: M ? M.area + 'の' + M.n : '' };
     S.myProds.push(p); S.stock[p.k] = 5; S.dev = null;
-    S.news.push({ good: true, t: '新商品「' + p.n + '」が完成した。品質' + q + '。最初の5個が棚に並んだ。' });
+    S.news.push({ good: true, t: '新商品「' + p.n + '」が完成した。品質' + q + '。' + (p.mat ? p.mat + 'を使った、こだわりの品。' : '') + '最初の5個が棚に並んだ。' });
     if (q >= 4) { S.rep = clamp(S.rep + 4, 0, 100); S.buzz = { until: S.week + 2, n: 2 }; S.news.push({ good: true, t: '「' + p.n + '」が話題になり、評判が上がった。しばらく新規が増える。' }); }
     return p;
   }
@@ -7179,6 +7255,8 @@
       S.wk.brProd = S.wk.branch.reduce(function (a, r) { return a + (r.prod || 0); }, 0);
       S.wk.ph = phWeek();
       if (S.wk.ph) { S.cash += S.wk.ph.net; S.total.sales += S.wk.ph.sales; S.total.cost += S.wk.ph.cost; }
+      S.wk.kobo = koboMonth();
+      if (S.wk.kobo) { S.cash += S.wk.kobo.net; S.total.sales += S.wk.kobo.sales; S.total.cost += S.wk.kobo.cost; if (S.wk.kobo.note) S.wk.stratNote = (S.wk.stratNote || []).concat([{ t: S.wk.kobo.note }]); }
       S.wk.branch.forEach(function (r) { S.cash += r.net; S.total.sales += r.sales - r.refund; S.total.cost += r.cost; S.total.served += r.served; S.total.sold += r.sold; });
       S.wk.opName = S.opShop && opBranch() ? opBranch().name : null;
       if (S.opShop) opLeave(hb);
@@ -7195,7 +7273,7 @@
       S.wk.mgrNotes = (S.wk.branch || []).filter(function (r) { return r.mgr; }).map(function (r) { return shortShop(r.name) + '（' + r.mgr.name + '）…' + r.mgr.note; });
       spAuto();
       godAuto();
-      var allNet = S.wk.sales - S.wk.refund - S.wk.cost + S.wk.branch.reduce(function (a, r) { return a + r.net; }, 0) + (S.wk.ph ? S.wk.ph.net : 0);
+      var allNet = S.wk.sales - S.wk.refund - S.wk.cost + S.wk.branch.reduce(function (a, r) { return a + r.net; }, 0) + (S.wk.ph ? S.wk.ph.net : 0) + (S.wk.kobo ? S.wk.kobo.net : 0);
       S.wk.all = allNet;
       mxpAdd(20 + clamp(Math.round(allNet / 20000), 0, 50) + 5 * S.shops.length);
       S.yrSales = (S.yrSales || 0) + S.wk.sales + S.wk.branch.reduce(function (a, r) { return a + r.sales; }, 0) + (S.wk.ph ? S.wk.ph.sales : 0);
@@ -7226,7 +7304,7 @@
   }
   function ledger() {
     var w = S.wk, net = w.sales - w.refund - w.cost, br = w.branch || [];
-    var ph = w.ph, all = net + br.reduce(function (a, r) { return a + r.net; }, 0) + (ph ? ph.net : 0);
+    var ph = w.ph, all = net + br.reduce(function (a, r) { return a + r.net; }, 0) + (ph ? ph.net : 0) + (w.kobo ? w.kobo.net : 0);
     S.wk.allNet = all;
     return '<div class="slip box"><dl>' +
       (w.base ? '<dt>通常営業（' + w.base.n + '名）</dt><dd>' + yen(w.base.sales) + '</dd>' : '') +
@@ -7248,6 +7326,7 @@
       (w.base ? '<dt>材料・光熱費</dt><dd class="minus">' + yen(-w.base.cost) + '</dd>' : '') +
       '<div class="sum"></div><dt class="big">' + (br.length ? '本店の収支' : '今月の収支') + '</dt><dd class="big' + (net < 0 ? ' minus' : '') + '">' + yen(net) + '</dd>' +
       br.map(function (r) { return '<dt>' + r.name + '（来店' + r.served + '人' + (r.turned ? '・お断り' + r.turned + '人' : '') + (r.fx ? '・為替×' + r.fx.toFixed(2) : '') + (r.season ? '・' + r.season : '') + (r.prod ? '・物販' + yen(r.prod) : '') + (r.hotel ? '・ホテルへ' + yen(r.hotel) : '') + (r.hm && (r.hm.join || r.hm.renew || r.hm.left) ? '・ホテル会員 入会' + r.hm.join + '人 更新' + r.hm.renew + '人' + (r.hm.left ? ' 退会' + r.hm.left + '人' : '') : '') + '）</dt><dd class="' + (r.net < 0 ? 'minus' : '') + '">' + yen(r.net) + '</dd>'; }).join('') +
+      (w.kobo ? '<dt>工房カフェ（来場' + fmtN(w.kobo.visitors) + '人）</dt><dd class="' + (w.kobo.net < 0 ? 'minus' : '') + '">' + yen(w.kobo.net) + '</dd>' : '') +
       (ph ? '<dt>ペントハウス（会員' + ph.members + '人' + (ph.join ? '・入会' + ph.join : '') + (ph.gone ? '・退会' + ph.gone : '') + '）</dt><dd class="' + (ph.net < 0 ? 'minus' : '') + '">' + yen(ph.net) + '</dd>' : '') +
       (br.length || ph ? '<div class="sum"></div><dt class="big">全店の収支</dt><dd class="big' + (all < 0 ? ' minus' : '') + '">' + yen(all) + '</dd>' : '') + '</dl>' +
       '<ul class="plain"><li>' + (w.sold.length ? w.sold.join('</li><li>') : '成約なし') + '</li></ul></div>';
@@ -7370,7 +7449,7 @@
     opts.push({ label: 'SNSで発信する', sub: 'フォロワー ' + fmtN(snsFix().f) + '人　今月あと' + snsLeft() + '回', go: function () { snsView(); } });
     if (S.shops.length || S.ph) opts.push({ label: '各店舗を見に行く', sub: '内装や、働いているスタッフの様子を見る', go: function () { visitView(S.shops[0] || 'ph'); } });
     if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: '近所・都心・海外。いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); } });
-    opts = opts.concat(phOpts());
+    opts = opts.concat(phOpts()).concat(koboOpts());
     var renoLeft = [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; });
     if (renoLeft.length) opts.push({ label: '内装のアップデート', sub: renoLeft.map(function (sh) { return (sh ? shortShop(sh.name) : '本店') + ' ' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT; }).join('・'), go: renoView });
     var team = allStaff().filter(function (st) { return !st.owner; });
@@ -7410,11 +7489,11 @@
     opts.forEach(function (o) {
       var l = o.label;
       if (/研修|採用|スタッフと過ごす/.test(l)) CAT.staff.push(o);
-      else if (/仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|本社|資金調達|経営戦略/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
+      else if (/工房|仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|本社|資金調達|経営戦略/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
       else CAT.other.push(o);
     });
     var TITLES = { staff: 'スタッフ', shop: 'お店づくり', other: '発信・記録・そのほか' };
-    var SECOF = function (l) { return /本社|料金の方針|経営戦略|資金調達|広告|名前/.test(l) ? '経営' : /仕入れ|商品開発|内装|店舗|ペントハウス|ホテル/.test(l) ? 'お店と商品' : '設備・機械'; };
+    var SECOF = function (l) { return /本社|料金の方針|経営戦略|資金調達|広告|名前/.test(l) ? '経営' : /工房|仕入れ|商品開発|内装|店舗|ペントハウス|ホテル/.test(l) ? 'お店と商品' : '設備・機械'; };
     CAT.shop.forEach(function (o) { o.sec = SECOF(o.label); });
     var SO = { '経営': 0, 'お店と商品': 1, '設備・機械': 2 };
     CAT.shop = CAT.shop.map(function (o, i) { return [o, i]; }).sort(function (a, b) { return SO[a[0].sec] - SO[b[0].sec] || a[1] - b[1]; }).map(function (x) { return x[0]; });
