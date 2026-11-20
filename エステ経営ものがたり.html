@@ -260,6 +260,7 @@
   .olist > button:disabled::after, details.fold.grp > .opts > button:disabled::after { content: ''; }
   .olist > button:active:not(:disabled), details.fold.grp > .opts > button:active:not(:disabled) { transform: none; box-shadow: none; background: var(--chip); }
   .olist > button.picked, details.fold.grp > .opts > button.picked { background: var(--chip); }
+  .cinlogo { margin: -6px 0 8px; font: italic 700 1.05rem Georgia, 'Times New Roman', serif; letter-spacing: .06em; color: #B0623A; }
   button.rec { position: relative; background: #E8F5EC !important; box-shadow: inset 4px 0 0 #3E9E6A; }
   button.rec .rectag { display: inline-block; margin: 0 0 3px; padding: 0 6px; font-size: .68rem; line-height: 1.6; background: #3E9E6A; color: #FFFFFF; }
   button.rec .recwhy { display: block; color: #2E7A50 !important; font-size: .76rem; }
@@ -6680,7 +6681,7 @@
   function cinCost() { var c = cinFix(); return Math.round(CINPLAN[c.plan].cost * (1 + 0.5 * S.shops.length) / 1000) * 1000; }
   function cinView(note) {
     bar(); var c = cinFix();
-    view('<h1>コールドシナモン</h1><p class="lead">美容室やサロンを探して、そのままネットで予約できるサイト。掲載すると、サイトを見た新しいお客様が来てくれる。いまの星：<b>★' + cinStar().toFixed(1) + '</b>（評判が上がるほど高くなり、4.5以上だと選ばれやすい）。</p>' +
+    view('<h1>コールドシナモン</h1><p class="cinlogo">cold cinnamon</p><p class="lead">美容室やサロンを探して、そのままネットで予約できるサイト。掲載すると、サイトを見た新しいお客様が来てくれる。いまの星：<b>★' + cinStar().toFixed(1) + '</b>（評判が上がるほど高くなり、4.5以上だと選ばれやすい）。</p>' +
       (note ? '<div class="news good">' + note + '</div>' : '') + '<p class="lead">費用は毎月かかり、店舗が多いほど高くなる。</p>',
       CINPLAN.map(function (P, i) {
         var cost = Math.round(P.cost * (1 + 0.5 * S.shops.length) / 1000) * 1000;
@@ -7880,7 +7881,7 @@
     var minBr = (function () { var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
     opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); },
       rec: S.cash < burnR * 2 ? '資金が心細い。借りて立て直すと、赤字の月も乗り切れる' : (minBr && S.cash < minBr + burnR * 3 && S.cash >= burnR * 3 && !loanRest() && S.week >= 6) ? '銀行から借りると、2店舗目を早く出せる。お店が増えるほど、会社の成長が早まる' : '' });
-    if (cinOn()) opts.push({ label: '集客サイト：コールドシナモン（' + CINPLAN[cinFix().plan].n + (cinFix().cpn ? '・クーポンあり' : '') + '）', sub: 'ネット予約サイトに掲載して新規を集める　星★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
+    if (cinOn()) opts.push({ label: '集客サイト：コールドシナモン（' + CINPLAN[cinFix().plan].n + (cinFix().cpn ? '・クーポンあり' : '') + '）', sub: 'cold cinnamon。ネット予約サイトに掲載して新規を集める　星★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
       rec: !cinFix().plan && S.cash >= burnR * 3 ? 'ネットでサロンを探して予約する人が増えている。掲載すると新規が安定して来る' : '' });
     opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView, rec: !(S.adLv || 0) && !S.turnedWk && S.week >= 2 && S.cash >= burnR * 4 ? '新規のお客様が増えると、常連さんとコースの売上も育つ' : '' });
     if (S.hq) opts.unshift({ label: '本社（' + HQLV[S.hq.lv - 1].n + '）', sub: '部署・本社のスタッフ・本社の移転・本店の店長', go: function () { hqView(); } });
