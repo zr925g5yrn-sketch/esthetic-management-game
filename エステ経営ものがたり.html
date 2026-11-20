@@ -3219,8 +3219,10 @@
     allStaff().forEach(function (st) { st.sick = st.restWeek === S.week; st.tired = false; });
     if (S.away === S.week || (S.awayUntil && S.week <= S.awayUntil)) S.staff[0].sick = true;
     if (S.tiredWeek === S.week) S.staff[0].tired = true;
-    if (S.week > 1 && S.fatigue >= 90) { S.staff[0].sick = true; S.fatigue = clamp(S.fatigue - 30, 0, 100); S.news.push({ bad: true, t: '疲れが限界をこえて、あなたは寝こんでしまった。今月は店に立てない。' }); }
-    else if (S.week > 1 && S.fatigue >= 70) { S.staff[0].tired = true; S.news.push({ bad: true, t: '疲れがたまっていて、今月は施術に身が入りにくい。お休みの日に体を休めよう。' }); }
+    if (S.week > 1 && S.fatigue >= 90) { S.staff[0].sick = true; S.fatigue = clamp(S.fatigue - 30, 0, 100); S.news.push({ bad: true, t: S.ownerMale ? '疲れが限界をこえて、あなたは寝こんでしまった。今月はお店にも本社にも出られない。特別なお客様のおもてなしもできない。' : '疲れが限界をこえて、あなたは寝こんでしまった。今月は店に立てない。' }); }
+    else if (S.week > 1 && S.fatigue >= 70) { S.staff[0].tired = true;
+      if (S.ownerMale) crewAll().forEach(function (st) { moodUp(st, -3, 0); });
+      S.news.push({ bad: true, t: S.ownerMale ? '疲れがたまっていて、今月は判断がにぶりがち。スタッフへの気配りが行き届かず、みんなのやる気が少し下がった。おもてなしの効果も半分になる。お休みの日に体を休めよう。' : '疲れがたまっていて、今月は施術に身が入りにくい。お休みの日に体を休めよう。' }); }
     // 季節のイベントは、ふつうのできごととは別に毎月起こる
     S.sevKey = seasonEvent(); S.sevPending = !!S.sevKey; S.sevNote = '';
     if (S.sevKey) { S.seasonDone = S.seasonDone || {}; S.seasonDone[S.sevKey] = yearOf(); }
@@ -3444,8 +3446,8 @@
         { label: 'これまで通り受け入れる', sub: '追加で' + yen(30000) + '使ってくれるが、スタッフのやる気が下がる', go: function () {
           S.cash += 30000; S.wk.course += 30000; c.revenue = (c.revenue || 0) + 30000; crew(-12, -4);
           done(c.name + 'さんは追加のコースを買っていったが、スタッフはぐったりしている。'); } },
-        { label: 'これからは自分が担当する', sub: '人間力が上がるが、今月あなたは疲れて施術の質が落ちる', go: function () {
-          S.staff[0].tired = true; hum(3); crew(4, 6); godPt(own(), 'talk', 2);
+        { label: S.ownerMale ? 'これからは自分が窓口になる' : 'これからは自分が担当する', sub: S.ownerMale ? '人間力が上がるが、あなたの疲れがたまる' : '人間力が上がるが、今月あなたは疲れて施術の質が落ちる', go: function () {
+          if (S.ownerMale) fat(15); else S.staff[0].tired = true; hum(3); crew(4, 6); godPt(own(), 'talk', 2);
           done('暴言を正面から受け止めた。くたくただが、スタッフの信頼が上がった。'); } }];
     },
     graduate: function (st, done) {
@@ -5918,7 +5920,7 @@
     all.forEach(function (a, i) { (/季節限定/.test(a.sub || '') || i < (S.holInv ? 1 : 0) || /家族|デート|犬|レコード|CD|ビデオ|ボウリング|ディスコ|キャンプ|MD|DVD|ジュークボックス|動画配信|マラソン|山ガール|歴史|女子会|カメラ|シール|喫茶店/.test(a.label) ? keep : rest).push(a); });
     rest = rest.filter(function (a) { return a.label !== '家でのんびりする'; }).sort(function (x, y) { return (hashOf(x.label + seed) % 97) - (hashOf(y.label + seed) % 97); });
     var shown = keep.slice(0, 6).concat(rest.slice(0, Math.max(2, 8 - Math.min(6, keep.length)))).concat(S.ownerMale ? [dineOpt()] : []).concat([{ label: '美容室で、髪形と髪の色を変える', cost: hairCost(), hair: true }]).concat(all.filter(function (a) { return a.label === '家でのんびりする'; }));
-    view('<h1>今日は何する？</h1><p class="lead">お店のお休みの日。疲れが70をこえると施術の質が落ち、90をこえると寝こんで1か月お店に立てない。体力が高いほど疲れがたまりにくい。</p>' + fatigueBars(),
+    view('<h1>今日は何する？</h1><p class="lead">' + (S.ownerMale ? 'お店のお休みの日。疲れが70をこえると判断がにぶり、スタッフへの気配りやおもてなしが行き届かなくなる。90をこえると寝こんで1か月お店に出られない。' : 'お店のお休みの日。疲れが70をこえると施術の質が落ち、90をこえると寝こんで1か月お店に立てない。') + '体力が高いほど疲れがたまりにくい。</p>' + fatigueBars(),
       shown.map(function (a) {
         S.holSeen = S.holSeen || {};
         if (a.hair) return { label: a.label + '　' + yen(a.cost), sub: '', off: S.cash < a.cost, go: hairView };
@@ -7333,6 +7335,7 @@
     else if (how === 'gift') { C.hostSat = c.vip || c.celeb ? 8 : 4; C.hostInt = 4; notes.push('手土産をとても喜んでくれた（満足度+' + C.hostSat + '）'); }
     else if (how === 'biz') { if (biz) { C.hostSat = 5; C.hostInt = 10; mxpAdd(3); notes.push('事業の話に、身を乗り出して聞いてくれた（満足度+5、経営の経験）'); } else { C.hostSat = -4; C.hostInt = -4; notes.push('くつろぎに来たのに、と少し困った顔をされた（満足度−4）'); } }
     else { C.hostSat = 0; C.hostInt = 0; moodUp(st, 8, 2); notes.push(stName(st) + 'が「任せてもらえた」と張り切った（やる気+8）'); }
+    if (own().tired) { C.hostSat = Math.round((C.hostSat || 0) / 2); C.hostInt = Math.round((C.hostInt || 0) / 2); notes.push('（疲れていて、もてなしの効果は半分）'); }
     var r = autoCore();
     C.hostSat = 0; C.hostInt = 0;
     S.idx++;
@@ -7346,7 +7349,7 @@
     while (S.idx < S.queue.length) {
       var c = S.queue[S.idx];
       if (c.sp && capOf(own()) - own().used > 0) break;
-      if (c.sp && S.ownerMale && c.hosted !== S.week) break;
+      if (c.sp && S.ownerMale && c.hosted !== S.week && !own().sick) break;
       C = c; C.st = null; C.today = null; C.sat = 0;
       var st = pickAuto();
       if (!st) { S.rep = clamp(S.rep - 1, 0, 100); rows.push('<li class="bad"><span>' + nm(c) + '</span><span>担当が空かずお断り</span></li>'); S.idx++; continue; }
