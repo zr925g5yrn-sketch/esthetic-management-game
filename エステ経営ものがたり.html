@@ -9310,6 +9310,8 @@
     if (!S.px3) { (S.myProds || []).forEach(function (p) { p.price *= 3; }); S.px3 = true; }
     if (S.hum === undefined) S.hum = 30;
     if (S.fatigue === undefined) S.fatigue = 20;
+    // 前の版の男性のセーブ：本店の店長がまだ決まっていなければ、いちばん古くからいるスタッフを店長に
+    if (S.ownerMale && !S.staff.some(function (st) { return st.id === S.mainMgr; })) { var m0 = S.staff.filter(function (st) { return !st.owner; })[0]; if (m0) S.mainMgr = m0.id; }
     if (S.stamina === undefined) S.stamina = 40;
     if (!S.life) S.life = { partner: 'none', since: 0, dog: false, baby: false, done: {} };
     PRODUCTS.forEach(function (p) { if (S.stock && S.stock[p.k] === undefined) S.stock[p.k] = 0; });
