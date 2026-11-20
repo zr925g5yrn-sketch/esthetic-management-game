@@ -231,6 +231,7 @@
   .dreply button { margin: 0; padding: 8px 14px; text-align: left; border-radius: 18px; box-shadow: none; border: 2px solid var(--accent); color: var(--ink); background: var(--panel); }
   .dreply button small { display: inline; margin-left: 6px; }
   .dreply button.later { border-color: var(--line); color: var(--sub); text-align: center; }
+  .say.voice { justify-self: center; max-width: 92%; text-align: center; color: #5A4A20; background: radial-gradient(ellipse at center, #FFFBE6 0%, #FFF0C2 100%); border: 2px solid #E8C15A; box-shadow: 0 0 12px rgba(242, 194, 48, .45); letter-spacing: .04em; line-height: 1.8; }
   .say.note { justify-self: center; max-width: 100%; border: 0; background: transparent; color: var(--sub); font-size: .82rem; text-align: center; padding: 0; }
   .say.good { border-color: var(--good); box-shadow: 3px 3px 0 var(--good); }
   .say.bad { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -3946,6 +3947,18 @@
       x = reduce ? 50 : (t * 16) % (SW + 40) - 30; y = 24 + wob(700) * 2; R(x, y, 30, 6, '#FFFFFF'); R(x + 30, y + 1, 4, 4, '#FFFFFF'); R(x + 2, y - 5, 4, 6, '#E0567A'); R(x + 12, y + 4, 10, 2, '#D9DCE8'); R(x + 12, y - 2, 8, 2, '#D9DCE8'); for (i = 0; i < 6; i++) R(x + 8 + i * 3, y + 2, 1, 1, '#5AA9E6');
       R(0, 64, SW, 20, '#CFC6BC'); sprite(S && S.queue && S.queue[0] ? S.queue[0].look : guest(1), 40, 48, { face: 'smile' }); R(52, 56, 8, 10, '#E0567A'); R(54, 54, 4, 2, '#2B2238');
       big(meU, 80, 36, 2, { face: 'smile', bow: reduce ? 0 : (Math.floor(t / 1.5) % 2) });
+    } else if (k === 'v_oracle') {
+      var hero = scene.story.hero || OWNER_LOOK, pulse = reduce ? 0.5 : (Math.sin(now / 700) + 1) / 2;
+      for (y = 0; y < SH; y++) R(0, y, SW, 1, y < 30 ? '#14122A' : y < 60 ? '#1C1A36' : '#24213F');
+      for (i = 0; i < 18; i++) R((i * 37) % SW, (i * 23) % 50, 1, 1, i % 3 ? '#6A6390' : '#B9B2E0');
+      // 天からの光の柱
+      for (y = 0; y < 76; y++) { var hw = 6 + Math.round(y * 0.22); g.globalAlpha = 0.3 + 0.12 * pulse; R(64 - hw, y, hw * 2, 1, '#F2C230'); g.globalAlpha = 0.35 + 0.15 * pulse; R(64 - Math.round(hw / 2), y, hw, 1, '#FFF1B8'); g.globalAlpha = 0.5; R(63, y, 2, 1, '#FFFFFF'); }
+      g.globalAlpha = 1;
+      g.globalAlpha = 0.5 + 0.3 * pulse; disc(64, 74, 16, '#FFF4C0'); g.globalAlpha = 1; R(48, 76, 32, 3, '#C9A227');
+      big(hero, 57, 42, 2, scene.story.done ? { face: 'smile' } : {});
+      for (i = 0; i < 10; i++) { var sy = reduce ? (i * 9) % 70 : ((now / 40 + i * 13) % 74), sx = 64 + Math.round(Math.sin(i * 1.7 + now / 900) * (8 + sy * 0.18)); g.globalAlpha = 0.9; R(sx, sy, 1, 1, i % 2 ? '#FFFFFF' : '#FFE08A'); }
+      g.globalAlpha = 1;
+      if (scene.story.done) { for (i = 0; i < 6; i++) floaty('spark', 40 + i * 9, 30 + (i % 2) * 8, now, i * 0.3, 1); }
     } else if (k === 'v_news') {
       var ic = scene.story.newsIc || 'event', dark = ic === 'quake' || ic === 'virus';
       R(0, 0, SW, SH, dark ? '#C9C2CC' : '#EDE3D6'); R(0, 64, SW, 20, '#B39A82'); R(0, 64, SW, 1, '#8E7660');
@@ -4247,12 +4260,23 @@
       } }, { label: 'もどる', go: function () { slotView(n); } }]);
     setTimeout(function () { try { $('heroName').focus(); } catch (e) {} }, 50);
   }
+  // 天からの声：神々しい光の中で、心に話しかけてくる
+  function oracleScene(h) {
+    var lk = h.male ? { hair: '#2B2238', skin: OWNER_LOOK0.skin, top: '#F4F0E6', bottom: '#5C6E9E', style: 'short' } : { hair: OWNER_LOOK0.hair, skin: OWNER_LOOK0.skin, top: '#F7D6E0', bottom: '#5C4E6E', style: OWNER_LOOK0.style };
+    scene.story = { pic: 'v_oracle', t0: performance.now(), hero: lk };
+  }
   function heroQ(h) {
     if (!h.qs) h.qs = pickQs();
     if (h.i >= h.qs.length) return heroResult(h);
+    oracleScene(h);
+    if (!h.heard) {
+      bar(); SFX.event(false);
+      return view('<h1>不思議な声</h1><div class="talk"><div class="say voice">……聞こえますか。</div><div class="say voice">わたしは、あなたの心の奥に<br>そっと話しかけています。</div><div class="say voice">' + h.name + '。<br>あなたが、どんな人なのか。<br>いくつか、聞かせてください。</div><div class="say voice">思ったとおりに、答えればよいのです。</div></div>',
+        [{ main: true, label: 'はい', go: function () { h.heard = true; heroQ(h); } }]);
+    }
     var q = HEROQ[h.qs[h.i]];
     bar();
-    view('<h1>しつもん ' + (h.i + 1) + '／' + h.qs.length + '</h1><p class="lead">' + h.name + 'さんに聞きます。</p><div class="talk"><div class="say you">' + q[0] + '</div></div>',
+    view('<h1>天からの声　' + (h.i + 1) + '／' + h.qs.length + '</h1><div class="talk"><div class="say voice">' + q[0] + '</div></div>',
       shuffle(q[1].slice()).map(function (a) {
         return { label: a[0], go: function () { Object.keys(a[1]).forEach(function (k) { h.pts[k] = (h.pts[k] || 0) + a[1][k]; }); h.i++; heroQ(h); } };
       }));
@@ -4269,9 +4293,10 @@
     if (P.trust) bon.push('スタッフの信頼+' + P.trust);
     SFX.fanfare(true);
     bar();
-    view('<h1>' + h.name + 'さんの性格は…</h1><div class="event box"><span class="badge">せいかく</span><h2>' + P.n + '</h2><p>' + P.d + '</p><p class="evnote">' + bon.join('、') + '</p></div>',
+    oracleScene(h); if (scene.story) scene.story.done = true;
+    view('<h1>' + h.name + 'さんの性格は…</h1><div class="talk"><div class="say voice">……ありがとう。<br>あなたの心が、よくわかりました。</div></div><div class="event box"><span class="badge">せいかく</span><h2>' + P.n + '</h2><p>' + P.d + '</p><p class="evnote">' + bon.join('、') + '</p></div>',
       [{ main: true, label: '開業までの道のりへ', go: function () { originView(h); } },
-       { label: 'しつもんに答えなおす', go: function () { heroQ({ name: h.name, pref: h.pref, pts: {}, i: 0, qs: pickQs() }); } }]);
+       { label: 'もう一度、声に答える', go: function () { heroQ({ name: h.name, pref: h.pref, male: h.male, heard: true, pts: {}, i: 0, qs: pickQs() }); } }]);
   }
   function applyHero(h) {
     var o = S.staff[0], P = PERSONA[h.persona] || {};
