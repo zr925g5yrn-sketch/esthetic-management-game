@@ -1973,6 +1973,7 @@
     [2004, 11, 'money', '新しいお札が発行', '千円・五千円・一万円札が新しいデザインになった。', ''],
     [2005, 3, 'event', '愛知万博（愛・地球博）が開幕', '「自然の叡智」をテーマにした万博が、愛知で始まった。', ''],
     [2005, 6, 'work', 'クールビズが始まる', '夏はネクタイをはずして、軽い服装で働こうという取り組みが始まった。', ''],
+    [2007, 10, 'beauty', 'サロンをネットで探して予約する時代に', 'このころ、美容室やエステをネットで探して、そのまま予約できるサイトが広がってきた。お店の「集客サイト」から掲載できる。', ''],
     [2006, 7, 'beauty', 'ブログで口コミが広がる時代に', 'このころ、ブログで美容の体験を書く人が増えた。口コミの力が、ますます大きくなっている。', ''],
     [2008, 7, 'tech', 'スマートフォンが日本で発売', '画面をさわって操作する携帯電話が発売され、行列ができた。', ''],
     [2008, 9, 'money', '世界的な金融危機', 'アメリカの大手投資銀行が破綻し、世界中の景気が悪くなった。', ''],
@@ -4904,7 +4905,8 @@
     // 紹介と新規
     var refs = 0;
     S.clients.forEach(function (c) { if (c.loy >= 60 && S.week - c.last <= 3 && roll(0.12 + S.hum / 500)) refs++; });
-    var newN = 1 + Math.floor(S.rep / 25) + adOf().n + webN() + S.ad + (roll(0.5) ? 1 : 0) - (S.storm ? 2 : 0) - (S.week <= S.rivalUntil ? 1 : 0) + (S.week <= S.buzz.until ? S.buzz.n : 0);
+    var cinK = opArea() ? cinN(true) : cinN(false);
+    var newN = 1 + Math.floor(S.rep / 25) + adOf().n + cinK + webN() + S.ad + (roll(0.5) ? 1 : 0) - (S.storm ? 2 : 0) - (S.week <= S.rivalUntil ? 1 : 0) + (S.week <= S.buzz.until ? S.buzz.n : 0);
     if (S.sns && S.sns.f) newN += Math.round(snsQ() * snsFix().mix.tt * 3);
     if (S.concept && CONCEPTS[S.concept]) newN += CONCEPTS[S.concept].cnt || 0;
     if (opArea()) newN += opArea().demand - 2 + fitOf(opBranch().area, S.concept);
@@ -4921,7 +4923,7 @@
     if ((S.taxDipUntil || 0) >= S.week) newN -= 1;
     newN += eraEcon().n;
     newN = Math.max(1, newN + pm().newAdj);
-    S.ad = 0;
+    S.ad = 0; S.cinK = Math.min(cinK, newN);
     if (!S.special && !opArea() && hotelReady()) { var hk2 = hotelNextKey(); S.special = 'hotel'; S.hotelVisit = { k: hk2, week: S.week }; S.hotelNext = S.week + 6;
       S.news.push({ good: true, t: AREAS[hk2].n.replace(/店$/, '') + 'の支配人が、視察を兼ねて予約を入れた。ホテルのスパを任せられるお店を探しているらしい。' }); }
     var cap = totalCap(), keep = Math.max(0, cap - (S.special ? 1 : 0));
@@ -4932,11 +4934,17 @@
     var fresh = [], i;
     for (i = 0; i < refs; i++) fresh.push(makeCustomer(used, true));
     for (i = 0; i < newN; i++) fresh.push(makeCustomer(used, false));
+    // コールドシナモンを見て予約したお客様（クーポンがあると、値段にきびしい人が多い）
+    fresh.filter(function (c) { return !c.ref; }).slice(0, S.cinK || 0).forEach(function (c) {
+      c.cin = true; c.walkin = false; c.via = 'コールドシナモンで予約'; c.grd = clamp(c.grd - 6, 5, 95);
+      if (cinFix().cpn) { c.cpn = true; if (roll(0.5)) c.pers = 'price'; c.budget = Math.max(0, c.budget - (roll(0.4) ? 1 : 0)); }
+    });
     if (!S.special && !opArea() && S.home && S.home.key === 'okinawa' && homeSeason() > 0 && roll(0.35)) S.special = 'inbound';
     if (S.special) fresh.unshift(makeSpecial(used, S.special));
     var room = cap - q.length;
     turned += Math.max(0, fresh.length - room);
     q = q.concat(fresh.slice(0, Math.max(0, room)));
+    S.cpnN = q.filter(function (c) { return c.cpn; }).length;
     if (refs) S.news.push({ good: true, t: '常連さんの紹介で' + refs + '人が予約した。' });
     S.turnedWk = turned;
     if (turned) {
@@ -4965,6 +4973,7 @@
     if (c.celeb) return c.isNew ? 'お忍びの芸能人' : 'お忍びの常連（芸能人）';
     if (c.bride) return '式を控えた花嫁・新規';
     if (c.sns && c.isNew) return (SNSPF[c.sns] ? SNSPF[c.sns].n : 'SNS') + 'を見て来店・新規';
+    if (c.isNew && c.cin) return 'コールドシナモン・新規' + (c.cpn ? '（クーポン）' : '');
     if (c.isNew) return c.ref ? '紹介・新規' : '新規';
     if (c.friend && !c.visits) return '地元の知り合い・開店祝いに5回券';
     if (c.plan) return courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回';
@@ -6134,7 +6143,7 @@
     });
     // 新規
     var fit = fitOf(b.area, b.concept);
-    var demand = Math.max(0, 1 + Math.floor(b.rep / 20) + A.demand + fit + (boss() === 'charisma' ? 1 : 0) + adOf().b + (webN() ? 1 : 0) + (roll(0.5) ? 1 : 0) + pm().newAdj);
+    var demand = Math.max(0, 1 + Math.floor(b.rep / 20) + A.demand + fit + (boss() === 'charisma' ? 1 : 0) + adOf().b + cinN(true) + (webN() ? 1 : 0) + (roll(0.5) ? 1 : 0) + pm().newAdj);
     if (S.covid && S.startYear) demand = Math.round(demand * (nowYear() === 2020 && monthOf() <= 9 ? 0.5 : 0.8));
     var n = Math.min(demand, slots);
     r.turned = demand - n;
@@ -6656,6 +6665,31 @@
     { n: 'テレビCMと駅の看板', d: '本店の新規+6人、支店+3人', cost: 300000, n2: 6, b: 3 }
   ];
   function adOf() { var a = ADLV[S.adLv || 0]; return { n: a.n2, b: a.b }; }
+  /* --- 美容のネット予約サイト「コールドシナモン」（2007年から）。掲載プランと初回クーポンで新規を集める --- */
+  var CINPLAN = [
+    { n: '掲載しない', d: '', cost: 0, n2: 0, b: 0 },
+    { n: 'ライトプラン', d: '店の紹介とネット予約。本店の新規+2人、支店+1人', cost: 30000, n2: 2, b: 1 },
+    { n: 'スタンダードプラン', d: '写真とメニューを充実。本店の新規+3人、支店+2人', cost: 70000, n2: 3, b: 2 },
+    { n: 'プレミアムプラン', d: '検索で上のほうに出る。本店の新規+5人、支店+3人', cost: 140000, n2: 5, b: 3 }
+  ];
+  function cinOn() { return eraY() >= 2007; }
+  function cinFix() { S.cin = S.cin || { plan: 0, cpn: false }; if (!cinOn()) S.cin.plan = 0; return S.cin; }
+  // サイトの星（5点満点）：お店の評判から。高いほど選ばれやすい
+  function cinStar() { return Math.round(Math.min(5, 2.8 + (S.rep || 0) / 45) * 10) / 10; }
+  function cinN(branch) { var c = cinFix(), P = CINPLAN[c.plan]; if (!c.plan) return 0; return (branch ? P.b : P.n2) + (c.cpn && !branch ? 2 : 0) + (cinStar() >= 4.5 ? 1 : 0); }
+  function cinCost() { var c = cinFix(); return Math.round(CINPLAN[c.plan].cost * (1 + 0.5 * S.shops.length) / 1000) * 1000; }
+  function cinView(note) {
+    bar(); var c = cinFix();
+    view('<h1>コールドシナモン</h1><p class="lead">美容室やサロンを探して、そのままネットで予約できるサイト。掲載すると、サイトを見た新しいお客様が来てくれる。いまの星：<b>★' + cinStar().toFixed(1) + '</b>（評判が上がるほど高くなり、4.5以上だと選ばれやすい）。</p>' +
+      (note ? '<div class="news good">' + note + '</div>' : '') + '<p class="lead">費用は毎月かかり、店舗が多いほど高くなる。</p>',
+      CINPLAN.map(function (P, i) {
+        var cost = Math.round(P.cost * (1 + 0.5 * S.shops.length) / 1000) * 1000;
+        return { label: P.n + (cost ? '　月' + yen(cost) : ''), sub: P.d, picked: c.plan === i, sec: '掲載プラン', go: function () { c.plan = i; if (!i) c.cpn = false; SFX.click(); cinView(i ? P.n + 'で掲載した。' : '掲載をやめた。'); } };
+      }).concat([{ label: '初回クーポン：' + (c.cpn ? '出している' : '出していない'), sec: 'クーポン', off: !c.plan,
+        sub: c.plan ? (c.cpn ? 'タップでやめる。' : '') + '体験コースを半額にする。新規がさらに+2人。値引き分は月末に引かれ、値段にきびしいお客様が増える' : '掲載すると出せる',
+        go: function () { c.cpn = !c.cpn; SFX.click(); cinView(c.cpn ? '初回クーポンを出した。' : '初回クーポンをやめた。'); } },
+        { main: true, label: 'もどる', go: investView }]));
+  }
   function adCost() { return Math.round(ADLV[S.adLv || 0].cost * (1 + 0.5 * S.shops.length) / 1000) * 1000; }
   function adView() {
     bar();
@@ -7638,9 +7672,9 @@
       S.wk.base = baseOps(S.staff, S.rep, opMult());
       S.cash += S.wk.base.sales;
       S.wk.incList = []; S.wk.inc = incPay(S.staff, S.wk.incList);
-      S.wk.adCost = adCost(); S.wk.hqCost = hqMonth(); S.wk.loan = loanMonth();
+      S.wk.adCost = adCost(); S.wk.cinCost = cinCost() + (cinFix().cpn ? (S.cpnN || 0) * Math.round(TRIAL / 2) : 0); S.wk.cpn = S.cpnN || 0; S.wk.hqCost = hqMonth(); S.wk.loan = loanMonth();
       S.wk.rent = curRent();
-      S.wk.cost = S.wk.rent + S.wk.wage + S.wk.inc + S.wk.base.cost + S.wk.adCost + S.wk.hqCost + S.wk.loan.interest;
+      S.wk.cost = S.wk.rent + S.wk.wage + S.wk.inc + S.wk.base.cost + S.wk.adCost + (S.wk.cinCost || 0) + S.wk.hqCost + S.wk.loan.interest;
       S.cash -= S.wk.cost;
       S.wk.roy = S.royalty || 0; S.cash += S.wk.roy;
       stratMonth();
@@ -7723,6 +7757,7 @@
       (w.inc ? '<dt>インセンティブ</dt><dd class="minus">' + yen(-w.inc) + '</dd>' : '') +
       (w.loan && w.loan.interest ? '<dt>借入金の利息</dt><dd class="minus">' + yen(-w.loan.interest) + '</dd>' : '') +
       (w.adCost ? '<dt>広告費（' + adNm(S.adLv || 0) + '）</dt><dd class="minus">' + yen(-w.adCost) + '</dd>' : '') +
+      (w.cinCost ? '<dt>コールドシナモン' + (w.cpn && cinFix().cpn ? '（クーポン' + w.cpn + '人分の値引き込み）' : '') + '</dt><dd class="minus">' + yen(-w.cinCost) + '</dd>' : '') +
       (w.hqCost ? '<dt>本社（家賃・給与）</dt><dd class="minus">' + yen(-w.hqCost) + '</dd>' : '') +
       (w.base ? '<dt>材料・光熱費</dt><dd class="minus">' + yen(-w.base.cost) + '</dd>' : '') +
       '<div class="sum"></div><dt class="big">' + (br.length ? '本店の収支' : '今月の収支') + '</dt><dd class="big' + (net < 0 ? ' minus' : '') + '">' + yen(net) + '</dd>' +
@@ -7833,7 +7868,7 @@
     if (S.week >= WEEKS && !S.endless) return view(h + notesHtml, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
     var below = notesHtml + hb + staffHtml();
     var TK = monthTasks(); h = shopSwitch() + h + (S.trainNote ? '<div class="news good">' + S.trainNote + '</div>' : '') + earlyTip() + taskBox(TK) + missionBox(); S.trainNote = null;
-    var burnR = homeRent() + wages() + adCost();
+    var burnR = homeRent() + wages() + adCost() + cinCost();
     var opts = [
       { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
       { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
@@ -7845,6 +7880,8 @@
     var minBr = (function () { var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
     opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); },
       rec: S.cash < burnR * 2 ? '資金が心細い。借りて立て直すと、赤字の月も乗り切れる' : (minBr && S.cash < minBr + burnR * 3 && S.cash >= burnR * 3 && !loanRest() && S.week >= 6) ? '銀行から借りると、2店舗目を早く出せる。お店が増えるほど、会社の成長が早まる' : '' });
+    if (cinOn()) opts.push({ label: '集客サイト：コールドシナモン（' + CINPLAN[cinFix().plan].n + (cinFix().cpn ? '・クーポンあり' : '') + '）', sub: 'ネット予約サイトに掲載して新規を集める　星★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
+      rec: !cinFix().plan && S.cash >= burnR * 3 ? 'ネットでサロンを探して予約する人が増えている。掲載すると新規が安定して来る' : '' });
     opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView, rec: !(S.adLv || 0) && !S.turnedWk && S.week >= 2 && S.cash >= burnR * 4 ? '新規のお客様が増えると、常連さんとコースの売上も育つ' : '' });
     if (S.hq) opts.unshift({ label: '本社（' + HQLV[S.hq.lv - 1].n + '）', sub: '部署・本社のスタッフ・本社の移転・本店の店長', go: function () { hqView(); } });
     opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : (S.myProds.length >= MAXMINE ? '枠がいっぱい（廃番にすると作れる）' : 'オリジナル商品を作る（' + S.myProds.length + '／' + MAXMINE + '）'),
@@ -7893,11 +7930,11 @@
     opts.forEach(function (o) {
       var l = o.label;
       if (/研修|採用|スタッフと過ごす/.test(l)) CAT.staff.push(o);
-      else if (/工房|仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|本社|資金調達|経営戦略/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
+      else if (/工房|仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|集客サイト|本社|資金調達|経営戦略/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
       else CAT.other.push(o);
     });
     var TITLES = { staff: 'スタッフ', shop: 'お店づくり', other: '発信・記録・そのほか' };
-    var SECOF = function (l) { return /本社|料金の方針|経営戦略|資金調達|広告|名前/.test(l) ? '経営' : /工房|仕入れ|商品開発|内装|店舗|ペントハウス|ホテル/.test(l) ? 'お店と商品' : '設備・機械'; };
+    var SECOF = function (l) { return /本社|料金の方針|経営戦略|資金調達|広告|集客サイト|名前/.test(l) ? '経営' : /工房|仕入れ|商品開発|内装|店舗|ペントハウス|ホテル/.test(l) ? 'お店と商品' : '設備・機械'; };
     CAT.shop.forEach(function (o) { o.sec = SECOF(o.label); });
     var SO = { '経営': 0, 'お店と商品': 1, '設備・機械': 2 };
     CAT.shop = CAT.shop.map(function (o, i) { return [o, i]; }).sort(function (a, b) { return SO[a[0].sec] - SO[b[0].sec] || a[1] - b[1]; }).map(function (x) { return x[0]; });
@@ -8101,7 +8138,7 @@
       if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.slice(0, 3).join('、') + (emptyD.length > 3 ? 'など' : '') + 'がいない' : ''), go: function () { hqHireView(false); } });
       if (!S.staff.some(function (st) { return st.id === S.mainMgr; }) && S.staff.some(function (st) { return !st.owner; })) T.push({ t: '本店の店長を決める', s: '社長になったので、本店をまかせる人が必要', go: function () { mgrView(); } });
     }
-    var burn = homeRent() + wages() + adCost(), monthsLeft = burn > 0 ? Math.floor(S.cash / burn) : 99;
+    var burn = homeRent() + wages() + adCost() + cinCost(), monthsLeft = burn > 0 ? Math.floor(S.cash / burn) : 99;
     if (S.cash < burn * 2) T.unshift({ t: '資金繰りを見直す', s: S.cash < burn ? '来月の家賃と給与が払えないかもしれない！ 銀行から借りるか、出費を見直そう' : '残りは約' + monthsLeft + 'か月分。借入・広告・人数を見直そう', go: function () { fundView(); } });
     if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
     var asks = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && x.wantTalk; });
