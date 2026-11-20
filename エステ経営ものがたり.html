@@ -92,6 +92,7 @@
   .snsbox .left { margin: 2px 0 0; font-size: .82rem; color: var(--sub); }
   .snsbox .left b { color: var(--ink); font-size: 1rem; }
   .tgl { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 10px 12px; }
+  .tgl.stack { flex-direction: column; align-items: stretch; } .tgl.stack .seg { align-self: flex-start; }
   .tgl b { display: block; font-size: .95rem; }
   .tgl small { display: block; font-size: .76rem; color: var(--sub); line-height: 1.45; }
   .seg { display: flex; flex: none; border: 2px solid var(--ink); }
@@ -4939,6 +4940,7 @@
     opEnter();
     S.staff.forEach(function (st) { st.used = 0; });
     autoRestock();
+    autoTrainMonth();
     var launched = devTick();
     rollEvent();
     rollLife(); rollEra();
@@ -6979,7 +6981,8 @@
     bar(); scene.shop = 'hq'; setScene('idle');
     var hs = hqStaff(), done = S.hqTrainWk === S.week, semi = 30000 * hs.length;
     var run = function (n, m, msg) { var ups = []; hs.forEach(function (st) { moodUp(st, m, 0); ups = ups.concat(hqExp(st, n)); }); S.hqTrainWk = S.week; SFX.hire(); hqTrainView(msg + '（全員の経験+' + n + '）' + (ups.length ? '<br>' + ups.join('<br>') : '')); };
-    view('<h1>本社の研修</h1><p class="lead">本社のスタッフは、部署の仕事で経験を積んで育つ。研修は月1回。資格の勉強は1人ずつ支援できる。力が5になると、その部署の部長になる。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+    view('<h1>本社の研修</h1>' + autoSeg('本社の研修を毎月、自動でする', '毎月はじめに研修する。セミナーは家賃と給与の2か月分が残るときだけ（足りないときは勉強会）', 'autoHqTrain', [[false, 'しない'], ['study', '勉強会'], ['semi', 'セミナー']]) +
+      autoSeg('資格の勉強を自動で支援する', '部署の資格を、1人ずつ毎月受けさせる（家賃と給与の2か月分は残す）', 'autoCert', [[false, 'しない'], [true, '自動']]) + '<p class="lead">本社のスタッフは、部署の仕事で経験を積んで育つ。研修は月1回。資格の勉強は1人ずつ支援できる。力が5になると、その部署の部長になる。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<ul class="who-list hqlist">' + hs.map(function (st) { return '<li><span>' + st.name + (isBucho(st) ? '（部長）' : '') + '<br><small>' + DEPT[st.dept].n + '　資格：' + certText(st) + '</small></span><span>' + (DEPTSK[st.dept] ? hqKeyName(DEPTSK[st.dept]) + ' <b>' + hqSkFix(st)[DEPTSK[st.dept]] + '</b>／5' : '') + '<br><small>' + hqExpText(st) + '</small></span></li>'; }).join('') + '</ul>',
       [{ sec: '研修（月1回）', label: '社内勉強会を開く', sub: done ? '今月はもう研修した' : '無料。部長や先輩が教える', off: done || !hs.length, go: function () { run(12, 2, '社内勉強会を開いた。'); } },
        { sec: '研修（月1回）', label: '外部セミナーに参加させる　' + yen(semi), sub: done ? '今月はもう研修した' : '全員が参加する', off: done || !hs.length || S.cash < semi, go: function () { pay(semi); run(30, 4, '外部のセミナーに参加させた。'); } }]
@@ -6992,6 +6995,7 @@
           hqTrainView(msg); var nb = document.querySelector('#app .news'); if (nb) nb.scrollIntoView({ block: 'center' }); } };
       }))
       .concat([{ main: true, label: '本社の画面にもどる', go: function () { hqView(); } }]));
+    autoSegBind(function () { hqTrainView(); });
   }
   function deptPick(then) {
     bar();
@@ -8998,11 +9002,48 @@
     S.trainDone.k[g2.key] = true;
     return lines;
   }
+  /* --- 研修の自動化：毎月はじめに、店ごとにいちばん合う教え方で研修する。本社は勉強会かセミナー、資格の支援も。家賃と給与の2か月分は手元に残す --- */
+  function trainReserve() { return (homeRent() + wages()) * 2; }
+  function autoTrainMonth() {
+    var out = [];
+    if (S.autoTrain) {
+      tGroups().filter(function (g2) { return g2.mem.length && !tDone(g2.key); }).forEach(function (g2) {
+        var m = tBest(g2), pl = tPlan(g2, m);
+        if (S.cash - pl.cost < trainReserve()) { out.push(g2.name + 'は資金をとっておくため、見送った'); return; }
+        pay(pl.cost); var lines = tRun(g2, m), ups = lines.filter(function (l) { return /→/.test(l); }).map(function (l) { return l.replace(/（[^）]*）経験値\+\d+　→ /, '：').replace(/<[^>]+>/g, ''); });
+        out.push(g2.name + '（' + TMETH[m].n + '・' + yen(pl.cost) + '）' + (ups.length ? '：' + ups.join('、') : ''));
+      });
+    }
+    var hs = hqOn() ? hqStaff() : [];
+    if (S.autoHqTrain && hs.length && S.hqTrainWk !== S.week) {
+      var semi = 30000 * hs.length, useSemi = S.autoHqTrain === 'semi' && S.cash - semi >= trainReserve(), n = useSemi ? 30 : 12, ups2 = [];
+      if (useSemi) pay(semi);
+      hs.forEach(function (st) { moodUp(st, useSemi ? 4 : 2, 0); ups2 = ups2.concat(hqExp(st, n)); }); S.hqTrainWk = S.week;
+      out.push('本社（' + (useSemi ? '外部セミナー・' + yen(semi) : '社内勉強会') + '）' + (ups2.length ? '：' + ups2.join('、').replace(/<[^>]+>/g, '') : ''));
+    }
+    if (S.autoCert && hs.length) hs.forEach(function (st) {
+      var c = hqCert(st); if (!c || st.certWk === S.week) return; var cost = 40000 * c.v + 20000;
+      if (S.cash - cost < trainReserve()) return;
+      pay(cost); st.certWk = S.week; var key = DEPTSK[st.dept], k = hqSkFix(st);
+      if (roll(clamp(0.35 + 0.12 * k[key] + ((st.mot || 60) >= 70 ? 0.1 : 0), 0.3, 0.92))) { st.certs = (st.certs || []).concat([c.n]); k[key] = Math.min(5, k[key] + c.v); moodUp(st, 8, 5); out.push(st.name + 'が' + c.n + 'に合格'); }
+      else { hqExp(st, 15); moodUp(st, -3, 2); out.push(st.name + 'は' + c.n + 'に不合格（経験+15）'); }
+    });
+    if (out.length) S.news.push({ good: true, t: '自動の研修：' + out.join('。') + '。' });
+  }
+  function autoSeg(label, sub, key, vals) {
+    var cur = S[key] || false;
+    return '<div class="tgl box' + (vals.length > 2 ? ' stack' : '') + '"><div><b>' + label + '</b><small>' + sub + '</small></div><div class="seg" role="group" aria-label="' + label + '">' +
+      vals.map(function (v) { var on = cur === v[0]; return '<button type="button" data-seg="' + key + '" data-v="' + v[0] + '" aria-pressed="' + on + '"' + (on ? ' class="on"' : '') + '>' + v[1] + '</button>'; }).join('') + '</div></div>';
+  }
+  function autoSegBind(again) {
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-seg]'), function (bt) { bt.addEventListener('click', function () {
+      var v = bt.getAttribute('data-v'); S[bt.getAttribute('data-seg')] = v === 'false' ? false : v === 'true' ? true : v; SFX.click(); again(); }); });
+  }
   function trainView(note) {
     bar();
     var gs = tGroups(), todo = gs.filter(function (g2) { return g2.mem.length && !tDone(g2.key); });
     var allCost = todo.reduce(function (a, g2) { return a + tPlan(g2, tBest(g2)).cost; }, 0);
-    view('<h1>研修（店舗ごと）</h1><p class="lead">研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。</p><details class="fold"><summary>研修のしくみ</summary><p class="lead">スタッフには<b>気質</b>があり、教え方との相性で得られる経験値が変わる（◎40 ○30 △20 ×10）。経験値がたまると<b>自動で力が1上がる</b>。上のレベルほど多く要る（' + [1, 2, 3, 4].map(function (v) { return v + '→' + (v + 1) + 'は' + TLV[v]; }).join('、') + '）。' +
+    view('<h1>研修（店舗ごと）</h1>' + autoSeg('研修を毎月、自動でする', '毎月はじめに、店ごとにいちばん合う教え方で研修する。家賃と給与の2か月分は手元に残す', 'autoTrain', [[false, 'しない'], [true, '自動']]) + '<p class="lead">研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。</p><details class="fold"><summary>研修のしくみ</summary><p class="lead">スタッフには<b>気質</b>があり、教え方との相性で得られる経験値が変わる（◎40 ○30 △20 ×10）。経験値がたまると<b>自動で力が1上がる</b>。上のレベルほど多く要る（' + [1, 2, 3, 4].map(function (v) { return v + '→' + (v + 1) + 'は' + TLV[v]; }).join('、') + '）。' +
       'スタッフごとに<b>伸びしろ</b>（経験値の入り方）と<b>得意・苦手な力</b>がある。得意な力は早く、苦手な力はゆっくり伸びる。' +
       '研修は店舗ごとに<b>月1回</b>、その店の全員で受ける。費用は1人' + yen(2 * TCOST[1]) + '〜' + yen(2 * TCOST[4] + 2 * TCOST5) + '（いちばん低い力のレベルで決まる）。経験値は新人1.2倍、ベテラン0.8倍、センス◯の人は2倍。' +
       '6つの力がすべて5になったら、研修（経験値' + TGOD + 'で1）と自主練習で神技・神対応へ近づく（' + GODNEED + 'ポイント）。自主練習は、得意な系統か伸びしろ★4以上なら毎月、ほかは3か月に1回。</p></details>' + (note ? '<div class="news good">' + note + '</div>' : ''),
@@ -9018,6 +9059,7 @@
         return { grp: regionOf(g2.sh), label: g2.name + 'の研修　' + g2.mem.length + '人', sub: !g2.mem.length ? '研修できるスタッフがいない' : d ? '今月は研修ずみ' : 'おすすめ：' + TMETH[m].n + '（◎' + pl.cnt['◎'] + '人）　' + yen(pl.cost),
           off: !g2.mem.length, go: function () { shopTrain(g2.key); } };
       })).concat(S.hq && hqStaff().length ? [{ label: '本社の研修と資格取得', sub: '本社のスタッフを育てる（店舗の研修とは別）', go: function () { hqTrainView(); } }] : []).concat([{ main: true, label: 'もどる', go: investView }]));
+    autoSegBind(function () { trainView(); });
   }
   function shopTrain(key, note) {
     bar();
