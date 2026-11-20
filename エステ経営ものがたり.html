@@ -260,6 +260,11 @@
   .olist > button:disabled::after, details.fold.grp > .opts > button:disabled::after { content: ''; }
   .olist > button:active:not(:disabled), details.fold.grp > .opts > button:active:not(:disabled) { transform: none; box-shadow: none; background: var(--chip); }
   .olist > button.picked, details.fold.grp > .opts > button.picked { background: var(--chip); }
+  button.rec { position: relative; background: #E8F5EC !important; box-shadow: inset 4px 0 0 #3E9E6A; }
+  button.rec .rectag { display: inline-block; margin: 0 0 3px; padding: 0 6px; font-size: .68rem; line-height: 1.6; background: #3E9E6A; color: #FFFFFF; }
+  button.rec .recwhy { display: block; color: #2E7A50 !important; font-size: .76rem; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.rec { background: #1F3A2C !important; } :root:not([data-theme="light"]) button.rec .recwhy { color: #8FD8AE !important; } }
+  :root[data-theme="dark"] button.rec { background: #1F3A2C !important; } :root[data-theme="dark"] button.rec .recwhy { color: #8FD8AE !important; }
   .olist > button.picked b::before { content: '✓ '; color: var(--accent); }
   details.fold.grp > .opts { gap: 0; padding: 0 !important; border-top: 1px solid var(--line); }
   .hqlist li > span:last-child { flex: none; white-space: nowrap; text-align: right; }
@@ -2029,6 +2034,7 @@
       .replace(/「事実と違います」と反論する/g, '雑誌に「事実と違います」と抗議する').replace(/反論がかえって炎上し、評判が下がった。/g, '抗議がかえって話題になり、評判が下がった。').replace(/レビューはそのまま残った。/g, '投書のことは、しばらく話題になった。')
       .replace(/口コミサイトに、お店のことを書きました！/g, '美容雑誌の読者のページに、お店のことを投書しました！').replace(/★5にしておきました。/g, 'たくさんほめておきましたよ。');
     if (y < 2003) t = t.replace(/口コミサイト/g, '雑誌の読者投稿');
+    if (y < 1999) t = t.replace(/日本政策金融公庫/g, '国民金融公庫'); else if (y < 2008) t = t.replace(/日本政策金融公庫/g, '国民生活金融公庫');
     // 「セレブ」がお金持ちの意味で広まったのは2000年代に入ってから。それまでは「資産家」
     if (y < 2001) t = t.replace(/セレブ/g, '資産家');
     if (y < 2005) t = t.replace(/ドライヘッドスパ/g, '頭と目のほぐし').replace(/ヘッドスパ/g, 'ヘッドマッサージ');
@@ -2990,10 +2996,11 @@
       }
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = (o.main ? 'main' : '') + (o.picked ? ' picked' : '');
-      b.innerHTML = '<b></b>' + (o.sub ? '<small></small>' : '');
-      b.firstChild.textContent = eraText(o.label);
-      if (o.sub) b.lastChild.textContent = eraText(o.sub);
+      b.className = (o.main ? 'main' : '') + (o.picked ? ' picked' : '') + (o.rec && !o.off ? ' rec' : '');
+      b.innerHTML = (o.rec && !o.off ? '<span class="rectag">おすすめ</span>' : '') + '<b></b>' + (o.sub ? '<small class="osub"></small>' : '') + (o.rec && !o.off ? '<small class="recwhy"></small>' : '');
+      b.querySelector('b').textContent = eraText(o.label);
+      if (o.sub) b.querySelector('.osub').textContent = eraText(o.sub);
+      if (o.rec && !o.off) b.querySelector('.recwhy').textContent = '→ ' + eraText(o.rec);
       if (o.off) b.disabled = true;
       else b.addEventListener('click', function () { SFX.click(); o.go(); });
       host.appendChild(b);
@@ -4590,7 +4597,8 @@
       (note ? '<div class="news good">' + note + '</div>' : '') + '<p class="lead">いまの所持金 ' + yen(S.cash) + '</p>',
       Object.keys(FUNDS).map(function (k) {
         var F = FUNDS[k];
-        return { label: F.n + '　' + yen(F.amt) + (got[k] ? '　調達ずみ' : ''), sub: F.d, off: !!got[k], go: function () {
+        var hi = homeRent() >= 200000, rk = hi ? 'bank' : 'jfc';
+        return { label: F.n + '　' + yen(F.amt) + (got[k] ? '　調達ずみ' : ''), sub: F.d, off: !!got[k], rec: k === rk && !Object.keys(got).length ? (hi ? '家賃が高い街なので、資金に余裕を持っておくと安心。早く2店舗目も出せる' : '金利が低く、最初の6か月は利息だけ。資金に余裕があると、2店舗目を早く出せる') : '', go: function () {
           got[k] = true; S.funds = got;
           if (k === 'vc') { S.cash += F.amt; S.vc = { share: 0.3, since: S.week }; }
           else loanAdd(k, F.amt, F.rate, F.months, F.grace);
@@ -4618,7 +4626,7 @@
     view('<h1>開業の準備　コンセプト</h1><div class="form"><label>お店の名前（12文字まで）<input id="brandName" type="text" maxlength="12" autocomplete="off" value="' + clean(def) + '"></label></div>' +
       '<p class="lead">どんなお店にする？ コンセプトで、来てくれるお客様が変わる。</p>',
       Object.keys(CONCEPTS).map(function (c) {
-        return { label: CONCEPTS[c].n, sub: CONCEPTS[c].d, go: function () { S.brand = clean($('brandName').value) || clean(def); S.concept = c; openStyle(); } };
+        return { label: CONCEPTS[c].n, sub: CONCEPTS[c].d, rec: c === 'relax' ? '設備がなくても出せるメニューが多く、はじめてでも始めやすい' : '', go: function () { S.brand = clean($('brandName').value) || clean(def); S.concept = c; openStyle(); } };
       }));
   }
   function openStyle() {
@@ -4628,7 +4636,7 @@
     bar(); setScene('idle');
     view('<h1>開業の準備　内装</h1><p class="lead">本店の内装を選ぶ。選ぶと、上の店内がその内装になる。コンセプトは「' + CONCEPTS[S.concept].n + '」。</p>',
       keys.map(function (k) {
-        return { label: MAINTHEME[k].n + (k === rec ? '　あなたの性格にぴったり' : ''), picked: S.style === k, sub: S.style === k ? 'いま表示中' : '', go: function () { S.style = k; openStyle(); } };
+        return { label: MAINTHEME[k].n, rec: k === rec ? 'あなたの性格にぴったり' : '', picked: S.style === k, sub: S.style === k ? 'いま表示中' : '', go: function () { S.style = k; openStyle(); } };
       }).concat([{ main: true, label: 'この内装に決める', sub: MAINTHEME[S.style].n, go: openStaff }]));
   }
   function openStaff() {
@@ -4646,11 +4654,15 @@
   function openInvest(note) {
     bar();
     var items = INVEST.filter(function (v) { return OPENINV.indexOf(v.k) >= 0; }), any = items.some(function (v) { return S[v.k]; });
+    // コンセプトのお客様の悩みに、いまは応えられない設備を1つすすめる（家賃2か月分は残る範囲で）
+    var fav = (CONCEPTS[S.concept] || {}).fav || [], want = null;
+    fav.forEach(function (sk) { var x = SUBMENU[sk], m = MENU[x.cat]; [m.need, x.need].forEach(function (k) { if (!want && k && !needOk(k)) want = k; }); });
+    openInvest.rec = want && INVEST.filter(function (v) { return v.k === want && v.price <= S.cash - homeRent() * 2; }).length ? want : null;
     view('<h1>開業の準備　設備投資</h1>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<p class="lead">設備投資をしますか？ 設備を入れると、提供できるメニューが増える。何も買わずに、このまま開業してもいい。</p>' +
       '<p class="lead">所持金 ' + yen(S.cash) + '。月末には家賃' + yen(homeRent()) + 'と給与の支払いがある。' + (S.cash < 150000 ? '<b>使いすぎると、すぐ赤字になるかも。</b>' : '') + '</p>',
       items.map(function (v) {
-        return { label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: !!S[v.k] || S.cash < v.price,
+        return { label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: !!S[v.k] || S.cash < v.price, rec: v.k === openInvest.rec ? 'コンセプトのお客様の悩みに応えられるようになる。家賃2か月分は手元に残る' : '',
           go: function () { pay(v.price); if (MACHGEN[v.k]) buyMach(v.k); else S[v.k] = true; SFX.hire(); openInvest(v.n + 'を導入した。'); } };
       }).concat([{ main: true, label: any ? 'これで開業する' : '設備はこのままで開業する', go: function () { startWeek(); } }]));
   }
@@ -4738,6 +4750,7 @@
     };
     if (!mine) opts.push(mk('local', true));
     ['tokyo', 'osaka', 'fukuoka', 'hokkaido', 'okinawa'].forEach(function (k) { opts.push(mk(k, k === mine)); });
+    opts.forEach(function (o) { if (/（地元）/.test(o.label)) o.rec = /^東京|^大阪/.test(o.label) ? '地元なので知り合いが常連になり、評判も上乗せされる。家賃が高いので、開業資金は借りておこう' : 'はじめてなら地元。家賃が安く、知り合いが常連になってくれるので、つまずきにくい'; });
     if (mine) { var o = opts.splice(opts.findIndex(function (x) { return x.label.indexOf('（地元）') >= 0; }), 1)[0]; opts.unshift(o); }
     view('<h1>本店をどこに開く？</h1><p class="lead">出身は' + (pref || '（未設定）') + '。地元で開くか、5つの都市から選ぶ。場所によって、家賃・お客様の数・単価・季節の波が変わる。</p>', opts);
   }
@@ -4925,6 +4938,7 @@
     turned += Math.max(0, fresh.length - room);
     q = q.concat(fresh.slice(0, Math.max(0, room)));
     if (refs) S.news.push({ good: true, t: '常連さんの紹介で' + refs + '人が予約した。' });
+    S.turnedWk = turned;
     if (turned) {
       S.rep = clamp(S.rep - Math.min(turned, 3), 0, 100);
       S.news.push({ bad: true, t: '予約がいっぱいで' + turned + '人をお断りした。スタッフを増やせば受けられる。' });
@@ -7819,23 +7833,26 @@
     if (S.week >= WEEKS && !S.endless) return view(h + notesHtml, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
     var below = notesHtml + hb + staffHtml();
     var TK = monthTasks(); h = shopSwitch() + h + (S.trainNote ? '<div class="news good">' + S.trainNote + '</div>' : '') + earlyTip() + taskBox(TK) + missionBox(); S.trainNote = null;
+    var burnR = homeRent() + wages() + adCost();
     var opts = [
       { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
       { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
       { label: 'スタッフを採用する　' + yen(HIRE), sub: !roomAny() ? 'どの店舗もこれ以上は雇えない' : '受け入れられるお客様が増える。給与がかかる',
-        off: !roomAny() || S.cash < HIRE, go: hireView }
+        off: !roomAny() || S.cash < HIRE, go: hireView, rec: S.turnedWk && roomAny() && S.cash >= HIRE + burnR ? '予約をお断りしている。スタッフを増やせば、その分の売上が入る' : '' }
     ];
     opts.push({ label: '料金の方針：' + pm().n, sub: pm().d, go: priceView });
     if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店　' : '') + '会社を大きくする', go: function () { stratView(); } });
-    opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); } });
-    opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView });
+    var minBr = (function () { var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
+    opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); },
+      rec: S.cash < burnR * 2 ? '資金が心細い。借りて立て直すと、赤字の月も乗り切れる' : (minBr && S.cash < minBr + burnR * 3 && S.cash >= burnR * 3 && !loanRest() && S.week >= 6) ? '銀行から借りると、2店舗目を早く出せる。お店が増えるほど、会社の成長が早まる' : '' });
+    opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView, rec: !(S.adLv || 0) && !S.turnedWk && S.week >= 2 && S.cash >= burnR * 4 ? '新規のお客様が増えると、常連さんとコースの売上も育つ' : '' });
     if (S.hq) opts.unshift({ label: '本社（' + HQLV[S.hq.lv - 1].n + '）', sub: '部署・本社のスタッフ・本社の移転・本店の店長', go: function () { hqView(); } });
     opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : (S.myProds.length >= MAXMINE ? '枠がいっぱい（廃番にすると作れる）' : 'オリジナル商品を作る（' + S.myProds.length + '／' + MAXMINE + '）'),
       go: devView });
     opts.push({ label: 'サロンランキングと実績', sub: '年間売上のライバル比較　実績 ' + Object.keys(S.ach || {}).length + '／' + ACH.length, go: function () { view('<h1>ランキングと実績</h1>', [{ label: 'サロンランキング（途中経過）', go: rankView }, { label: '実績', go: achView }, { main: true, label: 'もどる', go: investView }]); } });
     opts.push({ label: 'SNSで発信する', sub: 'フォロワー ' + fmtN(snsFix().f) + '人　今月あと' + snsLeft() + '回', go: function () { snsView(); } });
     if (S.shops.length || S.ph) opts.push({ label: '各店舗を見に行く', sub: '内装や、働いているスタッフの様子を見る', go: function () { visitView(S.shops[0] || 'ph'); } });
-    if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: '近所・都心・海外。いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); } });
+    if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: '近所・都心・海外。いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); }, rec: minBr && S.cash >= minBr + burnR * 3 ? '出店できるだけの資金がある。お店が増えると、売上が大きく伸びる' : '' });
     opts = opts.concat(phOpts()).concat(koboOpts());
     var renoLeft = [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; });
     if (renoLeft.length) opts.push({ label: '内装のアップデート', sub: renoLeft.map(function (sh) { return (sh ? shortShop(sh.name) : '本店') + ' ' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT; }).join('・'), go: renoView });
@@ -7889,13 +7906,14 @@
       view('<h1>' + TITLES[key] + '</h1>', CAT[key].concat([{ main: true, label: '月末の画面にもどる', go: function () { curCat = null; investView(); } }]));
     };
     if (curCat && CAT[curCat]) return catView(curCat);
+    var catRec = function (k) { var r = CAT[k].filter(function (o) { return o.rec && !o.off; })[0]; return r ? '「' + r.label.split('　')[0].replace(/：.*$/, '') + '」' + r.rec : ''; };
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
     view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
       S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
-      { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
-      { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
-      { label: '発信・記録・そのほか', sub: (snsOn() ? 'SNS' : 'お店の宣伝') + '（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); } }]));
+      { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); }, rec: catRec('staff') },
+      { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); }, rec: catRec('shop') },
+      { label: '発信・記録・そのほか', sub: (snsOn() ? 'SNS' : 'お店の宣伝') + '（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); }, rec: catRec('other') }]));
     $('app').insertAdjacentHTML('beforeend', below);
     taskBind(TK); shopSwBind();
   }
