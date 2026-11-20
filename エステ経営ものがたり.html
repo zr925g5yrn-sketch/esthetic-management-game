@@ -3017,7 +3017,7 @@
     onTitle = false; menuEra();
     var app = $('app');
     // 選択肢が多い画面は、上にも「もどる」を出す
-    var bk = (opts || []).length >= 6 ? (opts || []).filter(function (o) { return !o.off && /もどる/.test(o.label); }).slice(-1)[0] : null;
+    var bk = (opts || []).filter(function (o) { return o.topBack && !o.off; })[0] || ((opts || []).length >= 6 ? (opts || []).filter(function (o) { return !o.off && /もどる/.test(o.label); }).slice(-1)[0] : null);
     app.innerHTML = (bk ? '<button type="button" class="topback" id="topback"></button>' : '') + foldLeads(eraText(html)) + '<div class="opts ' + (cls || '') + '" id="opts"></div>';
     if (bk) { var tb = $('topback'); tb.textContent = '‹ ' + eraText(bk.label); tb.addEventListener('click', function () { SFX.click(); bk.go(); }); }
     var box = $('opts'), gbox = {};
@@ -7554,11 +7554,11 @@
     view('<h1>スタッフと過ごす</h1><p class="lead">やる気が下がると施術や接客の質が落ち、限界を超えると辞めてしまう。信頼が深まると、打ち明け話をしてくれることも。話したい人をタップしよう。</p>' +
       (S.careNote ? '<div class="news good">' + S.careNote + '</div>' : '') +
       (list.filter(function (x) { return x.wantTalk; }).length ? '<div class="epbox"><b>● 面談を申し出ているスタッフ</b><div class="epbtns">' + list.filter(function (x) { return x.wantTalk; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + 'と面談する<small>' + placeOf(st) + '</small></button>'; }).join('') + '</div></div>' : '') +
+      (list.filter(epiReady).length ? '<div class="epbox"><b>● 話がありそうなスタッフ</b>' + (list.filter(epiReady).length >= 2 ? '<button type="button" class="optbtn" data-bulk="1">まとめて話を聞く（' + list.filter(epiReady).length + '人）<small>1・2話はあらすじで進み、最後の言葉だけ選ぶ</small></button>' : '') + '<div class="epbtns">' + list.filter(epiReady).map(function (st) { return '<button type="button" data-epi="' + st.id + '">' + st.name + 'の話を聞く<small>物語 ' + (epiNext(st).n + 1) + '／3</small></button>'; }).join('') + '</div></div>' : '') +
       (list.filter(function (x) { return frictionOf(x).length; }).length ? '<div class="frbox"><b>相性が気になるスタッフ</b>' + (S.shops.length ? '<button type="button" class="optbtn" data-opt="1">相性を一括で最適化する<small>スタッフを入れかえて、全体の相性をよくする。指名していた常連さんの満足度は下がる</small></button>' : '') + (function () { var seen = {}, out = ''; list.forEach(function (a) { mates(a).forEach(function (b) { if (relOf(a, b) !== 'rival') return; var k = [String(a.id), String(b.id)].sort().join('|'); if (seen[k]) return; seen[k] = 1; var done = a.talkWeek === S.week || b.talkWeek === S.week;
         out += '<button type="button" data-t3="' + a.id + '|' + b.id + '"' + (done ? ' disabled' : '') + '>' + a.name + '・' + b.name + 'と3人で話し合う<small>' + (done ? '今月はもう話した' : 'ライバルのふたり。うまくいけば、わだかまりがとける') + '</small></button>'; }); }); return out; })() + list.filter(function (x) { return frictionOf(x).length; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + '（' + placeOf(st) + '）<small>' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</small></button>'; }).join('') + '</div>' : '') +
-      (list.filter(epiReady).length ? '<div class="epbox"><b>● 話がありそうなスタッフ</b>' + (list.filter(epiReady).length >= 2 ? '<button type="button" class="optbtn" data-bulk="1">まとめて話を聞く（' + list.filter(epiReady).length + '人）<small>1・2話はあらすじで進み、最後の言葉だけ選ぶ</small></button>' : '') + '<div class="epbtns">' + list.filter(epiReady).map(function (st) { return '<button type="button" data-epi="' + st.id + '">' + st.name + 'の話を聞く<small>物語 ' + (epiNext(st).n + 1) + '／3</small></button>'; }).join('') + '</div></div>' : '') +
       (list.length ? cards : '<p class="lead">まだスタッフがいない。</p>'),
-      partyOpts(list).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
+      partyOpts(list).concat([{ main: true, topBack: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
     var ob = document.querySelector('#app [data-opt]'); if (ob) ob.addEventListener('click', function () { SFX.click(); optView(); });
     var eb = document.querySelector('#app [data-bulk]'); if (eb) eb.addEventListener('click', function () { SFX.click(); S.careNote = ''; epiBulk(); });
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-epi]'), function (bt) {
@@ -7666,7 +7666,7 @@
        hqStaff().indexOf(st) >= 0 ? null : { label: '別の店舗に移す', sub: 'いまの店との相性：' + fitMark(shopFit(st, shopOf(st))) + (S.shops.length ? '' : '（店舗が1つだけなので移せない）'), off: !S.shops.length, go: function () { moveView(st); } },
        hurt(st) ? { label: '病院に通わせる　' + yen(30000), sub: '手の痛み（腱鞘炎）が早く治る。あと' + (st.hurtUntil - S.week) + 'か月', off: S.cash < 30000 || st.cureWeek === S.week,
          go: function () { pay(30000); st.cureWeek = S.week; st.hurtUntil = Math.max(S.week, st.hurtUntil - 2); moodUp(st, 5, 5); SFX.good(); careStaff(st, st.name + 'を病院に通わせた。痛みがだいぶ楽になったようだ。'); } } : null,
-       { main: true, label: 'もどる', go: careView }].filter(Boolean));
+       { main: true, topBack: true, label: 'もどる', go: careView }].filter(Boolean));
   }
   // 店舗の移籍：相性の合う店に移すと、やる気が上がる
   function moveView(st) {
