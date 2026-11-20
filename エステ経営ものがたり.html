@@ -799,6 +799,28 @@
     { k: 'devEms',  n: '家庭用EMSの取り扱い',      price: 80000,  d: '物販で家庭用EMS（¥39,800）を売れるようになる。お腹や脚の悩みのお客様に', stock: 'ems' }
   ];
   var MACHB = { slim: 'cavi', lymph: 'lymphM' };
+  // 機械の「型」が出た年。新しい型が出ると、古い型は効き目が落ちる。8年をこえると壊れやすい
+  var MACHGEN = { headSpa: [2000, 2012, 2022], slimMachine: [1985, 1998, 2010, 2020], hifu: [1995, 2008, 2018], rfFace: [2000, 2010, 2020], cavi: [2005, 2015, 2023], lymphM: [1995, 2007, 2019] };
+  function curGen(k) { var y = S && S.startYear ? nowYear() : 2026; return Math.max(0, MACHGEN[k].filter(function (g) { return g <= y; }).length - 1); }
+  function genName(k, g) { return g >= curGen(k) ? '最新型' : g === 0 ? '初代' : '第' + (g + 1) + '世代'; }
+  function machFix() { S.mach = S.mach || {}; Object.keys(MACHGEN).forEach(function (k) { if (S[k] && !S.mach[k]) S.mach[k] = { gen: curGen(k), wk: S.week, told: curGen(k) }; if (!S[k]) delete S.mach[k]; }); return S.mach; }
+  function buyMach(k) { S[k] = true; machFix(); S.mach[k] = { gen: curGen(k), wk: S.week, told: curGen(k) }; }
+  // 施術に使う機械の具合で、満足度が変わる（最新型+2、1世代古いごとに−4、8年をこえると−3）
+  function machMod(menu) {
+    var ks = [MENU[catOf(menu)] && MENU[catOf(menu)].need, SUBMENU[menu] && SUBMENU[menu].need, MACHB[menu]].filter(function (k) { return k && MACHGEN[k] && S[k]; }), m = 0, M = machFix();
+    ks.forEach(function (k) { var x = M[k], gap = curGen(k) - x.gen; m += gap ? -4 * gap : 2; if (S.week - x.wk >= 96) m -= 3; });
+    return m;
+  }
+  // 毎月：新しい型の知らせ、買い替えどきの知らせ、寿命の故障
+  function machMonth() {
+    var M = machFix();
+    Object.keys(M).forEach(function (k) {
+      var x = M[k], v = INVEST.filter(function (i) { return i.k === k; })[0], age = S.week - x.wk;
+      if (curGen(k) > (x.told || 0)) { x.told = curGen(k); S.news.push({ good: true, t: v.n + 'の新しい型が出た。いまの機械は、だんだん見劣りしていく。' }); }
+      if (age === 84) S.news.push({ good: false, t: v.n + 'を入れて7年。そろそろ買い替えどきかもしれない。' });
+      if (age >= 96 && roll(0.08)) { S[k] = false; delete M[k]; S.news.push({ bad: true, t: v.n + 'が寿命で動かなくなった。買い替えるまで、この機械を使うメニューは出せない。' }); }
+    });
+  }
   var NAMES = ['佐伯', '三浦', '小野寺', '柏木', '真鍋', '日下部', '早乙女', '宇野', '桜庭', '水島', '藤崎', '成瀬', '相馬', '椎名', '榎本',
     '神崎', '白石', '菅原', '筒井', '堀内', '一ノ瀬', '戸田', '浅野', '久保田', '望月', '杉浦', '平岡', '有馬', '村瀬', '若林',
     '大河内', '芹沢', '朝倉', '片桐', '野々村', '鳴海', '上条', '綾瀬', '牧', '東'];
@@ -1771,7 +1793,7 @@
     inbound: 'v_travel', st_marry: 'v_wedding', st_baby: 'v_baby',
     s_sakura: 'v_sakura', s_mother: 'v_gift', s_summer: 'v_beach', s_halloween: 'v_halloween', s_xmas: 'v_xmas', s_newyear: 'v_newyear', s_valentine: 'v_valentine', s_white: 'v_valentine',
     s_june: 'v_rain', s_obon: 'v_fireworks', s_moon: 'v_moon', s_bonus: 'v_party' };
-  var LIFEPIC = { meet: 'v_date', propose: 'v_wedding', quarrel: 'v_talk', baby: 'v_baby', dog: 'v_dog', dogbd: 'v_dog', parent: 'v_phone', reunion: 'v_cafe', hobby: 'v_idea', volunteer: 'v_charity' };
+  var LIFEPIC = { e_jiage: 'v_talk', e_disco: 'v_party', e_tip: 'v_vip', e_golf: 'v_vip', e_golfdown: 'v_rain', e_pager: 'v_phone', e_pet: 'v_shopping', e_nostra: 'v_moon', e_y2k: 'v_idea', e_ringtone: 'v_phone', e_shame: 'v_sns', e_tapioca: 'v_cafe', e_mask: 'v_spa', meet: 'v_date', propose: 'v_wedding', quarrel: 'v_talk', baby: 'v_baby', dog: 'v_dog', dogbd: 'v_dog', parent: 'v_phone', reunion: 'v_cafe', hobby: 'v_idea', volunteer: 'v_charity' };
   var HOLPIC = [[/いちご/, 'v_picnic'], [/花見|花冷え/, 'v_sakura'], [/ハイキング/, 'v_mountain'], [/紫陽花/, 'v_rain'], [/海|日焼け/, 'v_beach'], [/花火|人混み/, 'v_fireworks'], [/グランピング/, 'v_camp'],
     [/芸術|美術/, 'v_museum'], [/温泉|雪見/, 'v_onsen'], [/クリスマス/, 'v_xmas'], [/スキー|転んで/, 'v_ski'], [/初詣/, 'v_newyear'], [/再会|マルチ|あやしい|お金が戻らない/, 'v_cafe'],
     [/筋トレ|筋肉痛|ヨガ|プール|パーソナル/, 'v_gym'], [/ランニング|サイクリング|登山|ご来光/, 'v_mountain'], [/セミナー/, 'v_stage'], [/買い|お買い物/, 'v_shopping'], [/カフェ|集中/, 'v_cafe'], [/スパ|予約ミス/, 'v_spa'], [/ピラティス|筋肉痛/, 'v_gym'], [/推し|チケット|グッズ/, 'v_concert'],
@@ -4110,7 +4132,7 @@
       '<p class="lead">所持金 ' + yen(S.cash) + '。月末には家賃' + yen(homeRent()) + 'と給与の支払いがある。' + (S.cash < 150000 ? '<b>使いすぎると、すぐ赤字になるかも。</b>' : '') + '</p>',
       items.map(function (v) {
         return { label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: !!S[v.k] || S.cash < v.price,
-          go: function () { pay(v.price); S[v.k] = true; SFX.hire(); openInvest(v.n + 'を導入した。'); } };
+          go: function () { pay(v.price); if (MACHGEN[v.k]) buyMach(v.k); else S[v.k] = true; SFX.hire(); openInvest(v.n + 'を導入した。'); } };
       }).concat([{ main: true, label: any ? 'これで開業する' : '設備はこのままで開業する', go: function () { startWeek(); } }]));
   }
   /* --- 主人公の名前と性格（いくつかの質問で決まる） --- */
@@ -4319,7 +4341,7 @@
     autoRestock();
     var launched = devTick();
     rollEvent();
-    rollLife();
+    rollLife(); rollEra();
     // 2か月目から毎月、お休みの日。ときどき、ちょっと怪しいお誘いが届く
     S.holPending = S.week > 1; S.holInv = S.holPending && S.week >= 3 && roll(0.3) ? pick(['oldfriend', 'oldfriend', 'invest', 'seminar']) : null;
     if (S.staff[0].sick) S.news.push({ t: '今月、あなたは店に立たない。お客様はスタッフに任せる。' });
@@ -4343,7 +4365,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync();
+    ageMonth(); uniSync(); machMonth();
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -4413,7 +4435,7 @@
     var list = S.queue.length ? '<details class="fold qlist"><summary>今月のお客様（' + S.queue.length + '人）' + (spQ.length ? '<span class="si">' + spQ.map(function (c) { return tagOf(c); }).join('・') + '</span>' : '') + '</summary><ul class="who-list">' +
       S.queue.map(function (c) { return '<li><span>' + c.name + (c.vip ? 'さま' : c.hotel ? ' 支配人' : 'さん') + '</span><span>' + tagOf(c) + '</span></li>'; }).join('') + '</ul></details>' : '';
     var lf = S.lifeKey ? lifeOf(S.lifeKey) : null;
-    var life = lf ? '<div class="event life box"><span class="badge">あなたの暮らし</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
+    var life = lf ? '<div class="event life box"><span class="badge">' + (lf.era ? '時代のできごと　' + nowYear() + '年' : 'あなたの暮らし') + '</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
     var head = '<h1>' + calOf(S.week) + '</h1>' + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
     if (S.newsPending && S.newsItem) return newsView();
@@ -4590,7 +4612,7 @@
     var match = menu === need ? 45 : (catOf(menu) === catOf(need) ? 30 : (NEAR[catOf(need)].indexOf(catOf(menu)) >= 0 ? 22 : 12));
     var order = ['soft', 'mid', 'strong'], gap = Math.abs(order.indexOf(press) - order.indexOf(C.pref));
     var p = gap === 0 ? 25 : (gap === 1 ? 12 : 0);
-    var sat = clamp(Math.round(4 + (C.missSt ? -8 : 0) + (C.royal ? 6 : 0) + (st.owner && boss() === 'field' ? 5 : 0) + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
+    var sat = clamp(Math.round(4 + (C.missSt ? -8 : 0) + (C.royal ? 6 : 0) + (st.owner && boss() === 'field' ? 5 : 0) + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + machMod(menu) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
     if (bl) sat = sat + blendSat(bl);
     sat = clamp(Math.round(softSat(sat)), 5, 100);
     return { sat: sat, match: match, gap: gap };
@@ -4991,13 +5013,65 @@
           ['よその有名サロンで修業させる', '人間力+6', 0, function () { hum(6); return '「いつか一緒に働こうね」と送り出した。'; }],
           ['好きな道を選ばせる', '人間力+4', 0, function () { hum(4); return '子どもは別の業界へ。それぞれの道で、がんばろう。'; }]] }
   ];
+  // 時代のできごと（その時代ならではの、ちょっとおかしくて、ちょっと切ない話）
+  var EY = function (a, b) { return function () { var y = eraY(); return S.startYear && y >= a && y <= b; }; };
+  var EYM = function (y0, m0) { return function () { return S.startYear && eraY() === y0 && monthOf() === m0; }; };
+  var ERAEV = [
+    { k: 'e_jiage', ok: EY(1987, 1990), t: '地上げ屋がやってきた', d: '派手なスーツの男が現れた。「この土地、高く買わせてもらえませんかねえ」。札束の入った紙袋を、カウンターにどんと置いた。',
+      c: [['きっぱり断る', '', 0, function () { hum(3); return '「ここは、お客様の大切な場所なんです」。男は舌打ちして帰っていった。スタッフが拍手してくれた。'; }],
+          ['大家さんに相談する', '', 0, function () { hum(1); return '大家さんは「あんたの店を追い出したりしないよ」と笑ってくれた。'; }]] },
+    { k: 'e_disco', ok: EY(1987, 1991), t: 'ディスコ帰りのお客様', d: '閉店まぎわに、肩パッドの入ったボディコンの女性が飛びこんできた。「明日もお立ち台に立つの！ 脚をなんとかして！」',
+      c: [['時間外だけど、特別に施術する', '', 0, function () { S.cash += 30000; S.wk.extra = (S.wk.extra || 0) + 30000; fat(10); return '「やだ、脚が軽い！」。チップと一緒に、ディスコの招待券を置いていった。（' + yen(30000) + '）'; }],
+          ['今日は閉店だと伝える', '', 0, function () { return '「えー、またねー！」と、タクシーを止めて夜の街へ消えていった。'; }]] },
+    { k: 'e_tip', ok: EY(1987, 1991), t: '「釣りはいらないよ」', d: '景気のいい社長さんが、会計で一万円札を何枚もひらひらさせた。「釣りはいらない。みんなでうまいもんでも食べな」',
+      c: [['ありがたく受け取って、スタッフと食事に行く', '', 0, function () { crewAll().forEach(function (st) { moodUp(st, 6, 2); }); return 'その夜、みんなで焼き肉を食べた。「バブルってすごいですね…」とスタッフ。'; }],
+          ['丁重にお返しする', '', 0, function () { hum(3); return '「欲がないねえ。気に入った！」。社長は次の予約を3回分入れていった。'; }]] },
+    { k: 'e_golf', ok: EY(1987, 1990), t: 'ゴルフ会員権のおさそい', d: '銀行の担当者がやってきた。「社長、ゴルフ会員権はいかがですか。値上がり確実、資産になりますよ」',
+      c: [['買う　' + yen(3000000), '', 3000000, function () { S.golf = { price: 3000000, y: eraY() }; S.rep = clamp(S.rep + 3, 0, 100); return '会員権を手に入れた。休日のゴルフで、顔が広くなった。（評判+3）'; }],
+          ['やめておく', '', 0, function () { return '「もったいないなあ」と言いながら、担当者は帰っていった。'; }]] },
+    { k: 'e_golfdown', ok: function () { return S.golf && eraY() >= 1993; }, pri: true, t: '会員権が値下がりした', d: 'バブルがはじけ、あのゴルフ会員権の値段が、買ったときの5分の1になってしまった。',
+      c: [['売ってしまう', '', 0, function () { var v = Math.round(S.golf.price / 5); S.cash += v; S.golf = null; return yen(v) + 'で手放した。高い授業料だった。'; }],
+          ['持ち続ける', '', 0, function () { S.golf = null; hum(2); return 'いい思い出も、たくさんあった。そのまま持っておくことにした。'; }]] },
+    { k: 'e_pager', ok: EY(1994, 1999), t: 'ポケベルの暗号', d: '休憩中、スタッフのポケベルが鳴った。画面には「0840」「724106」。顔を赤くしている。（おはよう、なにしてる？）',
+      c: [['ほほえましく見守る', '', 0, function () { crewAll().forEach(function (st) { moodUp(st, 3, 0); }); return '「彼氏から？」とみんなで冷やかした。休憩室がにぎやかになった。'; }],
+          ['仕事中は電源を切ってね、と伝える', '', 0, function () { return '「すみません！」と、あわててポケベルをロッカーにしまった。'; }]] },
+    { k: 'e_pet', ok: EY(1996, 1997), t: '電子ペットの大行列', d: 'スタッフが、休みの日に電子ペットのおもちゃを買う行列に並びたいらしい。朝の5時から並ぶそうだ。',
+      c: [['半日休みにしてあげる', '', 0, function () { crewAll().forEach(function (st) { moodUp(st, 4, 2); }); return '無事に買えたらしい。休憩中、みんなで小さな画面をのぞきこんでいる。'; }],
+          ['仕事を優先してもらう', '', 0, function () { return 'しょんぼりしていたが、閉店後にお店の近くのおもちゃ屋で見つけたらしい。'; }]] },
+    { k: 'e_nostra', ok: EYM(1999, 7), pri: true, t: '世紀末の予言', d: '常連さんが不安そうだ。「今月、空から恐怖の大王が降ってくるって…。もう、エステどころじゃないのかしら」',
+      c: [['「来月のご予約、お取りしておきますね」と笑う', '', 0, function () { S.clients.forEach(function (c) { if (c.active) c.loy = clamp(c.loy + 3, 0, 100); }); return '「そうよね、来月もあるわよね」。笑顔で帰っていった。（常連の信頼+3）'; }],
+          ['一緒に空を見上げる', '', 0, function () { hum(2); return '夏の空は、ただ青かった。'; }]] },
+    { k: 'e_y2k', ok: EYM(1999, 12), pri: true, t: '2000年問題', d: 'テレビで「2000年になると、コンピューターが誤作動するかもしれない」と言っている。お店のレジと予約のパソコンは大丈夫だろうか。',
+      c: [['専門の業者に点検してもらう　' + yen(50000), '', 50000, function () { return '「問題ありません」。元日、お店のパソコンはふつうに動いた。'; }],
+          ['気にしない', '', 0, function () { if (roll(0.3)) { fat(15); return '元日、予約のパソコンの日付が「1900年」に…。手書きの台帳で乗りきった。（疲れ+15）'; } return '元日、何ごともなく新しい年が始まった。'; }]] },
+    { k: 'e_ringtone', ok: EY(2000, 2006), t: '施術中の着メロ', d: '静かな施術室に、流行りの歌の着メロが大音量で鳴りひびいた。スタッフのバッグからだ。',
+      c: [['休憩室でやさしく注意する', '', 0, function () { return '「マナーモードにします…」。次の日から、着メロは鳴らなくなった。'; }],
+          ['お客様と笑ってすませる', '', 0, function () { hum(1); return 'お客様が「わたしもその曲好き！」と言い出し、話が盛り上がった。'; }]] },
+    { k: 'e_shame', ok: EY(2002, 2009), t: '「写メ撮ってもいいですか？」', d: '施術のあと、お客様がカメラ付きの携帯電話を取り出した。「仕上がりを写メして、友だちに送りたくて」',
+      c: [['どうぞ、と笑顔で応じる', '', 0, function () { S.buzz = { until: S.week + 1, n: 1 }; return '写メを見た友だちから、予約の電話がかかってきた。（来月の新規+1人）'; }],
+          ['店内の撮影はお断りする', '', 0, function () { return '「残念…」。代わりに、お店の名刺を渡した。'; }]] },
+    { k: 'e_tapioca', ok: EY(2018, 2019), t: 'タピオカの行列', d: '駅前のタピオカのお店に、毎日長い行列ができている。スタッフがそわそわしている。',
+      c: [['みんなに差し入れする　' + yen(5000), '', 5000, function () { crewAll().forEach(function (st) { moodUp(st, 5, 2); }); return 'もちもちのタピオカに、休憩室が大さわぎ。写真もたくさん撮っていた。'; }],
+          ['自分も並んでみる', '', 0, function () { fat(5); hum(1); return '40分並んだ。思ったより、おいしかった。'; }]] },
+    { k: 'e_mask', ok: EY(2020, 2022), t: 'マスクの肌荒れ', d: '「マスクの下が、ずっと荒れていて…」。そんな相談が、最近とても多い。',
+      c: [['マスク肌のケアを打ち出す', '', 0, function () { S.disc = true; return '「マスク肌ケア」の案内を出した。今月はコースが決まりやすい。'; }],
+          ['一人ひとりに、ていねいに向き合う', '', 0, function () { S.clients.forEach(function (c) { if (c.active) c.loy = clamp(c.loy + 2, 0, 100); }); return 'じっくり話を聞いて、家でのケアも伝えた。（常連の信頼+2）'; }]] }
+  ];
+  ERAEV.forEach(function (e) { e.era = true; LIFE.push(e); });
+  function rollEra() {
+    if (!S.startYear || S.lifePending) return;
+    S.eraDone = S.eraDone || {};
+    var pool = ERAEV.filter(function (e) { return e.ok() && !S.eraDone[e.k]; }); if (!pool.length) return;
+    var e = pool.filter(function (x) { return x.pri; })[0] || (roll(0.3) ? pick(pool) : null); if (!e) return;
+    S.lifeKey = e.k; S.lifePending = true; S.eraDone[e.k] = true;
+  }
   function lifeOf(k) { return LIFE.filter(function (e) { return e.k === k; })[0]; }
   function rollLife() {
     S.lifeKey = null; S.lifePending = false; S.lifeNote = '';
     if (S.week % 3 !== 0) return;
     var L = S.life;
     if (L.baby && L.babyWeek === undefined) L.babyWeek = S.week;
-    var pool = LIFE.filter(function (e) { return e.ok(L) && (e.again || !L.done[e.k]); });
+    var pool = LIFE.filter(function (e) { return !e.era && e.ok(L) && (e.again || !L.done[e.k]); });
     if (!pool.length) return;
     var e = pool.filter(function (x) { return x.pri; })[0] || pick(pool);
     S.lifeKey = e.k; S.lifePending = true; L.done[e.k] = true;
@@ -6461,7 +6535,7 @@
     var spc = S.special ? S.queue.filter(function (c) { return c.sp; })[0] : null;
     return { kicker: '今月のできごと', title: S.evTitle, c1: '#F2C230', c2: '#E8A93A', look: spc ? spc.look : null, icon: EVICON[S.ev] || 'star' };
   }
-  function lifeCut() { return { kicker: 'あなたの暮らし', title: lifeOf(S.lifeKey).t, c1: '#9B7BE0', c2: '#8461CF', icon: LIFEICON[S.lifeKey] || 'heart' }; }
+  function lifeCut() { var era = lifeOf(S.lifeKey).era; return { kicker: era ? '時代のできごと' : 'あなたの暮らし', title: lifeOf(S.lifeKey).t, c1: era ? '#C9A227' : '#9B7BE0', c2: era ? '#A8861C' : '#8461CF', icon: LIFEICON[S.lifeKey] || 'heart' }; }
   function spCut(c) {
     var col = c.vip ? ['#D9B13A', '#C29A22'] : (c.press ? ['#6C7EAE', '#5A6C9C'] : (c.inbound ? ['#4CC0B0', '#38A898'] : (c.celeb ? ['#5A4A7A', '#46385F'] : ['#FF8FAB', '#F27396'])));
     return { kicker: '特別なお客様', title: nm(c) + 'のご来店', sub: tagOf(c), look: c.look, c1: col[0], c2: col[1], sound: function () { SFX.fanfare(false); } };
@@ -7043,8 +7117,13 @@
       : { label: '電子カルテを導入する　' + yen(80000), sub: '常連の好みや経過を全員で共有。常連の満足度とコースの決まりやすさが上がる', off: S.cash < 80000, go: function () { pay(80000); S.ekarte = 1; SFX.hire(); investView(); } });
     INVEST.forEach(function (v) {
       if (!invOn(v.k) && !S[v.k]) return opts.push({ label: v.n, sub: (INVYEAR[v.k]) + '年ごろに登場する', off: true, go: function () {} });
+      if (MACHGEN[v.k] && S[v.k]) {
+        var mx = machFix()[v.k], yrs = Math.floor((S.week - mx.wk) / 12) + 1, old = curGen(v.k) > mx.gen || S.week - mx.wk >= 72;
+        return opts.push({ label: v.n + '（' + genName(v.k, mx.gen) + '・' + yrs + '年目）' + (old ? '　買い替え ' + yen(v.price) : ''), sub: old ? (curGen(v.k) > mx.gen ? '新しい型が出ている。買い替えると満足度が上がる' : '古くなってきた。8年をこえると壊れやすい') : '最新の状態で使えている', off: !old || S.cash < v.price,
+          go: function () { pay(v.price); buyMach(v.k); SFX.hire(); investView(); } });
+      }
       opts.push({ label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: S[v.k] || S.cash < v.price, go: function () {
-        pay(v.price); S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
+        pay(v.price); if (MACHGEN[v.k]) buyMach(v.k); else S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
       } });
     });
     opts.push({ label: 'お店と会社の名前を変える', sub: 'いま：' + (S.brand || '（未設定）') + (S.company ? '／' + S.company : '') + '　支店の名前もまとめて変わる', go: nameView });
