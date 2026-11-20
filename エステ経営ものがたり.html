@@ -4982,9 +4982,9 @@
     if (S.evPending) { evScene([EVPIC[S.ev]]); return view(only + ev + stepHtml('どうする？'), noDeadEnd(declWrap(evChoices(), 'evDecl'), function () { S.evDecl = true; S.evPending = false; S.evNote = '今はお金の余裕がないので、見送った。'; weekIntro(); })); }
     evScene([S.holPic, S.lifeKey && !S.lifeDecl ? LIFEPIC[S.lifeKey] : null, S.sevKey && !S.sevDecl ? EVPIC[S.sevKey] : null, S.ev && !S.evDecl ? S.evDeclAlt || EVPIC[S.ev] : null]);
     var opts = [{ main: true, label: S.queue.length ? (S.autoMode ? '営業を始める（おまかせ）' : '最初のお客様を迎える') : '今月の営業を終える',
-      sub: S.queue.length && S.autoMode ? '特別なお客様だけ、あなたが接客する' : '', go: S.queue.length ? nextCust : night }];
+      sub: S.queue.length && S.autoMode ? (S.ownerMale ? '特別なお客様には、オーナーとしてもてなしに出る' : '特別なお客様だけ、あなたが接客する') : '', go: S.queue.length ? nextCust : night }];
     if (S.queue.length) opts.push({ label: S.autoMode ? 'ひとりずつ自分で迎えるモードにする' : 'スタッフにおまかせにする',
-      sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : S.ownerMale ? '担当を決めずに、すべて自動で進む' : 'セレブや取材など特別なお客様だけ自分で対応し、あとは自動で進む',
+      sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : S.ownerMale ? 'ふだんのお客様はスタッフが自動で接客。セレブや取材など特別なお客様には、あなたが担当を選び、もてなし方を決める' : 'セレブや取材など特別なお客様だけ自分で対応し、あとは自動で進む',
       go: function () { S.autoMode = !S.autoMode; weekIntro(); } });
     view(head + list, opts);
   }
@@ -5421,7 +5421,7 @@
     var oils = myOils(), bl = menu === 'aroma' ? (oils.length && C.budget >= 1 && roll(0.6) ? 'my:' + oils[0].k : (S.aromaPro && C.budget >= 2 ? 'premium' : (C.budget >= 1 ? 'season' : 'relax'))) : null;
     C.menu = catOf(menu); C.sub = menu; C.blend = bl;
     var press = (!C.isNew || st.trait === 'listen' || roll(0.25 + 0.1 * sk(st, 'listen') + 0.03 * sk(st, 'emp'))) ? C.pref : pick(Object.keys(PRESS));
-    C.sat = clamp(satCalc(menu, press, st, bl).sat + (C.plan && (courseOf(C.plan.k) || {}).multi ? 6 : 0), 5, 100); C.missSt = null;
+    C.sat = clamp(satCalc(menu, press, st, bl).sat + (C.plan && (courseOf(C.plan.k) || {}).multi ? 6 : 0) + (C.hostSat || 0), 5, 100); C.missSt = null;
     pressLoad(st, press);
     blendPay(bl);
     reputeBySat();
@@ -5435,7 +5435,7 @@
     if (C.isNew) {
       S.cash += TRIAL; S.wk.trial += TRIAL; C.revenue += TRIAL;
       // スタッフも自分なりのトークで、興味を上げて警戒心をほぐす
-      var it = 21 + C.int + C.sat * 0.5 + st.talk * 8 + sk(st, 'emp') * 3 + moodBonus(st) + (tr === 'talk' ? 10 : 0) + (tr === 'push' ? 12 : 0);
+      var it = 21 + C.int + (C.hostInt || 0) + C.sat * 0.5 + st.talk * 8 + sk(st, 'emp') * 3 + moodBonus(st) + (tr === 'talk' ? 10 : 0) + (tr === 'push' ? 12 : 0);
       var gd = C.grd - 6 - st.talk * 6 - sk(st, 'word') * 3 - (tr === 'heal' ? 18 : 0) + (tr === 'push' ? 12 : 0) - (S.hum - 30) * 0.2;
       var sc = it - gd * 0.7 + (C.sat - (C.vip ? 62 : 50)) * (C.vip ? 0.6 : 0.3), tier = C.budget + (roll(0.5) ? 1 : 0);
       var cand = (C.vip ? [VIPITEMS[0]] : []).concat(C.bride ? [BRIDAL] : []).concat(COURSES).filter(function (c) { return c.tier <= tier && sc >= needOf(c) - 8 && !(c.royal && C.sat < 70); })[0];
@@ -7133,11 +7133,47 @@
     if (!c.length) return null;
     return c.sort(function (a, b) { return power(b) - power(a); })[0];
   }
+  /* --- 男性の店長：特別なお客様を、オーナーとしてもてなす（担当を選び、もてなし方を決める） --- */
+  function hostStaff(c) {
+    bar(); C = c; setScene('enter');
+    var free = S.staff.filter(function (st) { return st.used < capOf(st); }).sort(function (a, b) { return power(b) - power(a); });
+    if (!free.length) { c.hosted = S.week; return autoBatch(); }
+    view('<h1>' + nm(c) + 'のご来店</h1><div class="news good">' + tagOf(c) + '。オーナーとして、あいさつに出る。</div>' + stepHtml('担当するスタッフを選ぶ'),
+      free.map(function (st) {
+        return { label: stName(st) + '　技術' + st.tech + '・トーク' + st.talk, sub: (TRAITS[st.trait] ? TRAITS[st.trait].n : '') + '　今月あと' + (capOf(st) - st.used) + '人', go: function () { hostHow(c, st); } };
+      }));
+  }
+  function hostHow(c, st) {
+    bar();
+    var biz = c.press || c.vip, gift = 5000;
+    view('<h1>' + nm(c) + 'のご来店</h1><div class="news">担当は' + stName(st) + '。施術のあいだ、オーナーとしてどうもてなす？</div>' + stepHtml('もてなし方を選ぶ'),
+      [{ label: '店内を案内して、お店のこだわりを伝える', go: function () { hostDo(c, st, 'tour'); } },
+       { label: '手土産を用意しておく　' + yen(gift), off: S.cash < gift, go: function () { pay(gift); hostDo(c, st, 'gift'); } },
+       { label: '事業の話をする', go: function () { hostDo(c, st, 'biz'); } },
+       { label: 'あいさつだけして、スタッフに任せる', go: function () { hostDo(c, st, 'trust'); } }]);
+  }
+  function hostDo(c, st, how) {
+    C = c; C.st = null; C.today = null; C.sat = 0; c.hosted = S.week;
+    prepServe(st);
+    var biz = c.press || c.vip, notes = [];
+    if (how === 'tour') { C.hostSat = 6; C.hostInt = 6; hum(1); notes.push('お店のこだわりが伝わった（満足度+6）'); }
+    else if (how === 'gift') { C.hostSat = c.vip || c.celeb ? 8 : 4; C.hostInt = 4; notes.push('手土産をとても喜んでくれた（満足度+' + C.hostSat + '）'); }
+    else if (how === 'biz') { if (biz) { C.hostSat = 5; C.hostInt = 10; mxpAdd(3); notes.push('事業の話に、身を乗り出して聞いてくれた（満足度+5、経営の経験）'); } else { C.hostSat = -4; C.hostInt = -4; notes.push('くつろぎに来たのに、と少し困った顔をされた（満足度−4）'); } }
+    else { C.hostSat = 0; C.hostInt = 0; moodUp(st, 8, 2); notes.push(stName(st) + 'が「任せてもらえた」と張り切った（やる気+8）'); }
+    var r = autoCore();
+    C.hostSat = 0; C.hostInt = 0;
+    S.idx++;
+    var html = '<h1>' + nm(c) + 'のおもてなし</h1><div class="news good">' + notes.join('') + '</div><ul class="who-list auto"><li class="' + r.tone + '"><span>' + nm(c) + '<small>' + stName(st) + '・満足' + C.sat + '</small></span><span>' +
+      (C.got.length ? C.got.join('、') : (C.press ? '取材' : '追加なし')) + '<small>' + yen(C.revenue) + '</small></span></li></ul>' + '<p class="lead">' + r.lines.join('') + '</p>';
+    C = null; saveGame('batch'); bar(); setScene('idle'); SFX.good();
+    view(html, [{ main: true, label: S.idx < S.queue.length ? '営業をつづける' : '今月の営業を終える', go: S.idx < S.queue.length ? autoBatch : night }]);
+  }
   function autoBatch() {
     var rows = [], tot = 0;
     while (S.idx < S.queue.length) {
       var c = S.queue[S.idx];
       if (c.sp && capOf(own()) - own().used > 0) break;
+      if (c.sp && S.ownerMale && c.hosted !== S.week) break;
       C = c; C.st = null; C.today = null; C.sat = 0;
       var st = pickAuto();
       if (!st) { S.rep = clamp(S.rep - 1, 0, 100); rows.push('<li class="bad"><span>' + nm(c) + '</span><span>担当が空かずお断り</span></li>'); S.idx++; continue; }
@@ -7158,7 +7194,7 @@
     if (more) {
       var sc = S.queue[S.idx];
       return view(html + '<div class="news good">特別なお客様がお見えになった。</div>',
-        [{ main: true, label: nm(sc) + 'を迎える', sub: tagOf(sc), go: function () { showCut(spCut(sc), manualCust); } }]);
+        [{ main: true, label: nm(sc) + 'を迎える', sub: tagOf(sc), go: function () { showCut(spCut(sc), S.ownerMale ? function () { hostStaff(sc); } : manualCust); } }]);
     }
     view(html, [{ main: true, label: '今月の営業を終える', go: night }]);
   }
