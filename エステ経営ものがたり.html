@@ -6959,11 +6959,11 @@
     view('<h1>' + (S.company ? S.company + ' ' : '') + '本社</h1><p class="lead">' + L.n + '</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<p class="lead">家賃 月' + yen(L.rent) + '　本社のスタッフ ' + hs.length + '／' + L.cap + '人　本店の店長：' + (mgr ? mgr.name : 'なし') +
       '<br>社員 ' + employees() + '人</p>' +
-      '<ul class="who-list">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name; }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul>',
-      [{ label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? BOSS[S.boss].d : 'いくつかの質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } },
+      '<details class="fold"><summary>部署の一覧と役割</summary><ul class="who-list">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name; }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul></details>',
+      [{ label: '本社の研修と資格取得', sub: S.hqTrainWk === S.week ? '今月の研修はすんだ' : '社内勉強会・外部セミナー（月1回）、資格の勉強の支援', off: !hs.length, go: function () { hqTrainView(); }, rec: S.hqTrainWk !== S.week && hs.length ? '今月の研修がまだ。本社のスタッフの力が伸びる' : '' },
+       { label: '本社で新しく採用する', sub: '今月の応募者の一覧から、何人でも選べる（あと' + Math.max(0, L.cap - hs.length) + '人まで）', off: hs.length >= L.cap, go: function () { hqHireView(false); } },
        { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人や、接客が合わない人にも。本社では手を使わないので、痛みも治る', off: hs.length >= L.cap, go: transferHqView },
-       { label: '本社の研修と資格取得', sub: S.hqTrainWk === S.week ? '今月の研修はすんだ' : '社内勉強会・外部セミナー（月1回）、資格の勉強の支援', off: !hs.length, go: function () { hqTrainView(); } },
-       { label: '本社で新しく採用する', sub: '今月の応募者の一覧から、何人でも選べる（あと' + Math.max(0, L.cap - hs.length) + '人まで）', off: hs.length >= L.cap, go: function () { hqHireView(false); } }]
+       { label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? BOSS[S.boss].d : 'いくつかの質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } }]
       .concat(hs.map(function (st) { return { grp: '本社のスタッフ', label: st.name + '（' + DEPT[st.dept].n + '）', sub: hqSkText(st) + '　' + hqExpText(st) + '　月給' + yen(payOf(st)), go: function () { hqStaffView(st); } }; }))
       .concat(S.staff.filter(function (st) { return !st.owner; }).length ? [{ label: '本店の店長を決めなおす', sub: mgr ? 'いまは' + mgr.name : 'いまはいない', go: function () { mgrView(); } }] : [])
       .concat(nx ? [{ label: '本社を「' + nx.n + '」に移す　' + yen(nx.cost), sub: '家賃 月' + yen(nx.rent) + '、本社のスタッフ' + nx.cap + '人まで。社長室も豪華になる', off: S.cash < nx.cost,
