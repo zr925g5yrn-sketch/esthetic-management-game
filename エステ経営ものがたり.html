@@ -2055,6 +2055,7 @@
     if (y < 2010) t = t.replace(/推しのライブに当選して/g, '好きな歌手のコンサートのチケットが取れて').replace(/推し活/g, 'コンサート通い');
     if (y < 2003) t = t.replace(/お店のブログ、/g, 'お店のニュースレター、');
     if (y < 1992) t = t.replace(/産休・育休/g, '産休').replace(/育休/g, '産休');
+    if (y < 1995) t = t.replace(/エイジングケア美容液/g, 'ハリつや美容液');
     if (y < 1990) t = t.replace(/アロマトリートメント/g, 'オイルトリートメント').replace(/プレミアムアロマ/g, 'プレミアムオイル').replace(/アロマ入浴剤/g, 'ハーブ入浴剤').replace(/アロマミスト/g, 'ハーブミスト')
       .replace(/アロマオイル/g, '香りのオイル').replace(/アロマのブレンド/g, 'オイルのブレンド').replace(/アロマの奥深さ/g, '香りの奥深さ').replace(/アロマ/g, 'ハーブ');
     if (y < 1995) t = t.replace(/リンパドレナージュ/g, 'むくみ取りマッサージ').replace(/ネットで発覚した/g, '週刊誌の記事で発覚した');
@@ -3105,7 +3106,7 @@
   // 商品とお悩みの相性
   var F3 = ['pore', 'bright', 'aging'], H3 = ['dry', 'scalp'];
   var PFIT = { set: F3, bodyc: ['slim', 'lymph'], serum: F3, bath: ['aroma', 'lymph'].concat(H3), device: F3, ems: ['slim', 'lymph'],
-    skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['scalp', 'dry', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], oil: ['aroma', 'lymph', 'dry'], mask: F3.concat(['aroma']) };
+    skin: F3, body: ['slim', 'lymph'], aroma: ['aroma', 'dry', 'scalp'], inner: ['slim'].concat(F3), hair: ['scalp', 'dry', 'aroma'], uv: F3, eye: ['dry', 'aging', 'bright'], scent: ['aroma'], oil: ['aroma', 'lymph', 'dry'], mask: F3.concat(['aroma']), aging: ['aging', 'bright'], cleanse: ['pore', 'bright'], hand: ['aroma', 'dry', 'lymph'] };
   var CSHORT = { pore: '毛穴', bright: 'くすみ', aging: 'ハリ', dry: '頭と目の疲れ', scalp: '頭皮', lymph: 'むくみ', slim: 'お腹まわり', aroma: '疲れ・ストレス' };
   function fitText2(cat) { return (PFIT[cat] || []).map(function (k) { return CSHORT[k]; }).join('・'); }
   function pcat(p) {
@@ -7212,7 +7213,10 @@
     eye:   { n: 'アイケア',     cost: 2400, price: 22000, need: 40, tier: 1, col: '#BFE6F5', cap: '#2D6E9E' },
     scent: { n: 'フレグランス', cost: 3000, price: 32000, need: 46, tier: 1, col: '#F7B8C8', cap: '#C9A227', gone: true },
     mask:  { n: 'シートマスク', cost: 800,  price: 8800, need: 24, tier: 0, col: '#F4EDE0', cap: '#E0567A' },
-    oil:   { n: 'エッセンシャルオイル', cost: 1600, price: 16500, need: 34, tier: 0, col: '#9ED68A', cap: '#3E7A4E', d: 'アロマトリートメントのオリジナルブレンドにも使える' }
+    oil:   { n: 'エッセンシャルオイル', cost: 1600, price: 16500, need: 34, tier: 0, col: '#9ED68A', cap: '#3E7A4E', d: 'アロマトリートメントのオリジナルブレンドにも使える' },
+    aging: { n: 'エイジングケア美容液', cost: 3800, price: 35000, need: 50, tier: 2, col: '#D9B13A', cap: '#7A1E38', d: 'ハリやたるみが気になる人に。いちばん高価なライン' },
+    cleanse: { n: 'クレンジング', cost: 1000, price: 9800, need: 26, tier: 0, col: '#E8F4F8', cap: '#3AC0C8', d: '毛穴やくすみが気になる人に。毎日使うので、売れやすい' },
+    hand:  { n: 'ハンドクリーム', cost: 600, price: 4400, need: 18, tier: 0, col: '#FFE6D6', cap: '#E0704A', d: '手ごろで、ちょっとした贈り物にも。だれにでも売れやすい' }
   };
   var MAXMINE = 12, AUTOSTEP = [0, 3, 6, 10, 15, 20, 30, 50, 80, 100];
   function prods() { return PRODUCTS.filter(function (p) { return !p.unlock || (S && S[p.unlock]); }).concat((S && S.myProds) || []); }
@@ -7241,8 +7245,11 @@
     if (!S.dev && S.myProds.length >= MAXMINE) return view('<h1>商品開発</h1><p class="lead">オリジナル商品は' + MAXMINE + '品まで。新しく作るには、どれかを廃番にする。</p>', S.myProds.map(function (p) { return { label: '「' + p.n + '」を廃番にする', sub: '品質' + p.q + '　在庫' + S.stock[p.k] + '個（仕入れ値で引き取る）', go: function () { S.cash += (S.stock[p.k] || 0) * p.cost; S.myProds.splice(S.myProds.indexOf(p), 1); delete S.stock[p.k]; if (S.autoStock) delete S.autoStock[p.k]; devView(); } }; }).concat([{ main: true, label: 'もどる', go: investView }]));
     if (S.dev) return view('<h1>商品開発</h1><p class="lead">「' + S.dev.name + '」（' + DEVCAT[S.dev.cat].n + '）を開発中。あと' + S.dev.left + 'か月で完成する。</p>',
       [{ main: true, label: 'もどる', go: investView }]);
-    var opts = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone; }).map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '</option>'; }).join('');
-    view('<h1>商品開発</h1><p class="lead">店のオリジナル商品を作る。完成まで2か月。品質はスタッフの施術の腕と、あなたの人間力で決まる。良い品はよく売れ、話題にもなる。最大' + MAXMINE + '品。</p>' +
+    var have = {}; S.myProds.forEach(function (p) { have[pcat(p)] = true; });
+    var free = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone && !have[k]; });
+    if (!free.length) return view('<h1>商品開発</h1><p class="lead">すべての種類のオリジナル商品がそろっている。同じ種類は作れないので、新しく作るなら、どれかを廃番にする。</p>', S.myProds.map(function (p) { return { label: '「' + p.n + '」を廃番にする', sub: DEVCAT[p.cat] ? DEVCAT[p.cat].n + '　品質' + p.q : '', go: function () { S.cash += (S.stock[p.k] || 0) * p.cost; S.myProds.splice(S.myProds.indexOf(p), 1); delete S.stock[p.k]; if (S.autoStock) delete S.autoStock[p.k]; devView(); } }; }).concat([{ main: true, label: 'もどる', go: investView }]));
+    var opts = free.map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '</option>'; }).join('');
+    view('<h1>商品開発</h1><p class="lead">店のオリジナル商品を作る。完成まで2か月。品質はスタッフの施術の腕と、あなたの人間力で決まる。良い品はよく売れ、話題にもなる。最大' + MAXMINE + '品。同じ種類は1品ずつで、まだ作っていない種類はあと' + free.length + '種類。</p>' +
       '<div class="form"><label>商品名<input id="dvName" type="text" maxlength="12" autocomplete="off"></label>' +
       '<label>種類<select id="dvCat">' + opts + '</select></label>' + (S.farms && farmN() ? '<label>産地の素材<select id="dvMat"><option value="">使わない</option>' + SANCHI.filter(function (x) { return S.farms[x.k]; }).map(function (x) { return '<option value="' + x.k + '">' + x.area + 'の' + x.n + '</option>'; }).join('') + '</select></label>' : '') + '<p class="dvinfo" id="dvInfo"></p></div>' + brandHtml() + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
       [{ label: '標準で開発する　' + yen(150000), sub: '2か月で完成', off: S.cash < 150000, go: function () { startDev(0, 150000); } },
