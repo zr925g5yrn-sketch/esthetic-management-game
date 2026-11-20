@@ -7473,11 +7473,14 @@
         var dm = Math.round(st.mot) - m0, dt = Math.round(st.trust) - t0; careStaff(st, msg + '（' + [dm ? 'やる気' + (dm > 0 ? '+' : '') + dm : '', dt ? '信頼' + (dt > 0 ? '+' : '') + dt : ''].filter(Boolean).join('、') + '）', pic); };
     };
     var isHq = hqStaff().indexOf(st) >= 0;
-    view('<h1>' + st.name + 'と過ごす</h1><p class="lead">' + ageOf(st) + '歳　' + (isHq ? '本社・' + DEPT[st.dept].n + '　' + hqSkText(st) + '<br>資格：' + certText(st) : TRAITS[st.trait].n + '　' + statText(st)) + '<br>' + moodText(st) + (isHq ? '' : careStaffInfo(st)) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
+    var info = '<p class="lead">' + ageOf(st) + '歳　' + (isHq ? '本社・' + DEPT[st.dept].n + '　' + hqSkText(st) + '<br>資格：' + certText(st) : TRAITS[st.trait].n + '　' + statText(st)) + '<br>' + moodText(st) + (isHq ? '' : careStaffInfo(st)) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="prof">気質：' + TEMPER[temperOf(st)].n + '　口ぐせ「' + KUSE[temperOf(st)] + '」<br>趣味：' + profOf(st).hobby + '　好きな食べ物：' + profOf(st).food + '<br>夢：' + ((st.epi || 0) >= 1 ? DREAMS[profOf(st).dream] : '？（もっと仲良くなると話してくれる）') +
-        (relText(st) ? '<br>' + relText(st) : '') + (romText(st) ? '<br>' + romText(st) : '') + (isHq ? '' : '<br>' + aptText(st)) + '</div>' +
-      '<div class="talk"><div class="say you">' + (st.wantTalk ? '「店長…。相談したいことがあるんです」' : epiReady(st) ? '「店長、少しお話ししてもいいですか？」' : talkLine(st)) + '</div></div>' +
-      (frictionOf(st).length ? '<div class="news bad">相性の不安：' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</div>' : '') + (note ? '<div class="news good">' + note + '</div>' : ''),
+        (relText(st) ? '<br>' + relText(st) : '') + (romText(st) ? '<br>' + romText(st) : '') + (isHq ? '' : '<br>' + aptText(st)) + '</div>';
+    var talkH = '<div class="talk"><div class="say you">' + (st.wantTalk ? '「店長…。相談したいことがあるんです」' : epiReady(st) ? '「店長、少しお話ししてもいいですか？」' : talkLine(st)) + '</div></div>' +
+      (frictionOf(st).length ? '<div class="news bad">相性の不安：' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</div>' : '') + '';
+    var ask = st.wantTalk || epiReady(st);
+    // 相談があるときは、相談を先に。プロフィールは折りたたむ
+    view('<h1>' + st.name + 'と過ごす</h1>' + (note ? '<div class="news good">' + note + '</div>' : '') + (ask ? talkH + '<details class="fold"><summary>' + st.name + 'のプロフィール</summary>' + info + '</details>' : info + talkH),
       [st.wantTalk ? { main: true, label: '面談の申し出に応える', sub: st.name + 'が相談したがっている', go: function () { gripeView(st); } } : null,
        (function () { var e = epiNext(st); if (!e) return null;
         return e.ok ? { main: true, label: '● ' + st.name + 'の話を聞く（物語 ' + (e.n + 1) + '／3）', sub: '打ち明け話をしてくれそう', go: function () { epiView(st); } }
