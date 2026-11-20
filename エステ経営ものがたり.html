@@ -989,16 +989,16 @@
   ];
   var OPTION = { k: 'opt', n: 'オプション（ヘッド10分）', price: 3500, need: 28, tier: 0 };
   var TRAITS = {
-    god:    { n: '職人肌',         d: '施術の満足度が高い' },
-    talk:   { n: 'トーク上手',     d: 'コースが売れやすい' },
-    heal:   { n: '癒やし系',       d: 'お客様の警戒心をほぐす' },
-    shop:   { n: '物販名人',       d: '物販がよく売れる' },
-    push:   { n: '押しが強い',     d: 'よく売るが、解約も出やすい' },
-    mood:   { n: 'ムードメーカー', d: '担当するたびに評判が上がる' },
-    rookie: { n: '新人',           d: 'いまは未熟。研修の伸びが1.2倍で、給与が安い' },
-    vet:    { n: 'ベテラン',       d: '腕もトークも確か。給与が高い。研修の伸びは0.8倍' },
-    tough:  { n: '体力自慢',       d: '月に4人まで担当できる' },
-    listen: { n: '聞き上手',       d: 'カウンセリングで3つ質問できる。悩みと好みを外さない' }
+    god:    { n: '職人肌',         d: '◯施術の満足度が高い　×口数が少なく、コースをすすめるのが苦手' },
+    talk:   { n: 'トーク上手',     d: '◯コースが売れやすい　×話に夢中で、施術の満足度が少し下がる' },
+    heal:   { n: '癒やし系',       d: '◯お客様の警戒心をほぐす　×やさしすぎて、コースが決まりにくい' },
+    shop:   { n: '物販名人',       d: '◯物販がよく売れる　×慎重なお客様や価格重視のお客様には、すすめすぎと思われる' },
+    push:   { n: '押しが強い',     d: '◯よく売る　×解約も出やすい' },
+    mood:   { n: 'ムードメーカー', d: '◯担当するたびに評判が上がる　×静かに過ごしたい慎重なお客様には、にぎやかすぎる' },
+    rookie: { n: '新人',           d: '◯研修の伸びが1.2倍で、給与が安い　×いまは未熟' },
+    vet:    { n: 'ベテラン',       d: '◯腕もトークも確か　×給与が高く、研修の伸びは0.8倍' },
+    tough:  { n: '体力自慢',       d: '◯月に4人まで担当できる　×力加減が強めで、ソフトが好きなお客様の満足度が下がる' },
+    listen: { n: '聞き上手',       d: '◯カウンセリングで3つ質問できる。悩みと好みを外さない　×押しが弱く、コースが決まりにくい' }
   };
   var INVEST = [
     { k: 'headSpa',     n: 'ヘッドスパ台',     price: 80000,  d: 'ヘッドスパ（ドライヘッドスパ・頭皮クレンジング）を提供できる' },
@@ -3208,7 +3208,10 @@
     var m = pm().mult * opMult() * (S.disc && (it.sessions || it.member) ? 0.8 : 1);
     return m === 1 ? it.price : Math.round(it.price * m / 100) * 100;
   }
-  function needOf(it) { return it.need - (it.multi && C && C.known && C.known.c2 ? 8 : 0) - (S.week <= (S.rankUntil || 0) && (it.sessions || it.member) ? 8 : 0) - (S.disc && (it.sessions || it.member) ? 12 : 0) - (S.gift && (it.cost || it.prod) ? 15 : 0) + (it.cost || it.prod ? 0 : pm().need); }
+  function traitSell(it) { var st = C && C.st; if (!st || !(it.sessions || it.member)) return 0; return st.trait === 'god' || st.trait === 'heal' || st.trait === 'listen' ? 6 : 0; }
+  // 特性の短所：満足度
+  function traitSat(st) { if (!st || !C) return 0; var t = st.trait; return t === 'talk' ? -4 : t === 'shop' && (C.pers === 'careful' || C.pers === 'price') ? -4 : t === 'mood' && C.pers === 'careful' ? -5 : t === 'tough' && C.pref === 'soft' ? -6 : 0; }
+  function needOf(it) { return traitSell(it) + it.need - (it.multi && C && C.known && C.known.c2 ? 8 : 0) - (S.week <= (S.rankUntil || 0) && (it.sessions || it.member) ? 8 : 0) - (S.disc && (it.sessions || it.member) ? 12 : 0) - (S.gift && (it.cost || it.prod) ? 15 : 0) + (it.cost || it.prod ? 0 : pm().need); }
   function costOf(p) { var c = S.cosme ? Math.round(p.cost * 0.7) : p.cost; if (p.mine && S.kobo) c = Math.round(c * 0.85); return S.sale ? Math.round(c / 2) : c; }
   function rollEvent() {
     S.ev = null; S.evPending = false; S.evNote = ''; S.special = null; S.evStaff = null;
@@ -5224,6 +5227,7 @@
     var p = gap === 0 ? 25 : (gap === 1 ? 12 : 0);
     var sat = clamp(Math.round(4 + (C.missSt ? -8 : 0) + (C.royal ? 6 : 0) + (st.owner && boss() === 'field' ? 5 : 0) + match + p + st.tech * 4 + (st.trait === 'god' ? 10 : 0) + intBonus(S.interiorLv || (S.interior ? 1 : 0)) + moodBonus(st) + (has(st, 'godhand') ? 12 : 0) + (S[MACHB[menu]] ? 10 : 0) + machMod(menu) + (sk(st, 'emp') - 3) * 1.5 + (C.isNew ? 0 : 3 + (S.ekarte ? 4 : 0) + (sk(st, 'care') - 3)) - (st.tired ? 12 : 0) + rnd() * 8 - 4), 5, 999);
     if (bl) sat = sat + blendSat(bl);
+    sat += traitSat(st);
     sat = clamp(Math.round(softSat(sat)), 5, 100);
     return { sat: sat, match: match, gap: gap };
   }
@@ -7642,7 +7646,7 @@
         var dm = Math.round(st.mot) - m0, dt = Math.round(st.trust) - t0; careStaff(st, msg + '（' + [dm ? 'やる気' + (dm > 0 ? '+' : '') + dm : '', dt ? '信頼' + (dt > 0 ? '+' : '') + dt : ''].filter(Boolean).join('、') + '）', pic); };
     };
     var isHq = hqStaff().indexOf(st) >= 0;
-    var info = '<p class="lead">' + ageOf(st) + '歳　' + (isHq ? '本社・' + DEPT[st.dept].n + '　' + hqSkText(st) + '<br>資格：' + certText(st) : TRAITS[st.trait].n + '　' + statText(st)) + '<br>' + moodText(st) + (isHq ? '' : careStaffInfo(st)) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
+    var info = '<p class="lead">' + ageOf(st) + '歳　' + (isHq ? '本社・' + DEPT[st.dept].n + '　' + hqSkText(st) + '<br>資格：' + certText(st) : TRAITS[st.trait].n + '　' + statText(st) + '<br>' + TRAITS[st.trait].d) + '<br>' + moodText(st) + (isHq ? '' : careStaffInfo(st)) + '<br>やる気を上げる（ご飯・ボーナス・休み）と、信頼を深める（面談）は、それぞれ月1回ずつ。</p>' +
       '<div class="prof">気質：' + TEMPER[temperOf(st)].n + '　口ぐせ「' + KUSE[temperOf(st)] + '」<br>趣味：' + profOf(st).hobby + '　好きな食べ物：' + profOf(st).food + '<br>夢：' + ((st.epi || 0) >= 1 ? DREAMS[profOf(st).dream] : '？（もっと仲良くなると話してくれる）') +
         (relText(st) ? '<br>' + relText(st) : '') + (romText(st) ? '<br>' + romText(st) : '') + (isHq ? '' : '<br>' + aptText(st)) + '</div>';
     var talkH = '<div class="talk"><div class="say you">' + (st.wantTalk ? '「店長…。相談したいことがあるんです」' : epiReady(st) ? '「店長、少しお話ししてもいいですか？」' : talkLine(st)) + '</div></div>' +
