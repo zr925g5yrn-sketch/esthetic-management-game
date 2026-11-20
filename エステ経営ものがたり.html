@@ -999,6 +999,7 @@
   }
 
   var OWNER_LOOK = { hair: '#3A2A26', skin: '#F8D9BE', top: UNI[0][0], bottom: UNI[0][1], style: 'bob', uniform: true };
+  var OWNER_LOOK0 = JSON.parse(JSON.stringify(OWNER_LOOK));
   var scene = { mode: 'idle', t0: 0, cust: null, st: null, talkAt: -1e9, talker: null, parts: [], fxAt: 0, sat: 0 };
   function setScene(mode, extra) {
     var prevC = scene.cust, prevM = scene.mode;
@@ -1597,10 +1598,70 @@
   ];
   // スタッフの年齢（生まれ年がない人は、名前から決めておく）
   function ageOf(st) { if (!st || st.owner) return null; if (!st.born) st.born = nowYear() - (24 + hashOf(String(st.id || st.name)) % 14); return nowYear() - st.born; }
+  function ownerAge() { if (!S.ownerBorn) S.ownerBorn = nowYear() - 28 - Math.floor((S.week - 1) / 12); return nowYear() - S.ownerBorn; }
+  // 子ども（暮らしのイベントで生まれる）。名前は、生まれた年のはやりから
+  function kidsFix() {
+    var L = S.life || {}; S.kids = S.kids || [];
+    var add = function (born) { var male = roll(0.5), nm = pick(eraNames(born, male).filter(function (n) { return !S.kids.some(function (k) { return k.name === n; }); })) || '光';
+      var kid = { name: nm, male: male, born: born, look: { hair: pick(HAIRS), skin: OWNER_LOOK.skin, top: UNI[0][0], bottom: UNI[0][1], style: male ? 'short' : pick(['long', 'bob', 'pony']), uniform: true } };
+      S.kids.push(kid); return kid; };
+    if (L.baby && S.kids.length < 1) { var k1 = add(nowYear() - Math.floor((S.week - (L.babyWeek || S.week)) / 12)); if ((L.babyWeek || 0) >= S.week - 1) S.news.push({ good: true, t: '赤ちゃんの名前は「' + k1.name + '」に決めた。' }); }
+    if (L.baby2 && S.kids.length < 2) { var k2 = add(Math.max(S.kids[0].born + 1, nowYear() - 1)); S.news.push({ good: true, t: '二人目の名前は「' + k2.name + '」に決めた。' }); }
+    return S.kids;
+  }
+  function kidAge(k) { return nowYear() - k.born; }
+  // 毎月：年をとる。60代から体力が落ちやすい。スタッフは65歳で定年
+  function ageMonth() {
+    kidsFix();
+    var a = ownerAge();
+    if (a >= 60 && monthOf() === 4) { stam(a >= 70 ? -6 : -3); S.news.push({ bad: false, t: 'あなたは' + a + '歳になった。' + (a >= 70 ? '体力の衰えを感じる。' : '無理はきかなくなってきた。') }); }
+    allStaff().concat(hqStaff()).filter(function (st) { return !st.owner && ageOf(st) >= 65; }).forEach(function (st) {
+      if (hqStaff().indexOf(st) >= 0) S.hq.staff.splice(S.hq.staff.indexOf(st), 1); else removeStaff(st);
+      S.news.push({ good: true, t: st.name + 'が、65歳で定年を迎えた。「長いあいだ、ありがとうございました」。みんなで花束を渡した。' });
+    });
+  }
+  // 後継ぎの候補：25歳以上の子ども、長く働いて信頼の厚いスタッフ
+  function heirs() {
+    var out = kidsFix().filter(function (k) { return kidAge(k) >= 22; }).map(function (k) { var st = k.staffId ? allStaff().concat(hqStaff()).filter(function (x) { return x.id === k.staffId; })[0] : null; return { kid: k, st: st, name: k.name, age: kidAge(k), why: (k.male ? '息子' : '娘') + (st ? '・いまはスタッフとして働いている' : '') }; });
+    allStaff().concat(hqStaff()).filter(function (st) { return !st.owner && !out.some(function (h) { return h.st === st; }) && (st.trust || 0) >= 60 && S.week - (st.hired || 0) >= 24 && ageOf(st) >= 28 && ageOf(st) <= 58; })
+      .sort(function (a, b) { return (aptOf(b).stars + (b.trust || 0) / 50) - (aptOf(a).stars + (a.trust || 0) / 50); }).slice(0, 4)
+      .forEach(function (st) { out.push({ st: st, name: st.name, age: ageOf(st), why: (hqStaff().indexOf(st) >= 0 ? '本社・' + DEPT[st.dept].n : shortShop((shopOf(st) || {}).name || '本店')) + '　店長適性 ' + starsTxt(aptOf(st).stars) + '・信頼' + Math.round(st.trust || 0) }); });
+    return out;
+  }
+  function succView(forced) {
+    bar(); var H = heirs(), a = ownerAge();
+    view('<h1>会社を譲る</h1><p class="lead">' + (forced ? 'あなたは' + a + '歳。体力の限界を感じている。そろそろ、次の世代に会社を譲るときだ。' : 'あなたは' + a + '歳。引退して、会社を次の世代に譲ることができる。') + '</p>' +
+      (H.length ? '' : '<div class="news bad">まだ後継ぎの候補がいない。22歳以上の子どもか、長く働いて信頼の厚い（60以上）スタッフが候補になる。</div>'),
+      H.map(function (h) { return { label: h.name + '（' + h.age + '歳）に譲る', sub: h.why, go: function () { succeed(h); } }; })
+      .concat(forced && !H.length ? [{ label: 'お店を閉じて、物語を終える', go: result }] : [])
+      .concat([{ main: true, label: forced ? (H.length ? 'もう少しだけ続ける（来年また考える）' : 'もう少しだけ続ける') : 'まだ引退しない', go: function () { S.succAsk = nowYear() + 1; investView(); } }]));
+  }
+  function succeed(h) {
+    var gen = S.gen || 1, from = S.genFrom || S.startYear || (nowYear() - Math.floor((S.week - 1) / 12));
+    S.gens = (S.gens || []).concat([{ gen: gen, name: S.ownerName || 'あなた', from: from, to: nowYear(), shops: 1 + S.shops.length, hum: S.hum, cash: S.cash }]);
+    var st = h.st, look, sk;
+    if (st) { if (hqStaff().indexOf(st) >= 0) S.hq.staff.splice(S.hq.staff.indexOf(st), 1); else removeStaff(st); look = JSON.parse(JSON.stringify(st.look)); skFix(st); sk = JSON.parse(JSON.stringify(st.sk)); }
+    else { look = JSON.parse(JSON.stringify(h.kid.look)); sk = { tech: 2, know: 2, word: 2, emp: 2, listen: 2, care: 2 }; }
+    look.uniform = true; look.top = OWNER_LOOK0.top; look.bottom = OWNER_LOOK0.bottom;
+    var prev = S.ownerName || 'あなた', given = String(h.name).split(' ').pop().split('・').pop();
+    S.ownerName = given; S.ownerBorn = st ? st.born || (nowYear() - h.age) : h.kid.born; S.gen = gen + 1; S.genFrom = nowYear();
+    S.ownerLook = look; Object.assign(OWNER_LOOK, OWNER_LOOK0, look);
+    var o = S.staff[0]; o.sk = sk; skFix(o); o.look = OWNER_LOOK;
+    S.hum = Math.max(30, Math.round(S.hum * 0.5)); S.fatigue = 20; S.stamina = 50;
+    S.life = { partner: 'none', since: 0, dog: false, baby: false, done: {} }; S.kids = []; S.succAsk = 0;
+    if (S.hq) S.boss = null;
+    SFX.fanfare(true); bar();
+    var G = S.gens[S.gens.length - 1];
+    showCut({ kicker: S.gen + '代目', title: given + 'が会社を継いだ', sub: prev + 'は会長として見守る', icon: 'crown', c1: '#F2C230', c2: '#E8A93A', sound: function () {} }, function () {
+      view('<h1>' + (G.gen === 1 ? '初代' : G.gen + '代目') + '　' + G.name + 'の物語</h1><div class="event box"><span class="badge">' + G.from + '年〜' + G.to + '年（' + (G.to - G.from) + '年）</span><h2>' + G.shops + '店舗の会社を、次の世代へ</h2><p>人間力 ' + G.hum + '　所持金 ' + yen(G.cash) + '</p></div>' +
+        '<p class="lead">ここからは' + S.gen + '代目、' + given + 'の物語。前の社長は会長になり、ときどきお店に顔を出してくれる。</p>',
+        [{ main: true, label: S.gen + '代目として続ける', go: investView }]);
+    });
+  }
   function eraView(hero) {
     bar();
     view('<h1>いつ開業する？</h1><p class="lead">開業する年を選ぶ。時代によって、集客の方法やお客様、世の中の出来事が変わる。早い年ほど、長い物語になる。</p>',
-      ERAS.map(function (E) { return { label: E.n, sub: E.d, go: function () { S.startYear = E.y; openLoc(hero); } }; }));
+      ERAS.map(function (E) { return { label: E.n, sub: E.d, go: function () { S.startYear = E.y; S.ownerBorn = E.y - 28; openLoc(hero); } }; }));
   }
   function yw() { return ((S.week - 1) % 12) + 1; }
   function yearOf() { return Math.floor((S.week - 1) / 12) + 1; }
@@ -2191,7 +2252,7 @@
     var VS = scene.shop;
     scene.tod = todNow();
     g.clearRect(0, 0, SW, SH);
-    if (scene.story) { if (scene.story.pics) scene.story.pic = scene.story.pics[Math.floor((now - scene.story.t0) / 5000) % scene.story.pics.length]; drawStory(now); return; }
+    if (scene.story) { if (scene.story.pics) scene.story.pic = scene.story.pics[Math.max(0, Math.floor((now - scene.story.t0) / 5000)) % scene.story.pics.length]; drawStory(now); return; }
     if (scene.shop === 'hq' && S && S.hq) { drawOffice(now); return; }
     var cu = closeKind();
     if (cu !== (scene.cuKind || null)) { scene.cuKind = cu; scene.cuAt = now; }
@@ -2398,7 +2459,7 @@
         '<button class="snd" id="snd" type="button"></button>' +
         '<span class="sub"><span>評判 ' + '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5 - full) + '</span>' +
         '<span>常連 ' + S.clients.filter(function (c) { return c.active; }).length + '人</span>' +
-        '<span>人間力 ' + S.hum + '</span>' + (S.sns && S.sns.f ? '<span>フォロワー ' + fmtN(S.sns.f) + '</span>' : '') + (S.shops.length ? '<span>店舗 ' + (1 + S.shops.length) + '</span>' : '<span>スタッフ ' + S.staff.length + '人</span>') + '</span>';
+        '<span>人間力 ' + S.hum + '</span><span>' + (S.gen > 1 ? S.gen + '代目・' : '') + ownerAge() + '歳</span>' + (S.sns && S.sns.f ? '<span>フォロワー ' + fmtN(S.sns.f) + '</span>' : '') + (S.shops.length ? '<span>店舗 ' + (1 + S.shops.length) + '</span>' : '<span>スタッフ ' + S.staff.length + '人</span>') + '</span>';
     }
     var tb = $('toTitle');
     if (tb) tb.addEventListener('click', function () { SFX.click(); askTitle(); });
@@ -3260,7 +3321,7 @@
     if (lv >= 2) { R(40, 47, 3, 3, '#C9A227'); }
   }
   function drawStory(now) {
-    var k = scene.story.pic, t = reduce ? 0 : (now - scene.story.t0) / 1000, i, x, y;
+    var k = scene.story.pic || 'open', t = reduce ? 0 : Math.max(0, (now - scene.story.t0) / 1000), i, x, y;
     var me = { hair: OWNER_LOOK.hair, skin: OWNER_LOOK.skin, top: '#F08DAE', bottom: '#5C4E6E', style: 'bob' }, meU = OWNER_LOOK;
     var wob = function (sp, ph) { return reduce ? 0 : Math.round(Math.sin(now / sp + (ph || 0))); };
     var bands = function (cs) { var hh = Math.ceil(SH / cs.length); cs.forEach(function (c, j) { R(0, j * hh, SW, hh, c); }); };
@@ -3925,6 +3986,7 @@
     }
   }
   function newGame(hero) {
+    Object.assign(OWNER_LOOK, OWNER_LOOK0); Object.keys(OWNER_LOOK).forEach(function (k) { if (!(k in OWNER_LOOK0)) delete OWNER_LOOK[k]; });
     S = { endless: true, px3: true, week: 1, cash: START, rep: 40, ad: 0, headSpa: false, slimMachine: false, interior: false,
       staff: [{ id: 0, owner: true, name: 'あなた', trait: null, sk: { tech: 2, know: 2, word: 2, emp: 2, listen: 2, care: 2 }, tech: 2, talk: 2, wage: 0, cap: 3, used: 0, look: OWNER_LOOK }],
       clients: [], stock: { set: 3, bodyc: 2, serum: 0, bath: 4 }, refunds: [], queue: [], idx: 0, wk: null, cands: null,
@@ -4265,6 +4327,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
+    ageMonth();
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -4908,7 +4971,7 @@
       c: [['学費を出してあげる', '人間力+8', 1500000, function () { hum(8); return '「ありがとう。しっかり勉強する」と頼もしい顔で言った。'; }],
           ['奨学金を使いつつ、仕送りする', '人間力+5', 500000, function () { hum(5); return '自分で決めた道を、応援しよう。'; }]] },
     { k: 'kidjob', pri: true, ok: function (L) { return L.babyWeek !== undefined && S.week - L.babyWeek >= 264; }, t: '子どもの就職', d: '子どもが「わたしも、こんなお店をやってみたい」と言い出した。',
-      c: [['自分の店で一から育てる', '本店に、信頼の厚い新人が入る。人間力+10', 0, function () { var taken = {}; allStaff().forEach(function (x) { taken[x.name] = true; }); var cd = genCand(taken); cd.name = '跡継ぎ・' + cd.name; cd.trait = 'rookie'; Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = 3; }); skFix(cd); hireTo(null, cd); var st = S.staff[S.staff.length - 1]; st.trust = 90; st.mot = 90; hum(10); return '未来の後継ぎが、本店の仲間になった。'; }],
+      c: [['自分の店で一から育てる', '本店に、信頼の厚い新人が入る。人間力+10', 0, function () { var taken = {}; allStaff().forEach(function (x) { taken[x.name] = true; }); var cd = genCand(taken); var kd = kidsFix()[0]; if (kd) { cd.name = kd.name; cd.born = kd.born; cd.look.skin = kd.look.skin; cd.look.hair = kd.look.hair; } else cd.name = '跡継ぎ・' + cd.name; cd.trait = 'rookie'; Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = 3; }); skFix(cd); hireTo(null, cd); var st = S.staff[S.staff.length - 1]; st.trust = 90; st.mot = 90; if (kd) kd.staffId = st.id; hum(10); return (kd ? kd.name : '未来の後継ぎ') + 'が、本店の仲間になった。'; }],
           ['よその有名サロンで修業させる', '人間力+6', 0, function () { hum(6); return '「いつか一緒に働こうね」と送り出した。'; }],
           ['好きな道を選ばせる', '人間力+4', 0, function () { hum(4); return '子どもは別の業界へ。それぞれの道で、がんばろう。'; }]] }
   ];
@@ -6851,6 +6914,7 @@
     if (S.wk && S.wk.ipoCut) { S.wk.ipoCut = false; return showCut({ kicker: S.company || '上場', title: '株式上場', sub: '時価総額 ' + yen(S.ipo.val), icon: 'crown', c1: '#F2C230', c2: '#E8A93A', sound: function () { if (!bgmJingle('ipo')) SFX.fanfare(true); } }, investView); }
     if (S.wk && !S.wk.sadPlayed && (S.wk.quit || (S.wk.left || []).length)) { S.wk.sadPlayed = true; bgmJingle('sad'); }
     if (S.taxDue) return taxView();
+    if (ownerAge() >= 75 && (S.succAsk || 0) <= nowYear() && S.wk && !S.wk.succShown) { S.wk.succShown = true; return succView(true); }
     if (!S.hq && S.shops.length >= 2 && S.week >= (S.hqLater || 0)) return presidentView();
     var home = S.hq ? 'hq' : null; if (scene.shop !== home) { scene.shop = home; setScene('idle'); }
     saveGame('night');
@@ -6938,7 +7002,7 @@
     if (curCat && CAT[curCat]) return catView(curCat);
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
-    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(
+    view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
       S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
       { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); } },
       { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !(S.autoStock[p.k]); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); } },
@@ -8036,6 +8100,8 @@
     var rank = over ? 'E' : (profit >= RANKS[0] * sc ? 'S' : profit >= RANKS[1] * sc ? 'A' : profit >= RANKS[2] * sc ? 'B' : profit >= RANKS[3] * sc ? 'C' : 'D');
     var L = S.life, story = [];
     if (L.partner === 'married') story.push('結婚した'); else if (L.partner === 'dating') story.push('恋人がいる');
+    if ((S.gens || []).length) story.push((S.gens.length + 1) + '代続く会社になった（' + S.gens.map(function (g) { return g.name; }).concat([S.ownerName || 'あなた']).join('→') + '）');
+    if (S.startYear) story.push(S.startYear + '年に開業し、' + nowYear() + '年まで続いた');
     if (L.baby) story.push('子どもが生まれた'); if (L.dog) story.push('犬と暮らしている'); if (S.shops.length) story.push((1 + S.shops.length) + '店舗の経営者になった');
     var word = { S: '予約の取れない人気店になった。', A: '地域で評判の店に育った。', B: '堅実に黒字を積み上げた。', C: 'なんとか元手を守った。',
       D: '利益はほとんど残らなかった。合うメニューと提案を見直したい。', E: '資金が尽きて閉店した。' }[rank];
@@ -8267,6 +8333,7 @@
     PRODUCTS.forEach(function (p) { if (S.stock && S.stock[p.k] === undefined) S.stock[p.k] = 0; });
     if (!S.shops) S.shops = [];
     if (!S.priceMode) S.priceMode = 'std';
+    Object.assign(OWNER_LOOK, OWNER_LOOK0, S.ownerLook || {});
     if (S.interiorLv === undefined) S.interiorLv = S.interior ? 1 : 0;
     S.shops.forEach(function (b) { if (b.interiorLv === undefined) b.interiorLv = b.interior ? 1 : 0; });
     allStaff().forEach(function (st) { if (!st.owner) moodFix(st); });
