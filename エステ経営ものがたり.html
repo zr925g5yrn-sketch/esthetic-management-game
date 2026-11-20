@@ -5578,6 +5578,7 @@
   // マイホームと住まいの効果：毎月、家でしっかり休める（疲れが少し取れる）
   function homeMonth() {
     var L = S.life; if (!L) return;
+    if (typeof L.house === 'string') L.house = { kind: L.house === 'house' ? 'house' : 'mansion', y: 0, price: 0, paidTold: true, dropTold: true };
     var rest = (L.house ? (L.house.kind === 'house' ? 4 : 3) : 0) + (L.homePerk ? 2 : 0);
     if (rest) fat(-rest);
     if (L.house && L.house.y < 1992 && nowYear() >= 1994 && !L.house.dropTold) { L.house.dropTold = true; S.news.push({ bad: true, t: 'バブルのころに買ったマイホームの値段が、買ったときの半分ほどに下がってしまった。住宅ローンは、まだまだ続く…。' }); }
@@ -5606,7 +5607,10 @@
       c: [['素直に謝る', '人間力+5', 0, function () { hum(5); return '仲直りできた。素直になることの大切さを知った。'; }],
           ['意地を張る', '人間力−6。別れてしまうかもしれない', 0, function (L) { hum(-6); if (roll(0.5)) { L.partner = 'none'; return '別れることになった。少し落ち込んでいる。'; } return 'なんとか元に戻ったが、気まずさが残った。'; }]] },
     { k: 'baby', pri: true, ok: function (L) { return L.partner === 'married' && S.week - L.since >= 8 && !L.baby; }, t: '赤ちゃん誕生', d: '家族が増えた。小さな手を握ると、胸がいっぱいになった。',
-      c: [['育休をとる（3か月、店に立たない）', '人間力+15。その間はスタッフに店を任せる', 0, function (L) { L.baby = true; L.babyWeek = S.week; hum(15); S.awayUntil = S.week + 3; return 'これから3か月は家族と過ごす。スタッフに店を任せよう。'; }],
+      get c() { return S.ownerMale ? [['3か月、仕事をセーブして家族と過ごす', '', 0, function (L) { L.baby = true; L.babyWeek = S.week; hum(15); S.awayUntil = S.week + 3; return 'これから3か月は、なるべく早く家に帰る。お店と会社のことは、店長とスタッフに任せよう。'; }],
+          ['1か月、仕事を休んで家族と過ごす', '', 0, function (L) { L.baby = true; L.babyWeek = S.week; hum(10); S.away = S.week + 1; return '来月は仕事を休んで、家族と過ごす。'; }],
+          ['すぐに仕事に戻る', '', 0, function (L) { L.baby = true; L.babyWeek = S.week; hum(6); return '家族の写真を、社長室の机に飾った。'; }]] : this.cF; },
+      cF: [['育休をとる（3か月、店に立たない）', '人間力+15。その間はスタッフに店を任せる', 0, function (L) { L.baby = true; L.babyWeek = S.week; hum(15); S.awayUntil = S.week + 3; return 'これから3か月は家族と過ごす。スタッフに店を任せよう。'; }],
           ['1か月だけ休む', '人間力+10', 0, function (L) { L.baby = true; L.babyWeek = S.week; hum(10); S.away = S.week + 1; return '来月は家族と過ごす。'; }],
           ['すぐに復帰する', '人間力+6', 0, function (L) { L.baby = true; L.babyWeek = S.week; hum(6); return '家族の写真を店に飾った。'; }]] },
     { k: 'dog', ok: function (L) { return !L.dog; }, t: '保護犬との出会い', d: '譲渡会で、じっとこちらを見つめる子犬がいた。',
@@ -5639,12 +5643,10 @@
       c: [['高級車を買う', '評判+3、人間力+2', 800000, function (L) { L.car = 'lux'; S.rep = clamp(S.rep + 3, 0, 100); hum(2); return 'ぴかぴかの高級車がやってきた。お客様の送迎にも使える。'; }],
           ['ファミリーカーを買う', '人間力+5。家族やスタッフと出かけやすくなる', 300000, function (L) { L.car = 'family'; hum(5); crewAll().forEach(function (x) { moodUp(x, 3, 2); }); return '休みの日のドライブが楽しみになった。'; }],
           ['まだいらない', '変化なし', 0, function () { return '電車とバスでがんばろう。'; }]] },
-    { k: 'house', ok: function (L) { return !L.house && (L.partner === 'married' || S.week >= 24); }, t: 'マイホーム', d: '住宅展示場に行ってみた。そろそろ自分の家を持つのもいいかもしれない。',
-      c: [['都心のマンションを買う', '人間力+8。お店まで近い', 3000000, function (L) { L.house = 'mansion'; hum(8); return '夜景の見えるマンション。通勤もぐっと楽になった。'; }],
-          ['郊外の一戸建てを建てる', '人間力+12。庭つき', 2000000, function (L) { L.house = 'house'; hum(12); return '庭に花を植えた。休みの日の楽しみが増えた。' + (L.dog ? '愛犬も庭を走り回っている。' : ''); }],
-          ['賃貸のままでいい', '人間力+1', 0, function () { hum(1); return 'お金はお店のために使おう。'; }]] },
     { k: 'baby2', pri: true, ok: function (L) { return L.baby && !L.baby2 && L.babyWeek !== undefined && S.week - L.babyWeek >= 24; }, t: '二人目の誕生', d: 'もうひとり家族が増えた。上の子も、お兄ちゃん・お姉ちゃんの顔になった。',
-      c: [['育休をとる（2か月、店に立たない）', '人間力+12', 0, function (L) { L.baby2 = true; hum(12); S.awayUntil = S.week + 2; return 'にぎやかな毎日が始まった。'; }],
+      get c() { return S.ownerMale ? [['2か月、仕事をセーブして家族と過ごす', '', 0, function (L) { L.baby2 = true; hum(12); S.awayUntil = S.week + 2; return 'にぎやかな毎日が始まった。早く帰って、お風呂に入れるのが日課になった。'; }],
+          ['すぐに仕事に戻る', '', 0, function (L) { L.baby2 = true; hum(5); return '社長室の机に、家族写真が1枚増えた。'; }]] : this.cF; },
+      cF: [['育休をとる（2か月、店に立たない）', '人間力+12', 0, function (L) { L.baby2 = true; hum(12); S.awayUntil = S.week + 2; return 'にぎやかな毎日が始まった。'; }],
           ['すぐに復帰する', '人間力+5', 0, function (L) { L.baby2 = true; hum(5); return 'お店に家族写真が1枚増えた。'; }]] },
     { k: 'kidfever', again: true, ok: function (L) { return L.baby && L.babyWeek !== undefined && S.week - L.babyWeek >= 6 && S.week - L.babyWeek < 120; }, t: '子どもの発熱', d: '保育園から「お熱が出ました」と電話が来た。',
       c: [['今月はお店を休んで看病する', '人間力+4。今月は店に立たない', 0, function () { hum(4); S.staff[0].sick = true; return '一日中そばにいた。翌週にはすっかり元気になった。'; }],
