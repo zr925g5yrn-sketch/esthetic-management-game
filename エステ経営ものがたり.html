@@ -1136,7 +1136,124 @@
     }
     return r;
   }
+  /* --- 人物のドット絵（くっきり版）：半マス単位で、目・前髪・口・襟・靴を描きこむ。
+     一度描いた形は小さな絵として覚えておき、次からはそれを貼るだけにする --- */
+  var ART = { hd: true, cache: {}, n: 0 };
+  try { if (localStorage.getItem('salon-art') === 'classic') ART.hd = false; } catch (err) {}
+  function spriteRows(look, o) {
+    var rows = rowsOf(look, o.walkB);
+    if (o.face) rows = faceRows(rows, o.face);
+    if (o.eye) rows[4] = rows[4].replace(/e/g, 's').split('').map(function (ch, i) { return (i === 3 + o.eye || i === 6 + o.eye) && ch === 's' ? 'e' : ch; }).join('');
+    if (o.arms) {
+      [10, 11].forEach(function (r) { rows[r] = setCh(setCh(rows[r], 1, '.'), 8, '.'); });
+      rows[8] = setCh(setCh(rows[8], 1, 't'), 8, 't'); rows[7] = setCh(setCh(rows[7], 1, 's'), 8, 's'); rows[6] = setCh(setCh(rows[6], 1, 's'), 8, 's');
+    }
+    return rows;
+  }
+  function hdBody(look, rows, n, bw, lie, o) {
+    var H = (n + bw) * 2, W = 20, G = [], r, c, R0, a, b;
+    for (r = 0; r < H; r++) { G.push([]); for (c = 0; c < W; c++) G[r].push('.'); }
+    var cellAt = function (rr, cc) { return rr >= 0 && rr < n && cc >= 0 && cc < 10 ? rows[rr][cc] : '.'; };
+    var put = function (y, x, ch) { if (y >= 0 && y < H && x >= 0 && x < W) G[y][x] = ch; };
+    var get = function (y, x) { return y >= 0 && y < H && x >= 0 && x < W ? G[y][x] : '.'; };
+    var rowY = function (rr) { return 2 * (rr + (rr < 8 ? bw : 0)); };
+    // 体を先に、頭を後に置く（お辞儀で頭が体に重なるとき、頭が手前になる）
+    var order = []; for (r = 8; r < n; r++) order.push(r); for (r = 0; r < Math.min(8, n); r++) order.push(r);
+    order.forEach(function (rr) {
+      R0 = rowY(rr);
+      for (c = 0; c < 10; c++) {
+        var ch = rows[rr][c]; if (ch === '.') continue;
+        var X = c * 2, inner = c < 5 ? 1 : 0, lc = cellAt(rr, c - 1), rc = cellAt(rr, c + 1);
+        if (ch === 'e') {
+          // 目：上にまつげ、ひとみの左上に光、下は少し明るいひとみ。まばたき中は細い線
+          if (o.blink) { put(R0, X, 's'); put(R0, X + 1, 's'); put(R0 + 1, X, 'L'); put(R0 + 1, X + 1, 'L'); continue; }
+          put(R0, X, 'W'); put(R0, X + 1, 'I'); put(R0 + 1, X, 'J'); put(R0 + 1, X + 1, 'J'); continue;
+        }
+        if (ch === 'c') { put(R0, X, 'C'); put(R0, X + 1, 'C'); put(R0 + 1, X + (inner ? 0 : 1), 'C'); put(R0 + 1, X + inner, 's'); continue; }
+        if (ch === 'm' || ch === 'n') {
+          var pair = lc === ch || rc === ch;
+          for (a = 0; a < 2; a++) for (b = 0; b < 2; b++) put(R0 + a, X + b, 's');
+          if (rr <= 6) { if (pair) { put(R0 + 1, X + inner, ch); if (ch === 'n' && cellAt(rr + 1, c) === 'n') put(R0 + 1, X + 1 - inner, ch); } else put(R0 + 1, X + inner, ch); }
+          else { put(R0, X, ch); put(R0, X + 1, ch); if (!pair) put(R0, X + (inner ? 0 : 1), 's'); }
+          continue;
+        }
+        if (ch === 'k') { put(R0, X, 's'); put(R0, X + 1, 's'); put(R0 + 1, X, 'k'); put(R0 + 1, X + 1, 'k'); continue; }
+        for (a = 0; a < 2; a++) for (b = 0; b < 2; b++) put(R0 + a, X + b, ch);
+      }
+    });
+    if (!lie) {
+      // 目の上のまつげ
+      for (r = 0; r < H; r++) for (c = 0; c < W; c++) if (G[r][c] === 'W') { if (get(r - 1, c) === 's') put(r - 1, c, 'L'); if (get(r - 1, c + 1) === 's') put(r - 1, c + 1, 'L'); }
+      for (r = 0; r < n; r++) for (c = 0; c < 10; c++) {
+        var ch2 = rows[r][c], X2 = c * 2; R0 = rowY(r);
+        // 前髪：おでこの上の段に、毛先をぎざぎざに下ろす（左に流す）
+        if (ch2 === 's' && r >= 3 && r <= 4 && cellAt(r - 1, c) === 'h' && c >= 2 && c <= 7) {
+          if (get(R0, X2) === 's') put(R0, X2, 'h');
+          if (c <= 4 && get(R0, X2 + 1) === 's') put(R0, X2 + 1, 'h');
+        }
+        // 頭のてっぺんと靴のつま先を丸く
+        if (ch2 === 'h' && cellAt(r - 1, c) === '.') {
+          if (cellAt(r, c - 1) === '.') put(R0, X2, '.');
+          if (cellAt(r, c + 1) === '.') put(R0, X2 + 1, '.');
+        }
+        if (ch2 === 'b' && cellAt(r - 1, c) !== 'b') {
+          if (cellAt(r, c - 1) === '.' && c < 5) put(R0, X2, '.');
+          if (cellAt(r, c + 1) === '.' && c >= 5) put(R0, X2 + 1, '.');
+        }
+        // 襟もと：Vの字に首が見える（制服は白い襟の内側）
+        if (r === 8 && (c === 4 || c === 5) && (ch2 === 't' || ch2 === 'w') && cellAt(7, c) === 's') put(R0, X2 + (c === 4 ? 1 : 0), 'N');
+      }
+    }
+    var I = o.eyes || '#3A2A44';
+    var col = { h: look.hair, s: look.skin, t: look.top, p: look.bottom, b: '#4A3A30', w: '#FFFFFF', k: '#F7B9BE', m: '#C25B6B', n: '#8A4A5A',
+      L: '#2B2238', I: I, J: o.eyes ? shade(o.eyes, 0.3) : '#7A5A7E', W: '#FFFFFF', C: '#9A6A5A', N: shade(look.skin, -0.14) };
+    var cv2 = document.createElement('canvas'), ww = lie ? H : W, hh = lie ? W : H;
+    cv2.width = ww + 2; cv2.height = hh + 2;
+    var x2 = cv2.getContext('2d');
+    var dot = function (y, x, color) { x2.fillStyle = color; if (lie) x2.fillRect(y + 1, x + 1, 1, 1); else x2.fillRect(x + 1, y + 1, 1, 1); };
+    var full = function (y, x) { return get(y, x) !== '.'; };
+    // 輪郭：シルエットのすぐ外に半マスの線
+    for (r = -1; r <= H; r++) for (c = -1; c <= W; c++) {
+      if (full(r, c)) continue;
+      if (full(r - 1, c) || full(r + 1, c) || full(r, c - 1) || full(r, c + 1)) dot(r, c, 'rgba(43,34,56,.5)');
+    }
+    var flat = { L: 1, I: 1, J: 1, W: 1, m: 1, n: 1, k: 1, C: 1, w: 0 };
+    for (r = 0; r < H; r++) for (c = 0; c < W; c++) {
+      var ch3 = G[r][c]; if (ch3 === '.') continue;
+      var base = col[ch3] || '#FF00FF', t = 0;
+      if (!lie && !flat[ch3]) {
+        var up = get(r - 1, c), cr = Math.floor(c / 2);
+        if (up === '.') t = 0.22;
+        else if (ch3 === 's' && up === 'h') t = -0.16;
+        if (!full(r, c - 1)) t = Math.max(t, 0.12);
+        if (!full(r, c + 1) || !full(r + 1, c)) t = -0.2;
+        // 髪：てっぺんに光の輪、下ろした髪には毛の筋
+        if (ch3 === 'h') {
+          if (t === 0 && r === 2 * bw + 4 && c >= 5 && c <= 13 && c % 4) t = 0.34;
+          else if (t === 0 && r >= 10 && c % 2) t = -0.1;
+        }
+        // 服：前合わせの線と、腰まわりの影
+        if ((ch3 === 't' || ch3 === 'p') && t === 0 && (c === 9 || c === 10) && r >= 18) t = -0.1;
+        if (ch3 === 'p' && t === 0 && r === 24) t = -0.14;
+        if (ch3 === 'b' && t === 0 && (c === 4 || c === 14)) t = 0.25;
+      }
+      dot(r, c, t ? shade(base, t) : base);
+    }
+    return { c: cv2, ox: -0.5, oy: -0.5, w: (ww + 2) / 2, h: (hh + 2) / 2 };
+  }
   function sprite(look, x, y, o) {
+    o = o || {};
+    if (!ART.hd) return spriteClassic(look, x, y, o);
+    var rows = spriteRows(look, o), n = o.rows || 17, bw = o.lie ? 0 : (o.bow || 0);
+    var key = [look.hair, look.skin, look.top, look.bottom, rows.slice(0, n).join(''), bw, o.lie ? 1 : 0, o.blink ? 1 : 0, o.eyes || ''].join('|');
+    var e = ART.cache[key];
+    if (!e) { if (++ART.n > 500) { ART.cache = {}; ART.n = 1; } e = ART.cache[key] = hdBody(look, rows, n, bw, !!o.lie, o); }
+    var sm = g.imageSmoothingEnabled; g.imageSmoothingEnabled = false;
+    g.drawImage(e.c, Math.round(x) + e.ox, Math.round(y) + e.oy, e.w, e.h);
+    g.imageSmoothingEnabled = sm;
+    spriteAcc(look, x, y, o, o.bow || 0);
+  }
+  function spriteClassic(look, x, y, o) {
     o = o || {};
     var rows = rowsOf(look, o.walkB), n = o.rows || 17;
     if (o.face) rows = faceRows(rows, o.face);
@@ -1178,9 +1295,14 @@
       if (ch === 'h' && (r === 1 || r === 2) && (c === 3 || c === 4)) F(p[0] + 0.5, p[1], 0.5, 0.5, shade(base, 0.45));
       if ((ch === 't' || ch === 'p') && (c === 4 || c === 5) && r >= 9) F(p[0] + (c === 4 ? 0.5 : 0), p[1], 0.5, 1, shade(base, -0.1));
     }
+    spriteAcc(look, x, y, o, bw);
+  }
+  // 小物（おだんご・帽子・めがね・スマホなど）。どちらの絵でも同じものを重ねる
+  function spriteAcc(look, x, y, o, bw) {
     if (look.style === 'bun') { if (o.lie) R(x - 2, y + 4, 2, 2, look.hair); else R(x + 4, y - 2 + bw, 2, 2, look.hair); }
     if (!o.lie && look.vip) { R(x + 3, y + 8, 4, 1, '#FFFFFF'); R(x + 3, y - 3 + bw, 4, 1, '#E8C15A'); R(x + 4, y - 4 + bw, 1, 1, '#E0567A'); }
-    if (!o.lie && look.glasses) { R(x + 2, y + 3 + bw, 3, 1, '#2B2238'); R(x + 5, y + 3 + bw, 3, 1, '#2B2238'); }
+    if (!o.lie && look.glasses && ART.hd) { [2, 5].forEach(function (gx) { F(x + gx, y + 5 + bw, 3, 0.5, '#5A4A66'); F(x + gx, y + 4 + bw, 0.5, 1, '#5A4A66'); F(x + gx + 2.5, y + 4 + bw, 0.5, 1, '#5A4A66'); }); F(x + 4.5, y + 4 + bw, 1, 0.5, '#5A4A66'); }
+    else if (!o.lie && look.glasses) { R(x + 2, y + 3 + bw, 3, 1, '#2B2238'); R(x + 5, y + 3 + bw, 3, 1, '#2B2238'); }
     if (!o.lie && look.phone) { R(x + 8, y + 9, 2, 3, '#2B2238'); R(x + 8, y + 9, 2, 1, '#9FD8F0'); }
     if (!o.lie && look.scarf) { R(x + 2, y + bw, 6, 1, look.scarf); R(x + 1, y + 1 + bw, 8, 1, look.scarf); R(x, y + 2 + bw, 2, 6, look.scarf); R(x + 8, y + 2 + bw, 2, 6, look.scarf); R(x + 2, y + 7, 6, 1, look.scarf); F(x + 3, y + bw, 3, 0.5, shade(look.scarf, 0.3)); }
     if (!o.lie && look.flower) { R(x + 7, y + bw, 2, 2, look.flower); R(x + 7.5, y + 0.5 + bw, 1, 1, '#F2C230'); }
@@ -8930,7 +9052,8 @@
         var inf = slotInfo(n);
         return { main: n === 1 && !!inf, label: 'セーブ' + n + '　' + (inf ? calOf(inf.week, inf.sy) + '　' + yen(inf.cash) : '空き'), sub: inf ? (1 + inf.shops) + '店舗・スタッフ' + inf.staff + '人' + (inf.ts ? '　' + when(inf.ts) : '') : 'ここで新しく開業する',
           go: function () { slotView(n); } };
-      }));
+      }).concat([{ label: '人物の絵：' + (ART.hd ? 'くっきり（新しい絵）' : 'もとの絵'), sub: 'タップで' + (ART.hd ? 'もとの絵' : 'くっきりした新しい絵') + 'に切りかえる',
+        go: function () { ART.hd = !ART.hd; ART.cache = {}; ART.n = 0; try { localStorage.setItem('salon-art', ART.hd ? 'hd' : 'classic'); } catch (err) {} title(); } }]));
     try { var lm = new Date(document.lastModified); if (!isNaN(lm)) $('app').insertAdjacentHTML('beforeend', '<p class="ver">更新：' + lm.getFullYear() + '/' + (lm.getMonth() + 1) + '/' + lm.getDate() + ' ' + lm.getHours() + ':' + ('0' + lm.getMinutes()).slice(-2) + '</p>'); } catch (err) {}
     onTitle = true;
   }
