@@ -7385,7 +7385,8 @@
     view('<h1>スタッフと過ごす</h1><p class="lead">やる気が下がると施術や接客の質が落ち、限界を超えると辞めてしまう。信頼が深まると、打ち明け話をしてくれることも。話したい人をタップしよう。</p>' +
       (S.careNote ? '<div class="news good">' + S.careNote + '</div>' : '') +
       (list.filter(function (x) { return x.wantTalk; }).length ? '<div class="epbox"><b>● 面談を申し出ているスタッフ</b><div class="epbtns">' + list.filter(function (x) { return x.wantTalk; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + 'と面談する<small>' + placeOf(st) + '</small></button>'; }).join('') + '</div></div>' : '') +
-      (list.filter(function (x) { return frictionOf(x).length; }).length ? '<div class="frbox"><b>相性が気になるスタッフ</b>' + (S.shops.length ? '<button type="button" class="optbtn" data-opt="1">相性を一括で最適化する<small>スタッフを入れかえて、全体の相性をよくする。指名していた常連さんの満足度は下がる</small></button>' : '') + list.filter(function (x) { return frictionOf(x).length; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + '（' + placeOf(st) + '）<small>' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</small></button>'; }).join('') + '</div>' : '') +
+      (list.filter(function (x) { return frictionOf(x).length; }).length ? '<div class="frbox"><b>相性が気になるスタッフ</b>' + (S.shops.length ? '<button type="button" class="optbtn" data-opt="1">相性を一括で最適化する<small>スタッフを入れかえて、全体の相性をよくする。指名していた常連さんの満足度は下がる</small></button>' : '') + (function () { var seen = {}, out = ''; list.forEach(function (a) { mates(a).forEach(function (b) { if (relOf(a, b) !== 'rival') return; var k = [String(a.id), String(b.id)].sort().join('|'); if (seen[k]) return; seen[k] = 1; var done = a.talkWeek === S.week || b.talkWeek === S.week;
+        out += '<button type="button" data-t3="' + a.id + '|' + b.id + '"' + (done ? ' disabled' : '') + '>' + a.name + '・' + b.name + 'と3人で話し合う<small>' + (done ? '今月はもう話した' : 'ライバルのふたり。うまくいけば、わだかまりがとける') + '</small></button>'; }); }); return out; })() + list.filter(function (x) { return frictionOf(x).length; }).map(function (st) { return '<button type="button" data-card="' + st.id + '">' + st.name + '（' + placeOf(st) + '）<small>' + frictionOf(st).map(function (x) { return x.t; }).join('／') + '</small></button>'; }).join('') + '</div>' : '') +
       (list.filter(epiReady).length ? '<div class="epbox"><b>● 話がありそうなスタッフ</b>' + (list.filter(epiReady).length >= 2 ? '<button type="button" class="optbtn" data-bulk="1">まとめて話を聞く（' + list.filter(epiReady).length + '人）<small>1・2話はあらすじで進み、最後の言葉だけ選ぶ</small></button>' : '') + '<div class="epbtns">' + list.filter(epiReady).map(function (st) { return '<button type="button" data-epi="' + st.id + '">' + st.name + 'の話を聞く<small>物語 ' + (epiNext(st).n + 1) + '／3</small></button>'; }).join('') + '</div></div>' : '') +
       (list.length ? cards : '<p class="lead">まだスタッフがいない。</p>'),
       partyOpts(list).concat([{ main: true, label: 'もどる', go: function () { S.careNote = ''; investView(); } }]));
@@ -7394,6 +7395,9 @@
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-epi]'), function (bt) {
       bt.addEventListener('click', function () { var st = list.filter(function (x) { return x.id === bt.getAttribute('data-epi'); })[0]; if (st) { SFX.click(); S.careNote = ''; epiView(st); } });
     });
+    Array.prototype.forEach.call(document.querySelectorAll('#app [data-t3]'), function (bt) { bt.addEventListener('click', function () {
+      var ids = bt.getAttribute('data-t3').split('|'), all = allStaff(), f = function (id) { return all.filter(function (x) { return String(x.id) === id; })[0]; }, a = f(ids[0]), b = f(ids[1]);
+      if (a && b) { SFX.click(); talk3(a, b); } }); });
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-card]'), function (bt) {
       bt.addEventListener('click', function () { var st = list.filter(function (x) { return x.id === bt.getAttribute('data-card'); })[0]; if (st) { SFX.click(); S.careNote = ''; careStaff(st); } });
     });
@@ -8343,7 +8347,17 @@
   };
   function sayOf(st, lv) { return (SAYT[temperOf(st)] || SAYT.sunao)[lv]; }
   // 相性：組み合わせごとに決まる（仲良し・ライバル）
-  function relOf(a, b) { if (!a || !b || a === b || a.owner || b.owner) return null; var ids = [String(a.id), String(b.id)].sort(), h = hashOf(ids.join('|')) % 9; return h <= 1 ? 'pal' : h === 2 ? 'rival' : null; }
+  function relOf(a, b) { if (!a || !b || a === b || a.owner || b.owner) return null; var ids = [String(a.id), String(b.id)].sort(), h = hashOf(ids.join('|')) % 9; return h <= 1 ? 'pal' : h === 2 ? (S && S.mended && S.mended[ids.join('|')] ? null : 'rival') : null; }
+  // ライバルのふたりと店長の3人で話し合う。うまくいけば、ふたりはライバルではなくなる。ふたりの面談の申し出も、まとめてすむ
+  function talk3(a, b) {
+    [a, b].forEach(function (x) { x.wantTalk = 0; x.wantWhy = null; x.gripe = 0; x.talkWeek = S.week; });
+    var m0 = Math.round(a.mot || 0), t0 = Math.round(a.trust || 0), ok = roll(clamp(0.55 + ((S.hum || 30) - 30) * 0.01, 0.4, 0.9)), msg;
+    if (ok) { S.mended = S.mended || {}; S.mended[[String(a.id), String(b.id)].sort().join('|')] = true; moodUp(a, 12, 8); moodUp(b, 12, 8);
+      msg = '3人で本音を話し合った。「お互い、お客様のためを思ってたんですね」。' + a.name + 'と' + b.name + 'は、もうライバルではない。'; }
+    else { moodUp(a, 8, 5); moodUp(b, 8, 5); msg = 'お互いの言い分は聞けたが、まだ少しぎこちない。それでも、ふたりとも気持ちが軽くなったようだ。'; }
+    var dm = Math.round(a.mot) - m0, dt = Math.round(a.trust) - t0; SFX.good();
+    careStaff(a, msg + '（ふたりとも、やる気+' + dm + '、信頼+' + dt + '）', 'v_talk');
+  }
   function mates(st) { if (hqStaff().indexOf(st) >= 0) return hqStaff().filter(function (x) { return x !== st; }); var sh = shopOf(st); return (sh ? sh.staff : S.staff).filter(function (x) { return x !== st && !x.owner; }); }
   function relText(st) {
     var m = mates(st), p = m.filter(function (x) { return relOf(st, x) === 'pal'; }), r = m.filter(function (x) { return relOf(st, x) === 'rival'; });
@@ -8431,7 +8445,7 @@
     var finish = function (msg, m, t) { st.wantTalk = 0; st.wantWhy = null; st.gripe = 0; st.talkWeek = S.week; var m0 = Math.round(st.mot || 0), t0 = Math.round(st.trust || 0); moodUp(st, m, t); SFX.good();
       var dm = Math.round(st.mot) - m0, dt = Math.round(st.trust) - t0; careStaff(st, msg + ((dm || dt) ? '（' + [dm ? 'やる気' + (dm > 0 ? '+' : '') + dm : '', dt ? '信頼' + (dt > 0 ? '+' : '') + dt : ''].filter(Boolean).join('、') + '）' : ''), 'v_cafe'); };
     var ch = {
-      rival: [{ label: 'ふたりの間に入って、話し合いの場をつくる', go: function () { if (rv) moodUp(rv, 5, 3); finish('3人で話し合った。わだかまりが、少しほどけた。', 12, 8); } },
+      rival: [rv ? { label: rv.name + 'も呼んで、3人で話し合う', sub: 'ふたりの相談を、まとめて受けとめる', go: function () { talk3(st, rv); } } : { label: 'じっくり話を聞く', go: function () { finish('ひとしきり話したら、少し落ちついた顔になった。', 10, 6); } },
         { label: '別の店舗への異動を考える', go: function () { st.wantTalk = 0; st.wantWhy = null; st.gripe = 0; st.talkWeek = S.week; moodUp(st, 8, 5); moveView(st); } }],
       fit: [{ label: 'この店でのやりがいを、一緒に探す', go: function () { finish('話すうちに、少し前向きな顔になった。', 12, 6); } },
         { label: '合いそうな店舗への異動を考える', go: function () { st.wantTalk = 0; st.wantWhy = null; st.gripe = 0; st.talkWeek = S.week; moodUp(st, 8, 5); moveView(st); } }],
