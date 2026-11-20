@@ -5925,7 +5925,8 @@
   var KOBOCOST = 30000000, FARMCOST = 300000, FARMMON = 50000, FARMMAX = 4;
   // 産地の素材（生産者さんとつながると、商品開発で使える）
   var SANCHI = [
-    { k: 'gagome', n: 'がごめ昆布', pref: ['北海道'], area: '北海道の海辺', cats: ['skin', 'mask', 'hair'], d: 'ねばりのある成分が、肌のうるおいを守る' },
+    { k: 'birch', n: '白樺の樹液', pref: ['北海道'], area: '北海道の白樺林', cats: ['skin', 'mask', 'inner'], d: '春だけ採れる、みずみずしい樹液で、肌にうるおいを' },
+    { k: 'funori', n: 'ふのり', pref: ['新潟県', '千葉県', '長崎県'], area: '磯の岩場', cats: ['hair', 'skin', 'mask'], d: '昔から髪を洗うのに使われてきた海藻。とろりとやさしい' },
     { k: 'lav', n: 'ラベンダー', pref: ['北海道'], area: '北海道の丘', cats: ['aroma', 'oil', 'scent'], d: '心を落ち着かせる、やさしい香り' },
     { k: 'apple', n: 'りんご', pref: ['青森県', '長野県'], area: '東北と信州の果樹園', cats: ['skin', 'inner', 'body'], d: '果実のエキスで、すこやかな肌に' },
     { k: 'nuka', n: '米ぬか', pref: ['秋田県', '山形県', '新潟県', '宮城県'], area: '米どころの田んぼ', cats: ['skin', 'body', 'mask'], d: '昔ながらの、しっとりやわらかな肌へ' },
@@ -8843,6 +8844,9 @@
     if (!S.shops) S.shops = [];
     if (!S.priceMode) S.priceMode = 'std';
     Object.assign(OWNER_LOOK, OWNER_LOOK0, S.ownerLook || {}); uniSync();
+    if (S.farms && S.farms.gagome) { S.farms.birch = S.farms.gagome; delete S.farms.gagome; }
+    (S.myProds || []).forEach(function (x) { if (x.mat) x.mat = x.mat.replace('北海道の海辺のがごめ昆布', '北海道の白樺林の白樺の樹液'); if (x.n) x.n = x.n.replace('がごめ昆布', '白樺の樹液'); });
+    if (S.dev && S.dev.mat === 'gagome') S.dev.mat = 'birch';
     if (S.interiorLv === undefined) S.interiorLv = S.interior ? 1 : 0;
     S.shops.forEach(function (b) { if (b.interiorLv === undefined) b.interiorLv = b.interior ? 1 : 0; });
     allStaff().forEach(function (st) { if (!st.owner) moodFix(st); });
