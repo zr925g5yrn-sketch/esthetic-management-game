@@ -1464,6 +1464,68 @@
     if (lv >= 3) { R(82, 44, 4, 10, T ? T.frame : '#E8C15A'); R(81, 43, 6, 1, '#FFF4C0'); R(82, 39, 4, 4, T ? T.flower : '#F08DAE'); R(83, 38, 2, 1, '#4E9E5A'); R(81, 41, 1, 1, '#4E9E5A'); R(86, 41, 1, 1, '#4E9E5A'); }
     if (T && S && S.headSpa) { R(80, 49, 8, 7, '#FFFFFF'); R(81, 50, 6, 3, '#5AA9E6'); R(83, 56, 2, 6, '#9A93A8'); }
   }
+  /* --- 店内の奥行き：どの内装にも重ねる、やわらかな陰影と映りこみ --- */
+  var DEPTH = null;
+  function roomDepth() {
+    if (!DEPTH) {
+      var gw = g.createLinearGradient(0, 0, 0, 44); gw.addColorStop(0, 'rgba(255,255,255,.12)'); gw.addColorStop(1, 'rgba(43,34,56,.07)');
+      var gl = g.createLinearGradient(0, 0, 12, 0); gl.addColorStop(0, 'rgba(43,34,56,.2)'); gl.addColorStop(1, 'rgba(43,34,56,0)');
+      var gr = g.createLinearGradient(SW, 0, SW - 12, 0); gr.addColorStop(0, 'rgba(43,34,56,.2)'); gr.addColorStop(1, 'rgba(43,34,56,0)');
+      var ga = g.createLinearGradient(0, 54, 0, 61); ga.addColorStop(0, 'rgba(43,34,56,.28)'); ga.addColorStop(1, 'rgba(43,34,56,0)');
+      var gf = g.createLinearGradient(0, 54, 0, SH); gf.addColorStop(0, 'rgba(255,255,255,.07)'); gf.addColorStop(1, 'rgba(43,34,56,.2)');
+      var gs = g.createLinearGradient(0, 55, 0, 70); gs.addColorStop(0, 'rgba(255,255,255,.22)'); gs.addColorStop(1, 'rgba(255,255,255,0)');
+      DEPTH = { gw: gw, gl: gl, gr: gr, ga: ga, gf: gf, gs: gs };
+    }
+    var D = DEPTH;
+    g.fillStyle = D.gw; g.fillRect(0, 0, SW, 44);
+    g.fillStyle = D.gl; g.fillRect(0, 0, 12, 54);
+    g.fillStyle = D.gr; g.fillRect(SW - 12, 0, 12, 54);
+    // 天井の縁（廻り縁）
+    R(0, 0, SW, 2, 'rgba(43,34,56,.10)'); F(0, 2, SW, 0.5, 'rgba(255,255,255,.55)'); F(0, 2.5, SW, 0.5, 'rgba(43,34,56,.10)');
+    // 腰壁の上の手すりと、床ぎわの幅木
+    F(0, 45, SW, 0.5, 'rgba(255,255,255,.35)'); F(0, 45.5, SW, 0.5, 'rgba(43,34,56,.14)');
+    R(0, 53, SW, 1, 'rgba(43,34,56,.22)'); F(0, 52.5, SW, 0.5, 'rgba(255,255,255,.25)');
+    // 床：壁ぎわの影、手前ほど少し暗く、窓の光が床に映る
+    g.fillStyle = D.gf; g.fillRect(0, 54, SW, SH - 54);
+    g.fillStyle = D.ga; g.fillRect(0, 54, SW, 7);
+    g.fillStyle = D.gs; g.fillRect(31, 55, 26, 15);
+    F(33, 57, 9, 0.5, 'rgba(255,255,255,.22)'); F(46, 57, 9, 0.5, 'rgba(255,255,255,.22)');
+  }
+  // 窓辺：窓台、ガラスの光、光の中を舞う小さなほこり（動きを減らす設定では止まる）
+  function bottle(x, y, h, col, cap) {
+    R(x, y + 1, 2, h, col);
+    F(x + 0.5, y, 1, 1, cap); F(x, y + 0.5, 2, 0.5, cap);
+    F(x, y + 1.5, 0.5, h - 1, 'rgba(255,255,255,.45)'); F(x + 1.5, y + 1, 0.5, h, 'rgba(43,34,56,.18)');
+    if (h >= 4) F(x, y + 2.5, 2, 1, 'rgba(255,255,255,.55)');
+  }
+  // 観葉植物：鉢と、葉の重なり（明るい葉・暗い葉）
+  function leafPlant(px, py, pot, leaf, flower, big) {
+    R(px, py, 7, 8, pot); F(px, py, 7, 0.5, 'rgba(255,255,255,.7)'); F(px + 0.5, py + 1, 0.5, 6, 'rgba(255,255,255,.25)'); F(px + 5.5, py + 1, 1, 7, 'rgba(43,34,56,.18)');
+    R(px - 1, py - 1, 9, 1, shade(pot, -0.15));
+    var dk = shade(leaf, -0.22), lt = shade(leaf, 0.25), L = [[3, -14, 0], [0, -11, -1], [5, -11, 1], [-1, -7, -1], [6, -7, 1], [2, -9, 0], [1, -4, -1], [4, -4, 1], [3, -6, 0]];
+    if (big) L = L.concat([[-2, -10, -1], [7, -12, 1], [3, -17, 0]]);
+    L.forEach(function (q, i) {
+      var x = px + q[0], y = py + q[1];
+      R(x, y, 2, 3, i % 3 === 1 ? dk : leaf); F(x + (q[2] < 0 ? 0 : 1), y - 0.5, 1, 0.5, leaf); F(x + (q[2] > 0 ? 1.5 : 0), y + 0.5, 0.5, 1.5, lt);
+      F(x + (q[2] < 0 ? 1.5 : 0), y + 2, 0.5, 1, dk);
+    });
+    F(px + 3.5, py - 4, 0.5, 4, shade(leaf, -0.35));
+    if (flower) [[1, -15], [6, -12], [-1, -8]].forEach(function (f) { R(px + f[0], py + f[1], 2, 2, flower); F(px + f[0], py + f[1], 0.5, 0.5, '#FFFFFF'); F(px + f[0] + 0.5, py + f[1] + 0.5, 1, 1, shade(flower, 0.3)); });
+  }
+  function roomWindowDetail(wf, TP, now) {
+    R(29, 29, 30, 1, wf); F(29, 29, 30, 0.5, 'rgba(255,255,255,.6)'); F(29, 30, 30, 0.5, 'rgba(43,34,56,.18)');
+    var night = scene.tod === 'night';
+    [[32, 7], [46, 7]].forEach(function (p) {
+      for (var i = 0; i < 6; i++) F(p[0] + 5 - i, p[1] + i, 1, 1, night ? 'rgba(255,255,255,.08)' : 'rgba(255,255,255,.22)');
+      for (i = 0; i < 3; i++) F(p[0] + 8 - i, p[1] + i, 0.5, 1, night ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.18)');
+    });
+    if (night) return;
+    for (var k = 0; k < 6; k++) {
+      var t = reduce ? k * 0.17 : ((now / 9000 + k * 0.173) % 1), u = (k * 0.37) % 1;
+      var y = 56 + t * 26, x = TP.bs[0] + (TP.bs[3] - TP.bs[0]) * t + u * ((TP.bs[1] - TP.bs[0]) + ((TP.bs[2] - TP.bs[3]) - (TP.bs[1] - TP.bs[0])) * t);
+      F(x + (reduce ? 0 : Math.sin(now / 1300 + k) * 1.5), y, 0.5, 0.5, 'rgba(255,248,220,' + (0.55 - Math.abs(t - 0.5) * 0.8).toFixed(2) + ')');
+    }
+  }
   function drawRoom(now) {
     var lv = viewLv(), nice = lv >= 1, V = scene.shop, T = themeOf();
     if (T) { themeBack(T, lv, now); if (!V && S && (S.disc || S.gift)) bunting(); }
@@ -1507,6 +1569,7 @@
       R(44, 66, 4, 3, rc[1]);
     }
     }
+    roomDepth();
     // 窓と、流れる雲
     var wf = T ? T.win : '#FFFFFF';
     R(29, 5, 30, 24, wf);
@@ -1540,6 +1603,7 @@
       R(26, 20, 5, 2, '#E8C15A'); R(57, 20, 5, 2, '#E8C15A');
     }
     g.fillStyle = TP.beam; g.beginPath(); g.moveTo(TP.bs[0], 54); g.lineTo(TP.bs[1], 54); g.lineTo(TP.bs[2], 84); g.lineTo(TP.bs[3], 84); g.fill();
+    roomWindowDetail(wf, TP, now);
     // ドア
     var open = (scene.mode === 'enter' && now - scene.t0 < 500) || (scene.mode === 'leave' && now - scene.t0 > 1500 && now - scene.t0 < 1950) || (scene.leaver && now - scene.leaver.t0 > 1500);
     R(2, 18, 15, 36, T ? T.door[0] : '#7A5A44'); R(4, 20, 11, 34, open ? '#4A3528' : (T ? T.door[1] : '#A8774D'));
@@ -1547,9 +1611,7 @@
     R(8, 15, 3, 3, '#F2C230');
     // 観葉植物
     if (!T) {
-    R(19, 46, 7, 8, '#C96F4A'); R(19, 46, 7, 1, '#E08A62');
-    [[22, 34], [20, 37], [24, 37], [19, 41], [25, 41], [22, 39], [21, 43], [23, 43]].forEach(function (p) { R(p[0], p[1], 2, 3, '#4E9E5A'); });
-    if (nice) [[20, 33], [25, 35], [18, 39]].forEach(function (p) { R(p[0], p[1], 2, 2, lv === 3 ? '#FFFFFF' : '#F08DAE'); });
+    leafPlant(19, 46, '#C96F4A', '#4E9E5A', nice ? (lv === 3 ? '#FFFFFF' : '#F08DAE') : null, lv >= 2);
     if (lv >= 2) {
       R(66, 46, 6, 8, lv === 3 ? '#E8C15A' : '#FFFFFF'); R(66, 46, 6, 1, lv === 3 ? '#FFF4C0' : '#E8E0D4');
       [[68, 30], [66, 33], [70, 33], [65, 37], [71, 37], [68, 36], [67, 41], [69, 41], [68, 26]].forEach(function (p) { R(p[0], p[1], 2, 4, '#3E8E4E'); });
@@ -1558,17 +1620,18 @@
     }
     // 商品棚（在庫の数だけ並ぶ）
     R(66, 22, 22, 2, '#8E6440'); R(66, 35, 22, 2, '#8E6440'); R(67, 24, 1, 2, '#6E4A2E'); R(86, 24, 1, 2, '#6E4A2E');
+    [22, 35].forEach(function (sy) { F(66, sy, 22, 0.5, '#B08660'); R(66, sy + 2, 22, 1, 'rgba(43,34,56,.14)'); });
     var st = S && !V ? S.stock : { set: 3, serum: 3, bath: 6 };
     var p0 = PRODUCTS[0], p1 = PRODUCTS[1], p2 = PRODUCTS[2], i;
-    for (i = 0; i < Math.min(st.set, 3); i++) { R(68 + i * 3, 17, 2, 5, p0.col); R(68 + i * 3, 16, 2, 1, p0.cap); }
-    for (i = 0; i < Math.min(st.serum, 3); i++) { R(78 + i * 3, 18, 2, 4, p1.col); R(78 + i * 3, 17, 2, 1, p1.cap); }
+    for (i = 0; i < Math.min(st.set, 3); i++) bottle(68 + i * 3, 16, 5, p0.col, p0.cap);
+    for (i = 0; i < Math.min(st.serum, 3); i++) bottle(78 + i * 3, 17, 4, p1.col, p1.cap);
     var p2 = PRODUCTS.filter(function (x) { return x.k === 'bath'; })[0];
-    for (i = 0; i < Math.min(st.bath, 6); i++) { R(68 + i * 3, 31, 2, 4, p2.col); R(68 + i * 3, 30, 2, 1, p2.cap); }
+    for (i = 0; i < Math.min(st.bath, 6); i++) bottle(68 + i * 3, 30, 4, p2.col, p2.cap);
     if (S && !V && S.devFace && S.stock.device > 0) { R(66, 39, 6, 5, '#FFFFFF'); R(67, 40, 4, 3, '#F7D6E0'); R(68, 41, 2, 1, '#E0567A'); }
     if (S && !V && S.devEms && S.stock.ems > 0) { R(73, 39, 6, 5, '#FFFFFF'); R(74, 40, 4, 3, '#5C6E9E'); R(75, 41, 2, 1, '#3AC0C8'); }
     if (S && !V && S.myProds && S.myProds.length) {
       R(89, 30, 20, 2, '#8E6440'); if (S.myProds.length > 6) R(89, 23, 20, 2, '#8E6440');
-      S.myProds.forEach(function (p, j) { if (S.stock[p.k] > 0) { var bx = 90 + (j % 6) * 3, by = j < 6 ? 26 : 19; R(bx, by, 2, 4, p.col); R(bx, by - 1, 2, 1, p.cap); } });
+      S.myProds.forEach(function (p, j) { if (S.stock[p.k] > 0) { var bx = 90 + (j % 6) * 3, by = j < 6 ? 26 : 19; bottle(bx, by - 1, 4, p.col, p.cap); } });
     }
     if (T) { themeFront(T, lv, now); if (!V) mainExtras(T, lv, now); return; }
     // 額縁
@@ -1758,9 +1821,7 @@
   // 植物、飾り、照明
   function themeFront(T, lv, now) {
     var x, i;
-    R(19, 46, 7, 8, T.pot); R(19, 46, 7, 1, '#FFFFFF');
-    [[22, 34], [20, 37], [24, 37], [19, 41], [25, 41], [22, 39], [21, 43], [23, 43]].forEach(function (p) { R(p[0], p[1], 2, 3, T.plant); });
-    if (lv >= 1) [[20, 33], [25, 35], [18, 39]].forEach(function (p) { R(p[0], p[1], 2, 2, T.flower); });
+    leafPlant(19, 46, T.pot, T.plant, lv >= 1 ? T.flower : null, lv >= 2);
     // 額
     if (T.decor !== 'byobu') { R(111, 10, 13, 12, T.frame); R(112, 11, 11, 10, T.wall[0] === '#FFFFFF' ? '#F4F4F4' : '#FFF4E0'); R(114, 13, 7, 5, T.rug[2]); R(116, 14, 3, 3, T.flower); }
     // テーマの飾り（壁の x90〜110）
@@ -1934,7 +1995,7 @@
     if (y < 1995) t = t.replace(/メールで/g, '手紙で').replace(/メール/g, '手紙');
     if (y < 2012) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
     if (y < 2023) t = t.replace(/AI(?=[がにのへ])/g, '受付スタッフ');
-    if (!snsOn()) t = t.replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/SNS広告/g, 'チラシ').replace(/SNSに載せたら/g, '雑誌に話したら').replace(/SNSに/g, '口コミで').replace(/SNSで/g, '口コミで').replace(/写真が拡散して、/g, '評判が広まって、').replace(/フォロワー/g, 'お店のファン').replace(/インフルエンサー/g, '人気の読者モデル').replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して伸ばす。人数が多いほどバズりやすく、取材も来やすい/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる。人数が多いほど、雑誌やテレビの取材が来やすい');
+    if (!snsOn()) t = t.replace(/写真をSNSに投稿する/g, '写真をのせたチラシを配る').replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/SNS広告/g, 'チラシ').replace(/SNSに載せたら/g, '雑誌に話したら').replace(/SNSに/g, '口コミで').replace(/SNSで/g, '口コミで').replace(/写真が拡散して、/g, '評判が広まって、').replace(/フォロワー/g, 'お店のファン').replace(/インフルエンサー/g, '人気の読者モデル').replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して伸ばす。人数が多いほどバズりやすく、取材も来やすい/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる。人数が多いほど、雑誌やテレビの取材が来やすい');
     return t;
   }
   // 時代の景気（予算と、新しいお客様の数）
@@ -2047,8 +2108,8 @@
     return [{ label: solo ? (open ? '桜の下で、開業の決意を新たにする　' : 'ひとりで桜を見に行く　') + yen(c) : 'スタッフみんなでお花見をする　' + yen(c), sub: solo ? '人間力+2' : '全員のやる気+12、信頼+6', off: S.cash < c,
         go: function () { pay(c); crewAll().forEach(function (x) { moodUp(x, 12, 6); }); hum(2);
           done(solo ? (open ? '満開の桜を見上げて、「ここから、いいお店をつくろう」と心に決めた。' : '公園のベンチで、ひとりで桜をながめた。気持ちが少し軽くなった。') : '桜の下でお弁当を広げた。新しい1年もがんばろう、とみんなで乾杯した。'); } },
-      { label: open ? '開店のお知らせに、桜と店内の写真をSNSに投稿する' : '桜と店内の写真をSNSに投稿する', sub: open ? '' : 'フォロワーが増える', go: function () { var P = snsFix(), g = Math.round(200 + P.f * 0.04); P.f += g;
-          done((open ? '「桜の季節に新しいお店！」と、開店の投稿に声が集まった。' : '桜の投稿に「きれい！」の声が集まった。') + 'フォロワー +' + fmtN(g) + '人。'); } },
+      { label: snsOn() ? (open ? '開店のお知らせに、桜と店内の写真をSNSに投稿する' : '桜と店内の写真をSNSに投稿する') : (open ? '桜と店内の写真をのせた、開店のお知らせのチラシを配る' : '桜と店内の写真をのせたチラシを配る'), sub: open ? '' : (snsOn() ? 'フォロワーが増える' : 'お店のファンが増える'), go: function () { var P = snsFix(), g = Math.round(200 + P.f * 0.04); P.f += g;
+          done(snsOn() ? (open ? '「桜の季節に新しいお店！」と、開店の投稿に声が集まった。' : '桜の投稿に「きれい！」の声が集まった。') + 'フォロワー +' + fmtN(g) + '人。' : (open ? '「桜の季節に新しいお店ができたのね」と、チラシを手にした人が足を止めてくれた。' : '桜のチラシに「きれいね」の声。') + 'お店のファン +' + fmtN(g) + '人。'); } },
       { label: open ? '開店準備の仕上げをして、営業を始める' : 'いつも通り営業する', go: function () { done(open ? 'ぴかぴかに磨いた店内に、桜の花びらがひとひら。いよいよ開店だ。' : '窓の外の桜をながめながら、いつもの1か月が始まる。'); } }];
   };
   SEASONCH.s_mother = function (st, done) {
