@@ -1582,7 +1582,7 @@
     t = String(t); var y = eraY();
     if (y < 2012) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
     if (y < 2023) t = t.replace(/AI(?=[がにのへ])/g, '受付スタッフ');
-    if (!snsOn()) t = t.replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して、バランスよく伸ばす/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる');
+    if (!snsOn()) t = t.replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して伸ばす。人数が多いほどバズりやすく、取材も来やすい/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる。人数が多いほど、雑誌やテレビの取材が来やすい');
     return t;
   }
   // 時代の景気（予算と、新しいお客様の数）
@@ -1763,7 +1763,7 @@
     return SEASONCH[S.sevKey] ? SEASONCH[S.sevKey](null, done) : [{ label: 'つづける', go: function () { done(''); } }];
   }
   // できごとの場面（ドット絵のアニメーション）
-  var EVPIC = { vip: 'v_vip', sponsor: 'v_vip', celeb: 'v_press', reporter: 'v_press', influencer: 'v_press', seminar: 'v_stage', contest: 'v_stage', award: 'v_party', ranking: 'v_party',
+  var EVPIC = { vip: 'v_vip', sponsor: 'v_vip', celeb: 'v_press', reporter: 'v_press', tvshow: 'v_news', webnews: 'v_sns', influencer: 'v_press', seminar: 'v_stage', contest: 'v_stage', award: 'v_party', ranking: 'v_party',
     storm: 'v_storm', trouble: 'v_repair', bedbreak: 'v_repair', inspect: 'v_inspect', taxaudit: 'v_inspect', gift: 'v_gift', wholesale: 'v_gift', supplier: 'v_gift', campaign: 'v_gift',
     lottery: 'v_party', collab: 'v_cafe', charity: 'v_charity', rival: 'v_rival', complaint: 'v_talk', review: 'v_talk', rumor: 'v_talk', claimer: 'v_talk', raise: 'v_talk', quitwarn: 'v_talk',
     indep: 'v_talk', poach: 'v_talk', headhunt: 'v_talk', mentor: 'v_talk', couple: 'v_talk', leak: 'v_talk', mistake: 'v_talk', st_retire: 'v_talk', st_promo: 'v_party', graduate: 'v_cake',
@@ -2625,6 +2625,8 @@
   var EV = {
     vip:        { n: 'セレブの予約', w: 3, d: '資産家のお客様が、評判を聞いて予約を入れた。目が肥えていて施術の出来にとても厳しい。満足度70以上で施術できれば、桁違いの契約も夢ではない。' },
     reporter:   { n: '雑誌の取材', w: 2, d: '美容雑誌の記者が、お客として来店する。何も買わないが、満足させれば記事になり、しばらく新規が増える。' },
+    tvshow:     { n: 'テレビの取材', w: 1, d: '夕方の情報番組が「話題のエステ」としてお店を紹介してくれた。放送のあと、電話が鳴りやまない。' },
+    webnews:    { n: 'ネットのニュースで紹介', w: 1, d: 'ネットのニュースサイトに、お店の記事が載った。見た人から予約が入り始めている。' },
     influencer: { n: 'インフルエンサーの来店', w: 2, d: 'フォロワーの多い人が予約した。気に入れば宣伝してくれるが、押し売りは一瞬で広まる。' },
     storm:      { n: '大型台風', w: 2, d: '今月は台風。新規の予約が減るが、来てくれた人は気がゆるんでいて、警戒心が低い。' },
     gift:       { n: 'ギフトシーズン', w: 2, d: '贈り物の季節。今月は物販が売れやすい。在庫は足りているだろうか。' },
@@ -2731,7 +2733,7 @@
       if (EVOK[k] && !EVOK[k]()) return false;
       return !(S.evLast[k] && S.week - S.evLast[k] < 4);
     });
-    var wOf = function (k) { return EV[k].w * (k === 'vip' && S.priceMode === 'premium' ? 2 : 1) * (k === 'influencer' && !snsOn() ? 0 : 1); };
+    var wOf = function (k) { return EV[k].w * (k === 'vip' && S.priceMode === 'premium' ? 2 : 1) * mediaW(k); };
     var tot = pool.reduce(function (a, k) { return a + wOf(k); }, 0), r = rnd() * tot;
     for (var i = 0; i < pool.length; i++) { r -= wOf(pool[i]); if (r <= 0) return setEvent(pool[i]); }
   }
@@ -2740,6 +2742,8 @@
     S.ev = k; S.evLast[k] = S.week; S.evTitle = e.n; S.evText = e.d || ''; S.evPending = !!e.choice;
     if (k === 'vip') { S.vipSeen = true; S.vipCount++; S.special = 'vip'; }
     if (k === 'reporter') S.special = 'press';
+    if (k === 'tvshow') { S.rep = clamp(S.rep + 8, 0, 100); S.buzz = { until: S.week + 2, n: 3 }; }
+    if (k === 'webnews') { S.rep = clamp(S.rep + 4, 0, 100); S.buzz = { until: S.week + 1, n: 2 }; }
     if (k === 'influencer') S.special = 'influ';
     if (k === 'inbound') S.special = 'inbound';
     if (k === 'celeb') S.special = 'celeb';
@@ -5780,6 +5784,16 @@
        { label: 'お知らせのハガキを送る', sub: left > 0 ? '常連さんに、季節のおすすめとお礼をハガキで届ける（1枚' + postFee() + '円＋印刷代）' : '今月はもう2回宣伝した', off: left <= 0 || !postOn(), go: function () { use(); var r = postSend('dm'); SFX.good(); adPrView(r.n + '人の常連さんにハガキを送った（' + yen(r.cost) + '）。（常連の信頼+3）'); } },
        { main: true, label: 'もどる', go: investView }]);
   }
+  function prPow() { return hqOn() ? deptPow('sns') : 0; }
+  // 時代ごとに、取材やバズのきっかけが変わる。本社の広報が多いほど来やすい
+  function mediaW(k) {
+    var y = eraY(), pr = 1 + 0.5 * prPow();
+    if (k === 'reporter') return (y < 2000 ? 2 : y < 2012 ? 1.5 : 0.8) * pr;
+    if (k === 'tvshow') return y < 2010 ? (y < 2000 ? 1.5 : 1) * pr : 0.3 * pr;
+    if (k === 'webnews') return y >= 2000 && y < 2015 ? pr : 0;
+    if (k === 'influencer') return !snsOn() ? 0 : (y < 2012 ? 0.5 : 1) * pr;
+    return 1;
+  }
   function snsView(note) {
     if (!snsOn()) return adPrView(note);
     if (!note || !scene.story || !scene.story.ev) evScene(['v_sns']);
@@ -5812,7 +5826,7 @@
     var P = snsFix(), t = SNSP[k], q = t.q(), x = SNSPF[pf], base = pfN(pf);
     snsLeft(); P.n++; P.used[k] = true; P.last = S.week;
     evScene(['v_sns_' + k]); if (scene.story) scene.story.pf = pf;
-    var views = Math.round((1500 + base * 0.5 + P.f * 0.15) * (0.5 + q) * (0.6 + rnd() * 0.8) * x.view), buzz = roll((0.04 + q * 0.08) * x.buzz);
+    var views = Math.round((1500 + base * 0.5 + P.f * 0.15) * (0.5 + q) * (0.6 + rnd() * 0.8) * x.view), buzz = roll((0.04 + q * 0.08 + Math.min(0.12, 0.04 * prPow())) * x.buzz);
     if (buzz) views = Math.round(views * (8 + rnd() * 8));
     // 同じ媒体ばかりだと伸びが鈍る（その媒体の割合が高いほど、新しいフォロワーが増えにくい）
     var gain = Math.round(views * (0.02 + q * 0.05) * x.gain * (1.35 - P.mix[pf]) / (1 + P.f / 50000));
@@ -5892,7 +5906,7 @@
   ];
   var DEPT = {
     online: { n: 'オンライン販売部', d: 'オンラインショップの売上が1人ごとに1.5倍。手数料と送料も下がる' },
-    sns:    { n: '広報', d: '毎月、フォロワーの少ないSNSに会社として発信して、バランスよく伸ばす' },
+    sns:    { n: '広報', d: '毎月、フォロワーの少ないSNSに会社として発信して伸ばす。人数が多いほどバズりやすく、取材も来やすい' },
     acct:   { n: '経理', d: '1人ごとに税金が8%安くなる（最大24%）' },
     hr:     { n: '人事', d: '店舗の採用で、伸びしろが高く、力のある応募者が来やすくなる' },
     train:  { n: '教育研修部', d: '全店の研修で得られる経験値が増える（1人ごとに約15%）' },
@@ -6441,7 +6455,7 @@
       R(6 + c, oy + r, 1, 1, ch === '1' && col ? col : b.p[ch]);
     }
   }
-  var EVICON = { storm: 'umbrella', gift: 'gift', wholesale: 'coin', rival: 'shop', campaign: 'mega', complaint: 'bubble', sick: 'thermo', raise: 'coin', growth: 'star', sponsor: 'crown', vip: 'crown', reporter: 'star', influencer: 'heart', inbound: 'gift', ekarte: 'star', leak: 'bubble', fx: 'coin', inspect: 'star', poach: 'bubble', ranking: 'crown', trouble: 'umbrella', celeb: 'star', bridal: 'ring', claimer: 'bubble', graduate: 'heart', indep: 'shop', couple: 'heart', contest: 'crown', st_marry: 'ring', st_baby: 'heart', st_promo: 'crown', st_retire: 'bubble', s_sakura: 'heart', s_mother: 'gift', s_summer: 'star', s_halloween: 'star', s_xmas: 'gift', s_newyear: 'crown', s_valentine: 'heart', s_june: 'ring', s_obon: 'star', s_moon: 'star', s_bonus: 'coin', s_white: 'gift', review: 'bubble', collab: 'heart', mistake: 'bubble', lottery: 'coin', charity: 'heart', seminar: 'mega', headhunt: 'crown', stray: 'heart', bedbreak: 'bubble', rumor: 'bubble', treat: 'gift', trip: 'star', award: 'crown', mentor: 'star', taxaudit: 'coin', neighbor: 'shop', supplier: 'gift', intern: 'star' };
+  var EVICON = { tvshow: 'mega', webnews: 'mega', storm: 'umbrella', gift: 'gift', wholesale: 'coin', rival: 'shop', campaign: 'mega', complaint: 'bubble', sick: 'thermo', raise: 'coin', growth: 'star', sponsor: 'crown', vip: 'crown', reporter: 'star', influencer: 'heart', inbound: 'gift', ekarte: 'star', leak: 'bubble', fx: 'coin', inspect: 'star', poach: 'bubble', ranking: 'crown', trouble: 'umbrella', celeb: 'star', bridal: 'ring', claimer: 'bubble', graduate: 'heart', indep: 'shop', couple: 'heart', contest: 'crown', st_marry: 'ring', st_baby: 'heart', st_promo: 'crown', st_retire: 'bubble', s_sakura: 'heart', s_mother: 'gift', s_summer: 'star', s_halloween: 'star', s_xmas: 'gift', s_newyear: 'crown', s_valentine: 'heart', s_june: 'ring', s_obon: 'star', s_moon: 'star', s_bonus: 'coin', s_white: 'gift', review: 'bubble', collab: 'heart', mistake: 'bubble', lottery: 'coin', charity: 'heart', seminar: 'mega', headhunt: 'crown', stray: 'heart', bedbreak: 'bubble', rumor: 'bubble', treat: 'gift', trip: 'star', award: 'crown', mentor: 'star', taxaudit: 'coin', neighbor: 'shop', supplier: 'gift', intern: 'star' };
   var LIFEICON = { meet: 'heart', propose: 'ring', quarrel: 'bubble', baby: 'heart', dog: 'dog', dogbd: 'dog', parent: 'heart', reunion: 'star', hobby: 'star', volunteer: 'heart', burnout: 'thermo', mentor: 'star' };
   function evCut() {
     var spc = S.special ? S.queue.filter(function (c) { return c.sp; })[0] : null;
