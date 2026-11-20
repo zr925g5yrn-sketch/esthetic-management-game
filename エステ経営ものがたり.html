@@ -333,6 +333,8 @@
   .event.life { border-color: #8E6CD8; box-shadow: 4px 4px 0 #8E6CD8; }
   .event.life .badge { background: #8E6CD8; color: #FFFFFF; }
   .event.season { border-color: #5FAE80; box-shadow: 4px 4px 0 #5FAE80; }
+  .event.news-ev { border-color: #3E5A78; box-shadow: 4px 4px 0 #3E5A78; }
+  .event.news-ev .badge { background: #3E5A78; color: #FFFFFF; }
   .event.mission { border-color: #E8A93A; box-shadow: 4px 4px 0 #E8A93A; }
   .event.mission h2 { font-size: 1.02rem; margin: 4px 0 2px; }
   .event.mission p { font-size: .82rem; }
@@ -1487,6 +1489,75 @@
   function yearAt(w, sy) { return (sy || 2026) + Math.floor((w - 1 + 3) / 12); }
   function nowYear() { return S ? yearAt(S.week, S.startYear) : 2026; }
   function wareki(y, m) { if (y < 1989 || (y === 1989 && m < 1)) return '昭和' + (y - 1925) + '年'; if (y < 2019 || (y === 2019 && m < 5)) return '平成' + (y === 1989 ? '元' : y - 1988) + '年'; return '令和' + (y === 2019 ? '元' : y - 2018) + '年'; }
+  var NEWSDB = [
+    [1985, 3, 'event', 'つくばで科学万博が開幕', '茨城県つくばで国際科学技術博覧会が始まった。未来の技術に、たくさんの人が集まっている。', ''],
+    [1985, 4, 'tech', '電電公社が民営化され、NTTに', '電話の会社が民間の会社になった。電話機を自由に選べる時代が来る。', ''],
+    [1985, 9, 'money', 'プラザ合意で、円高が進む', '主要国が為替の協調に合意し、円の価値がぐんぐん上がり始めた。', ''],
+    [1986, 4, 'work', '男女雇用機会均等法が施行', '働く女性をめぐる法律ができた。仕事帰りにエステへ寄る人も増えるかもしれない。', ''],
+    [1986, 12, 'money', '景気がよくなり始める', 'のちに「バブル景気」と呼ばれる好景気が、このころ始まった。', ''],
+    [1987, 4, 'event', '国鉄が分割・民営化、JRが発足', '国鉄が民間の会社に分かれ、新しい名前で走り始めた。', ''],
+    [1987, 10, 'money', '世界で株価が大暴落', 'ニューヨークの株価が1日で大きく下がり、世界中が驚いた。日本の景気はまだ強い。', ''],
+    [1988, 3, 'event', '青函トンネルが開業', '本州と北海道が、海の底のトンネルでつながった。', ''],
+    [1988, 4, 'event', '瀬戸大橋が開通', '本州と四国が、橋でつながった。', ''],
+    [1989, 1, 'era', '元号が「平成」に', '昭和が終わり、新しい元号「平成」が始まった。', ''],
+    [1989, 4, 'tax', '消費税（3%）が始まる', '買い物に3%の消費税がかかるようになった。お客様の財布のひもが、少しかたくなりそうだ。', 'tax'],
+    [1989, 11, 'world', 'ベルリンの壁が崩壊', '東西に分かれていたドイツの壁が、市民の手でこわされた。', ''],
+    [1989, 12, 'money', '株価が史上最高値に', '年末の株価が、これまでで最も高い値をつけた。街はバブル景気でにぎやかだ。', ''],
+    [1990, 10, 'world', '東西ドイツが統一', '分かれていたドイツが、ひとつの国になった。', ''],
+    [1991, 3, 'money', 'バブル景気がしぼみ始める', 'このころから景気が後退し始めた。高いコースは、前より決まりにくくなるかもしれない。', ''],
+    [1991, 12, 'world', 'ソビエト連邦が解体', '大きな国が15の国に分かれた。世界の形が大きく変わった。', ''],
+    [1992, 9, 'tech', '日本人宇宙飛行士が、スペースシャトルで宇宙へ', '日本人が初めてスペースシャトルに乗って、宇宙で実験をした。', ''],
+    [1993, 5, 'sport', '日本でプロサッカーリーグが開幕', 'プロのサッカーリーグが始まり、日本中がサッカーに夢中になっている。', ''],
+    [1994, 9, 'event', '関西国際空港が開港', '海の上に作られた空港が開港した。海外旅行がもっと身近になる。', ''],
+    [1995, 1, 'quake', '阪神・淡路大震災', '兵庫県を中心に、大きな地震があった。たくさんの方が亡くなり、家を失った人も多い。', 'quake'],
+    [1995, 11, 'tech', '新しいパソコンの基本ソフトが発売', 'インターネットにつなぎやすいパソコンの基本ソフトが発売され、深夜のお店に行列ができた。', ''],
+    [1996, 6, 'beauty', '細い眉と、日焼けした肌がはやる', 'このころ、若い女性の間で細い眉や日焼けした肌がはやっている。お客様の悩みも変わりそうだ。', ''],
+    [1997, 4, 'tax', '消費税が5%に', '消費税が3%から5%に上がった。高いコースは、しばらく決まりにくくなりそうだ。', 'tax'],
+    [1997, 11, 'money', '大手証券会社が自主廃業を発表', '大きな証券会社が営業をやめることになった。景気の先行きに、不安が広がっている。', ''],
+    [1997, 12, 'world', '京都で、地球温暖化を防ぐ会議', '温室効果ガスを減らす約束が、京都で決まった。', ''],
+    [1998, 2, 'sport', '長野オリンピックが開幕', '長野で冬のオリンピックが始まった。スキージャンプの金メダルに、日本中がわいた。', ''],
+    [1999, 2, 'tech', '携帯電話でインターネットが使えるように', '携帯電話からメールやインターネットが使えるサービスが始まった。', ''],
+    [2000, 7, 'money', '二千円札が発行', '新しいお札、二千円札が発行された。', ''],
+    [2001, 9, 'world', 'アメリカ同時多発テロ', 'アメリカで、多くの人が犠牲になるテロ事件が起きた。世界中が悲しみに包まれている。', ''],
+    [2002, 6, 'sport', '日本と韓国でサッカーのワールドカップ', '日本と韓国の共同開催で、サッカーのワールドカップが開かれている。', ''],
+    [2003, 12, 'tech', '地上デジタル放送が始まる', 'テレビの放送がデジタルになり、画面がきれいになった。', ''],
+    [2004, 10, 'quake', '新潟県中越地震', '新潟県で大きな地震があった。多くの方が避難生活を送っている。', 'quake'],
+    [2004, 11, 'money', '新しいお札が発行', '千円・五千円・一万円札が新しいデザインになった。', ''],
+    [2005, 3, 'event', '愛知万博（愛・地球博）が開幕', '「自然の叡智」をテーマにした万博が、愛知で始まった。', ''],
+    [2005, 6, 'work', 'クールビズが始まる', '夏はネクタイをはずして、軽い服装で働こうという取り組みが始まった。', ''],
+    [2006, 7, 'beauty', 'ブログで口コミが広がる時代に', 'このころ、ブログで美容の体験を書く人が増えた。口コミの力が、ますます大きくなっている。', ''],
+    [2008, 7, 'tech', 'スマートフォンが日本で発売', '画面をさわって操作する携帯電話が発売され、行列ができた。', ''],
+    [2008, 9, 'money', '世界的な金融危機', 'アメリカの大手投資銀行が破綻し、世界中の景気が悪くなった。', ''],
+    [2011, 3, 'quake', '東日本大震災', '東北地方を中心に、とても大きな地震と津波があった。たくさんの方が亡くなり、今も多くの方が避難している。', 'quake'],
+    [2011, 7, 'tech', 'テレビのアナログ放送が終わる', 'テレビは、すべてデジタル放送になった。', ''],
+    [2012, 5, 'event', '東京スカイツリーが開業', '東京に、世界一高い電波塔が開業した。', ''],
+    [2013, 9, 'sport', '2020年のオリンピック開催地が東京に', '2020年のオリンピック・パラリンピックが、東京で開かれることに決まった。', ''],
+    [2014, 4, 'tax', '消費税が8%に', '消費税が5%から8%に上がった。値上げ前の駆け込みのあと、しばらくお客様が慎重になりそうだ。', 'tax'],
+    [2016, 4, 'quake', '熊本地震', '熊本県を中心に、大きな地震が続いた。多くの方が避難生活を送っている。', 'quake'],
+    [2018, 6, 'beauty', '動画で美容法を紹介する人が人気に', 'このころ、動画でメイクやスキンケアを紹介する人が人気になっている。', ''],
+    [2019, 5, 'era', '元号が「令和」に', '平成が終わり、新しい元号「令和」が始まった。', ''],
+    [2019, 10, 'tax', '消費税が10%に', '消費税が10%に上がった（食料品などは8%のまま）。', 'tax'],
+    [2020, 3, 'sport', '東京オリンピックが延期に', '感染症が世界に広がり、東京オリンピックは1年延期されることになった。', ''],
+    [2020, 4, 'virus', '新型コロナウイルスで、緊急事態宣言', '感染症の広がりで、外出をひかえるよう呼びかけられている。お客様がぐっと減りそうだ。', 'covid'],
+    [2021, 7, 'sport', '東京オリンピックが開幕', '1年遅れて、東京オリンピックが始まった。ほとんどの会場が無観客だ。', ''],
+    [2022, 4, 'work', '成年年齢が18歳に', '大人の年齢が20歳から18歳に引き下げられた。', ''],
+    [2023, 5, 'virus', '新型コロナが5類に', '感染症の扱いが季節性インフルエンザと同じになった。街ににぎわいが戻ってきた。', 'covidEnd'],
+    [2024, 1, 'quake', '能登半島地震', '石川県の能登半島で、大きな地震があった。多くの方が避難生活を送っている。', 'quake'],
+    [2024, 7, 'money', '新しいお札が発行', '一万円・五千円・千円札が、20年ぶりに新しくなった。', ''],
+    [2025, 4, 'event', '大阪・関西万博が開幕', '大阪の夢洲で、万博が始まった。', '']
+  ];
+  function newsNow() { if (!S || !S.startYear) return null; var y = nowYear(), m = monthOf(); return NEWSDB.filter(function (n) { return n[0] === y && n[1] === m; })[0] || null; }
+  // 今月のニュースの画面（つづける／災害のときは、募金や黙とう）
+  function newsView() {
+    var n = S.newsItem; bar();
+    evScene(['v_news']); if (scene.story) scene.story.newsIc = n[2];
+    var done = function (msg) { S.newsPending = false; S.newsNote = msg || ''; weekIntro(); };
+    var box = '<h1>' + calOf(S.week) + '</h1><div class="event news-ev box"><span class="badge">今月のニュース　' + wareki(n[0], n[1]) + '</span><h2>' + n[3] + '</h2><p>' + n[4] + '</p></div>';
+    if (n[5] === 'quake') return view(box + stepHtml('お店として、どうする？'), [
+      { label: '義援金を送る　' + yen(50000), off: S.cash < 50000, go: function () { pay(50000); hum(3); done('義援金を送った。スタッフも、それぞれにできることを考えている。'); } },
+      { label: 'みんなで黙とうする', go: function () { hum(1); done('閉店後、みんなで黙とうした。'); } }]);
+    view(box, [{ main: true, label: 'つづける', go: function () { done(''); } }]);
+  }
   var ERAS = [
     { y: 1985, n: '1985年（昭和60年）', d: 'バブルの少し前。エステはまだ珍しく、チラシと雑誌、電話で集客する時代' },
     { y: 1995, n: '1995年（平成7年）', d: 'エステブーム。ポケベルと雑誌の時代。インターネットが広まり始める' },
@@ -3735,6 +3806,27 @@
       x = reduce ? 50 : (t * 16) % (SW + 40) - 30; y = 24 + wob(700) * 2; R(x, y, 30, 6, '#FFFFFF'); R(x + 30, y + 1, 4, 4, '#FFFFFF'); R(x + 2, y - 5, 4, 6, '#E0567A'); R(x + 12, y + 4, 10, 2, '#D9DCE8'); R(x + 12, y - 2, 8, 2, '#D9DCE8'); for (i = 0; i < 6; i++) R(x + 8 + i * 3, y + 2, 1, 1, '#5AA9E6');
       R(0, 64, SW, 20, '#CFC6BC'); sprite(S && S.queue && S.queue[0] ? S.queue[0].look : guest(1), 40, 48, { face: 'smile' }); R(52, 56, 8, 10, '#E0567A'); R(54, 54, 4, 2, '#2B2238');
       big(meU, 80, 36, 2, { face: 'smile', bow: reduce ? 0 : (Math.floor(t / 1.5) % 2) });
+    } else if (k === 'v_news') {
+      var ic = scene.story.newsIc || 'event', dark = ic === 'quake' || ic === 'virus';
+      R(0, 0, SW, SH, dark ? '#C9C2CC' : '#EDE3D6'); R(0, 64, SW, 20, '#B39A82'); R(0, 64, SW, 1, '#8E7660');
+      R(10, 40, 12, 24, '#7FA36E'); R(14, 34, 4, 8, '#5E8A52'); R(106, 46, 12, 18, '#C9A27E'); R(108, 42, 8, 4, '#E8C15A');
+      R(29, 7, 70, 48, '#2B2238'); R(32, 10, 64, 34, dark ? '#24304A' : '#4C6E96'); R(58, 55, 12, 5, '#2B2238'); R(46, 60, 36, 3, '#4A4458');
+      var cx = 64, cy = 26, blink = reduce ? 1 : (Math.floor(now / 500) % 2);
+      if (ic === 'era') { R(54, 11, 20, 30, '#FFFFFF'); R(54, 11, 20, 2, '#C9A227'); R(54, 39, 20, 2, '#C9A227');
+        R(58, 15, 12, 2, '#2B2238'); R(63, 15, 2, 9, '#2B2238'); R(59, 19, 2, 3, '#2B2238'); R(67, 19, 2, 3, '#2B2238'); R(58, 22, 12, 1, '#2B2238');
+        R(59, 27, 3, 9, '#2B2238'); R(62, 27, 7, 1, '#2B2238'); R(64, 29, 2, 7, '#2B2238'); R(67, 30, 2, 5, '#2B2238'); R(61, 31, 4, 1, '#2B2238'); }
+      else if (ic === 'tax') { disc(cx - 8, cy - 6, 3, '#FFFFFF'); disc(cx + 8, cy + 6, 3, '#FFFFFF'); for (i = 0; i < 18; i++) R(cx + 8 - i, cy - 9 + i, 2, 1, '#FFFFFF'); for (i = 0; i < 3; i++) R(40 + i * 6, 36 - i * 2, 5, 3, '#F2C230'); }
+      else if (ic === 'money') { for (i = 0; i < 6; i++) R(40 + i * 8, 40 - [6, 10, 14, 12, 18, 22][i], 6, [6, 10, 14, 12, 18, 22][i], i % 2 ? '#7FC49A' : '#F2C230'); }
+      else if (ic === 'tech') { R(54, 13, 20, 28, '#E8E8F0'); R(56, 16, 16, 20, blink ? '#9FD8F0' : '#7FC8E8'); R(62, 38, 4, 2, '#9A93A8'); }
+      else if (ic === 'sport') { R(56, 14, 16, 12, '#F2C230'); R(52, 15, 4, 6, '#F2C230'); R(72, 15, 4, 6, '#F2C230'); R(62, 26, 4, 8, '#E8A93A'); R(57, 34, 14, 5, '#C9A227'); if (blink) bigIco('star', 76, 12, 1, '#FFFFFF'); }
+      else if (ic === 'world') { disc(cx, cy - 1, 12, '#5AA9E6'); R(56, 18, 8, 6, '#7FC49A'); R(66, 26, 7, 8, '#7FC49A'); R(58, 30, 4, 3, '#7FC49A'); }
+      else if (ic === 'quake') { R(61, 22, 6, 18, '#F4F0E6'); R(63, 18 + (blink ? 0 : 1), 2, 4, '#F2C230'); g.globalAlpha = 0.25; disc(64, 20, 7, '#FFE08A'); g.globalAlpha = 1; }
+      else if (ic === 'virus') { R(52, 20, 24, 14, '#FFFFFF'); R(52, 24, 24, 1, '#D8D2DC'); R(52, 28, 24, 1, '#D8D2DC'); R(48, 22, 4, 2, '#FFFFFF'); R(76, 22, 4, 2, '#FFFFFF'); }
+      else if (ic === 'work') { R(52, 20, 24, 18, '#8E6440'); R(60, 16, 8, 4, '#8E6440'); R(62, 17, 4, 3, '#4C6E96'); R(52, 27, 24, 2, '#6E4A30'); }
+      else if (ic === 'beauty') { bigIco('heart', 56, 16, 2, '#FF7FA0'); }
+      else { for (i = 0; i < 5; i++) { var a2 = reduce ? i : i + now / 400; bigIco('star', Math.round(cx - 3 + Math.cos(a2) * 14), Math.round(cy - 4 + Math.sin(a2) * 9), 1, ['#FFE08A', '#FF7FA0', '#9FD8F0', '#FFFFFF', '#B48CFF'][i]); } }
+      R(32, 38, 64, 6, dark ? '#4A4458' : '#E0567A'); var off = reduce ? 0 : Math.floor(now / 50) % 64;
+      for (i = 0; i < 5; i++) { var tx = 32 + ((i * 15 + 64 - off) % 64); R(tx, 40, Math.min(9, 96 - tx), 2, '#FFFFFF'); }
     } else if (k === 'v_phone' || k === 'v_home') {
       R(0, 0, SW, SH, '#2E2A48'); R(8, 8, 30, 22, '#4A4470'); R(10, 10, 26, 18, '#1A1830'); disc(28, 16, 3, '#FFF4C0');
       R(0, 60, SW, 24, '#5A4A40'); R(60, 46, 56, 14, '#8E6A9A'); R(60, 42, 56, 6, '#A87AB8'); R(112, 40, 6, 20, '#8E6A9A');
@@ -4141,6 +4233,13 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
+    var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
+    if (nw) { S.newsItem = nw; S.newsPending = true;
+      if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
+      if (nw[5] === 'covid') S.covid = 1;
+      if (nw[5] === 'covidEnd') S.covid = 0; }
+    if (S.covid && S.startYear) newN = Math.round(newN * (nowYear() === 2020 && monthOf() <= 9 ? 0.5 : 0.8));
+    if ((S.taxDipUntil || 0) >= S.week) newN -= 1;
     newN = Math.max(1, newN + pm().newAdj);
     S.ad = 0;
     if (!S.special && !opArea() && hotelReady()) { var hk2 = hotelNextKey(); S.special = 'hotel'; S.hotelVisit = { k: hk2, week: S.week }; S.hotelNext = S.week + 6;
@@ -4168,6 +4267,7 @@
     newMission();
     C = null; setScene('idle');
     var cuts = [];
+    if (S.newsPending && S.newsItem) cuts.push({ kicker: '今月のニュース', title: S.newsItem[3], c1: '#3E5A78', c2: '#2E4560', icon: 'mega' });
     if (S.holPending) cuts.push({ kicker: 'あなたの休日', title: '今日は何する？', c1: '#F7B8C8', c2: '#E58BA3', icon: 'heart' });
     if (launched) cuts.push(launchCut(launched));
     if (S.lifeKey) cuts.push(lifeCut());
@@ -4203,7 +4303,8 @@
     var lf = S.lifeKey ? lifeOf(S.lifeKey) : null;
     var life = lf ? '<div class="event life box"><span class="badge">あなたの暮らし</span><h2>' + lf.t + '</h2><p>' + lf.d + '</p>' + (S.lifeNote ? '<p class="evnote">' + S.lifeNote + '</p>' : '') + '</div>' : '';
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
-    var head = '<h1>' + calOf(S.week) + '</h1>' + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
+    var head = '<h1>' + calOf(S.week) + '</h1>' + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
+    if (S.newsPending && S.newsItem) return newsView();
     if (S.holPending) { evScene([]); return holidayView(); }
     var only = '<h1>' + calOf(S.week) + '</h1>';
     // 選んだ直後は、その結果だけを見せる
@@ -5205,6 +5306,7 @@
     // 新規
     var fit = fitOf(b.area, b.concept);
     var demand = Math.max(0, 1 + Math.floor(b.rep / 20) + A.demand + fit + (boss() === 'charisma' ? 1 : 0) + adOf().b + (webN() ? 1 : 0) + (roll(0.5) ? 1 : 0) + pm().newAdj);
+    if (S.covid && S.startYear) demand = Math.round(demand * (nowYear() === 2020 && monthOf() <= 9 ? 0.5 : 0.8));
     var n = Math.min(demand, slots);
     r.turned = demand - n;
     for (var k = 0; k < n; k++) {
