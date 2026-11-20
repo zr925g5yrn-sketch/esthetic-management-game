@@ -2024,10 +2024,37 @@
   function pfOn(k) { return eraY() >= PFYEAR[k]; }
   function pfList() { return Object.keys(SNSPF).filter(pfOn); }
   function snsOn() { return pfList().length > 0; }
+  // 本社の部署・資格・前職を、その時代の名前に（資格は、その名前ができる前の呼び方に）
+  function hqEraText(t, y) {
+    if (y < 2006) t = t.replace(/毎月、フォロワーの少ないSNSに会社として発信して伸ばす。/g, '毎月、雑誌やテレビにお店を売りこんで、ファンを増やす。');
+    if (y < 2000) t = t.replace(/オンライン販売部/g, '通信販売部').replace(/オンラインショップの売上が1人ごとに1.5倍。手数料と送料も下がる/g, 'カタログ通販の準備をする。オンラインショップが始まる2000年ごろから、その売上が1人ごとに1.5倍になる');
+    if (y < 1997) t = t.replace(/ホームページとネット予約を作る。/g, 'お客様の名簿をコンピューターで管理して、案内のハガキを出す。');
+    else if (y < 2005) t = t.replace(/ホームページとネット予約を作る。/g, 'ホームページを作り、お客様の名簿を管理する。');
+    if (y < 1995) t = t.replace(/エンジニア/g, '電算室'); else if (y < 2005) t = t.replace(/エンジニア/g, 'システム課');
+    if (y < 1997) t = t.replace(/MOS（Excel）/g, 'ワープロ検定1級');
+    if (y < 2001) t = t.replace(/基本情報技術者/g, '情報処理技術者（第二種）');
+    if (y < 1994) t = t.replace(/ITパスポート/g, 'ワープロ検定2級'); else if (y < 2009) t = t.replace(/ITパスポート/g, '初級システムアドミニストレータ');
+    if (y < 1996) t = t.replace(/ウェブデザイン技能検定/g, '珠算検定1級'); else if (y < 2007) t = t.replace(/ウェブデザイン技能検定/g, 'パソコン検定');
+    if (y < 2005) t = t.replace(/ネットショップ実務士/g, '販売士2級');
+    if (y < 2004) t = t.replace(/マーケティング検定/g, '販売士3級');
+    if (y < 2007) t = t.replace(/PRプランナー/g, '広告の企画講座 修了');
+    if (y < 2002) t = t.replace(/キャリアコンサルタント/g, '産業カウンセラー');
+    if (y < 2015) t = t.replace(/宅地建物取引士/g, '宅地建物取引主任者');
+    if (y < 1987) t = t.replace(/認定エステティシャン/g, 'エステの専門学校 卒業');
+    if (y < 2000) t = t.replace(/アパレルのEC担当/g, 'アパレルの通販担当');
+    if (y < 1997) t = t.replace(/Web制作会社/g, '印刷会社');
+    if (y < 1990) t = t.replace(/システム会社/g, 'コンピューター会社');
+    // 「バズる」は2010年代の言葉。それまでは「話題になる」
+    if (y < 2010) t = t.replace(/バズりやすく/g, '話題になりやすく').replace(/バズった/g, '話題になった').replace(/バズる/g, '話題になる').replace(/バズり/g, '話題').replace(/バズ/g, '話題');
+    // 「IT」という言葉が広まったのは2000年ごろ。それまでは「コンピューター」
+    if (y < 1999) t = t.replace(/IT(?![A-Za-zパ])/g, 'コンピューター');
+    return t;
+  }
   function eraText(t) {
     if (S && S.ownerMale && t != null) t = String(t).replace(/店長(?=[、…！!。」？?っ〜ー])/g, 'オーナー').replace(/「店長/g, '「オーナー');
     if (!S || !S.startYear || t == null) return t;
     t = String(t); var y = eraY();
+    t = hqEraText(t, y);
     // インターネットの口コミがない時代：クレームは電話、レビューは雑誌への投書
     if (y < 2000) t = t.replace(/口コミに厳しい投稿/g, 'クレームの電話').replace(/「待たされたうえに雑だった」と書き込まれた。/g, 'お客様から「待たされたうえに雑だった」とクレームの電話がかかってきた。')
       .replace(/誠実に返信して、無料券を送る/g, '電話でていねいにおわびして、無料券を送る').replace(/投稿が広まり、評判が下がった。/g, '不満が近所のうわさになり、評判が下がった。')
