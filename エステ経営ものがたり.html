@@ -2021,6 +2021,8 @@
     if (!S || !S.startYear || t == null) return t;
     t = String(t); var y = eraY();
     if (y < 2003) t = t.replace(/口コミサイト/g, '雑誌の読者投稿');
+    // 「セレブ」がお金持ちの意味で広まったのは2000年代に入ってから。それまでは「資産家」
+    if (y < 2001) t = t.replace(/セレブ/g, '資産家');
     if (y < 2005) t = t.replace(/ドライヘッドスパ/g, '頭と目のほぐし').replace(/ヘッドスパ/g, 'ヘッドマッサージ');
     else if (y < 2015) t = t.replace(/ドライヘッドスパ/g, 'ほぐしのヘッドスパ');
     if (y < 1995) t = t.replace(/メールで/g, '手紙で').replace(/メール/g, '手紙');
@@ -7241,7 +7243,7 @@
     var el = $('cutin'), cx = $('cutcv').getContext('2d');
     $('app').innerHTML = '';
     el.style.setProperty('--c1', c.c1); el.style.setProperty('--c2', c.c2);
-    $('cutK').textContent = c.kicker; $('cutT').textContent = c.title; $('cutS').textContent = c.sub || '';
+    $('cutK').textContent = eraText(c.kicker); $('cutT').textContent = eraText(c.title); $('cutS').textContent = eraText(c.sub || '');
     cx.clearRect(0, 0, 24, 24);
     var keep = g; g = cx;
     try { if (c.look) sprite(c.look, 7, 5); else bigIcon(c.icon, c.ic); } finally { g = keep; }
