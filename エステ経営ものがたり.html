@@ -263,6 +263,11 @@
   .olist > button:disabled::after, details.fold.grp > .opts > button:disabled::after { content: ''; }
   .olist > button:active:not(:disabled), details.fold.grp > .opts > button:active:not(:disabled) { transform: none; box-shadow: none; background: var(--chip); }
   .olist > button.picked, details.fold.grp > .opts > button.picked { background: var(--chip); }
+  .olist > button:not(.main) > b::before, details.fold.grp > .opts > button:not(.main) > b::before { content: '◆'; display: inline-block; margin-right: .45em; font-size: .62em; vertical-align: .25em; color: var(--accent); }
+  .olist > button:disabled > b::before, details.fold.grp > .opts > button:disabled > b::before { color: var(--sub); }
+  .olist > button.picked:not(.main) > b::before, details.fold.grp > .opts > button.picked:not(.main) > b::before { content: '✓'; font-size: 1em; vertical-align: 0; }
+  .olist > button.hqbtn:not(.main) > b::before { content: '■'; font-size: .8em; color: #6C5AA8; }
+  .olist > button > small.osub, details.fold.grp > .opts > button > small.osub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
   .cinlogo { margin: -6px 0 8px; font: italic 700 1.05rem Georgia, 'Times New Roman', serif; letter-spacing: .06em; color: #B0623A; }
   button.hqbtn { box-shadow: inset 6px 0 0 #6C5AA8; } button.hqbtn b { font-size: 1.12rem; } button.hqbtn b::before { content: '■ '; color: #6C5AA8; }
   button.rec { position: relative; background: #E8F5EC !important; box-shadow: inset 4px 0 0 #3E9E6A; }
@@ -3022,7 +3027,7 @@
     onTitle = false; menuEra(); opts = (opts || []).filter(Boolean);
     var app = $('app');
     // 選択肢が多い画面は、上にも「もどる」を出す
-    var bk = (opts || []).filter(function (o) { return o.topBack && !o.off; })[0] || ((opts || []).length >= 6 ? (opts || []).filter(function (o) { return !o.off && /もどる/.test(o.label); }).slice(-1)[0] : null);
+    var bk = (opts || []).filter(function (o) { return o.topBack && !o.off; })[0] || (opts || []).filter(function (o) { return !o.off && /もどる|戻る|やめる$|やめておく$/.test(o.label); }).slice(-1)[0] || null;
     app.innerHTML = (bk ? '<button type="button" class="topback" id="topback"></button>' : '') + foldLeads(eraText(html)) + '<div class="opts ' + (cls || '') + '" id="opts"></div>';
     if (bk) { var tb = $('topback'); tb.textContent = '‹ ' + eraText(bk.label); tb.addEventListener('click', function () { SFX.click(); bk.go(); }); }
     var box = $('opts'), gbox = {};
@@ -6980,10 +6985,10 @@
       '<p class="lead">家賃 月' + yen(L.rent) + '　本社のスタッフ ' + hs.length + '／' + L.cap + '人　本店の店長：' + (mgr ? mgr.name : 'なし') +
       '<br>社員 ' + employees() + '人</p>' +
       '<details class="fold"><summary>部署の一覧と役割</summary><ul class="who-list">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name; }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul></details>',
-      [{ label: '本社の研修と資格取得', sub: S.hqTrainWk === S.week ? '今月の研修はすんだ' : '社内勉強会・外部セミナー（月1回）、資格の勉強の支援', off: !hs.length, go: function () { hqTrainView(); }, rec: S.hqTrainWk !== S.week && hs.length ? '今月の研修がまだ。本社のスタッフの力が伸びる' : '' },
-       { label: '本社で新しく採用する', sub: '今月の応募者の一覧から、何人でも選べる（あと' + Math.max(0, L.cap - hs.length) + '人まで）', off: hs.length >= L.cap, go: function () { hqHireView(false); } },
-       { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人や、接客が合わない人にも。本社では手を使わないので、痛みも治る', off: hs.length >= L.cap, go: transferHqView },
-       { label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? BOSS[S.boss].d : 'いくつかの質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } }]
+      [{ label: '本社の研修と資格取得', sub: S.autoHqTrain && deptN('train') ? '自動' : S.hqTrainWk === S.week ? '今月はすんだ' : '今月まだ', off: !hs.length, go: function () { hqTrainView(); }, rec: S.hqTrainWk !== S.week && hs.length ? '本社のスタッフの力が伸びる' : '' },
+       { label: '本社で新しく採用する', sub: hs.length >= L.cap ? '満員' : 'あと' + Math.max(0, L.cap - hs.length) + '人', off: hs.length >= L.cap, go: function () { hqHireView(false); } },
+       { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人の療養にも', off: hs.length >= L.cap, go: transferHqView },
+       { label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? '' : '質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } }]
       .concat(hs.map(function (st) { return { grp: '本社のスタッフ', label: st.name + '（' + DEPT[st.dept].n + '）', sub: hqSkText(st) + '　' + hqExpText(st) + '　月給' + yen(payOf(st)), go: function () { hqStaffView(st); } }; }))
       .concat(S.staff.filter(function (st) { return !st.owner; }).length ? [{ label: '本店の店長を決めなおす', sub: mgr ? 'いまは' + mgr.name : 'いまはいない', go: function () { mgrView(); } }] : [])
       .concat(nx ? [{ label: '本社を「' + nx.n + '」に移す　' + yen(nx.cost), sub: '家賃 月' + yen(nx.rent) + '、本社のスタッフ' + nx.cap + '人まで。社長室も豪華になる', off: S.cash < nx.cost,
