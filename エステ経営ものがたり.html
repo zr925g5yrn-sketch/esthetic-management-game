@@ -8278,7 +8278,7 @@
     if (postOn() && monthOf() === 12) T.push(S.nengaY === nowYear() ? { t: '年賀状', s: '今年はもう出した', done: true } : { t: '年賀状を出す', s: '常連さんとスタッフに、新年のあいさつ（1枚' + postFee() + '円）', go: function () { var r = postSend('nenga'); SFX.good(); S.trainNote = r.n + '人の常連さんとスタッフに年賀状を書いた（' + yen(r.cost) + '）。常連の信頼+4、スタッフのやる気+3'; investView(); } });
     // 本社のタスク
     if (S.hq) {
-      if (hqStaff().length) T.push(S.hqTrainWk === S.week ? { t: '本社の研修', s: '今月はすんだ', done: true } : { t: '本社の研修', s: '勉強会・セミナー・資格の支援で、本社のスタッフを育てる', go: function () { hqTrainView(); } });
+      if (hqStaff().length && !(S.autoHqTrain && deptN('train'))) T.push(S.hqTrainWk === S.week ? { t: '本社の研修', s: '今月はすんだ', done: true } : { t: '本社の研修', s: '勉強会・セミナー・資格の支援で、本社のスタッフを育てる', go: function () { hqTrainView(); } });
       var HL = HQLV[S.hq.lv - 1], hroom = HL.cap - hqStaff().length;
       var emptyD = Object.keys(DEPT).filter(function (k) { return !deptN(k); }).map(function (k) { return DEPT[k].n; });
       if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.slice(0, 3).join('、') + (emptyD.length > 3 ? 'など' : '') + 'がいない' : ''), go: function () { hqHireView(false); } });
@@ -8291,10 +8291,10 @@
     if (asks.length) T.unshift({ t: '面談の申し出に応える', s: asks.map(function (x) { return x.name; }).slice(0, 3).join('・') + 'が相談したがっている', go: careView });
     var ready = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && epiReady(x); });
     if (ready.length) T.unshift({ t: ready.length >= 2 ? 'スタッフの話をまとめて聞く' : 'スタッフの話を聞く', s: ready.map(function (x) { return x.name; }).slice(0, 3).join('・') + (ready.length > 3 ? 'ほか' : '') + 'が話をしたがっている', go: ready.length >= 2 ? function () { epiBulk(); } : careView });
-    T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
+    if (!(S.autoSns && deptN('sns'))) T.push(left > 0 ? { t: 'SNSに投稿する', s: '今月あと' + left + '回', go: function () { snsView(); } } : { t: 'SNSの投稿', s: '今月の2回は投稿ずみ', done: true });
     if (P.f >= LIVEMIN && eraY() >= 2016) T.push(P.live === S.week ? { t: 'ライブ配信', s: '今月は配信ずみ', done: true } : { t: 'ライブ配信をする', s: '在庫の商品がネットで売れる', go: liveView });
     var tg = tGroups().filter(function (g2) { return g2.mem.length; });
-    if (tg.length) { var tl = tg.filter(function (g2) { return !tDone(g2.key); });
+    if (tg.length && !(S.autoTrain && deptN('train'))) { var tl = tg.filter(function (g2) { return !tDone(g2.key); });
       T.push(tl.length ? { t: 'スタッフの研修', s: 'あと' + tl.length + '店舗（' + tl.map(function (g2) { return shortShop(g2.name); }).join('・') + '）', go: function () { trainView(); } } : { t: 'スタッフの研修', s: '今月はすべての店舗で研修ずみ', done: true }); }
     var low = team.filter(function (st) { moodFix(st); return st.mot < 40; });
     if (low.length) T.push({ t: 'やる気が落ちているスタッフと過ごす', s: low.map(function (st) { return st.name; }).slice(0, 3).join('・') + (low.length > 3 ? 'ほか' : ''), go: careView });
@@ -8305,7 +8305,7 @@
     if (!wait && canOpen.length) T.push({ t: '新しい店舗をオープンする', s: '出せる街：' + canOpen.slice(0, 4).map(function (k) { return AREAS[k].n; }).join('・') + (canOpen.length > 4 ? 'ほか' : ''), go: function () { branchView(); } });
     if (!S.adLv) T.push({ t: '広告を出す', s: '広告がないと、新しいお客様はなかなか来ない', go: adView });
     if (!S.hq && S.shops.length >= 2) T.push({ t: '社長に就任する', s: '本店の店長を決めて、本社に移る', go: presidentView });
-    if (roomAny() && S.cash >= HIRE * 4) T.push({ t: 'スタッフを採用する', s: '受け入れの空きがある', go: function () { hireView(); } });
+    if (roomAny() && S.cash >= HIRE * 4 && !(S.autoHire && deptN('hr'))) T.push({ t: 'スタッフを採用する', s: '受け入れの空きがある', go: function () { hireView(); } });
     if (!S.dev && S.myProds.length < MAXMINE && S.week >= 3 && S.cash >= 300000) T.push({ t: 'オリジナル商品を開発する', s: '開発中の商品はない', go: devView });
     return T;
   }
