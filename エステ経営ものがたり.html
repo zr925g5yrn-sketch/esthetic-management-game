@@ -5633,8 +5633,8 @@
       setOffers(C).map(function (so) {
         return setOpt(so, function (so) {
           say('me', 'ご自宅用に、' + so.n + 'のセット（' + yen(so.price) + '）もいかがですか。');
-          var hi = so.items[0].need > so.items[1].need ? so.items[0] : so.items[1];
-          if (C.budget + (C.split ? 1 : 0) >= so.tier && roll(clamp(0.5 + (score() + 10 - needOf(hi) + setBonus(so)) / 40, 0.05, 0.95))) { say('you', 'セットなら、両方ください。', 'good'); sellSet(C, so); setScene('sold'); }
+          var hi = so.items.reduce(function (a, b) { return (b.need || 0) > (a.need || 0) ? b : a; });
+          if (C.budget + (C.split ? 1 : 0) >= so.tier && roll(clamp(0.5 + (score() + 10 - needOf(hi) + setBonus(so)) / 40, 0.05, 0.95))) { say('you', (so.items.length >= 3 ? 'セットなら、ぜんぶください。' : 'セットなら、両方ください。'), 'good'); sellSet(C, so); setScene('sold'); }
           else say('you', '今日はこれで十分です。');
           farewell('sold');
         });
@@ -5655,25 +5655,32 @@
     offer(true);
   }
   // 選んですすめるセット：悩みに合う商品を2つ組み合わせる。セット割にしていれば1割引き
+  // 選んですすめるセット：その日の悩みに合う商品を2〜3つ組み合わせる（オリジナル商品を優先）。セット割なら2つで1割、3つで1割5分引き
   function setOffers(c) {
-    var st = inStock().filter(function (p) { return p.cost; });
-    var pool = st.slice().sort(function (a, b) { return (fits(b, c) ? 1 : 0) - (fits(a, c) ? 1 : 0) || priceOf(b) - priceOf(a); }), out = [];
-    if (pool.length >= 2) out.push([pool[0], pool[1]]);
-    if (pool.length >= 3) out.push([pool[0], pool[2]]);
-    return out.map(function (pr) {
-      var each = pr.map(function (p) { return Math.round(priceOf(p) * (S.setSale ? 0.9 : 1) / 100) * 100; });
-      return { items: pr, each: each, price: each[0] + each[1], full: priceOf(pr[0]) + priceOf(pr[1]), tier: Math.max(pr[0].tier || 0, pr[1].tier || 0), fit: pr.filter(function (p) { return fits(p, c); }).length,
-        n: pr[0].n + '＋' + pr[1].n };
+    var st = inStock().filter(function (p) { return p.cost; }), need = c.isNew ? c.concern : (c.today || c.concern), mine = (S.myProds || []);
+    var rank = function (a, b) { return (mine.indexOf(b) >= 0 ? 1 : 0) - (mine.indexOf(a) >= 0 ? 1 : 0) || priceOf(b) - priceOf(a); };
+    var fit = st.filter(function (p) { return fits(p, c); }).sort(rank), other = st.filter(function (p) { return !fits(p, c); }).sort(rank), sets = [];
+    if (fit.length >= 3) sets.push(fit.slice(0, 3));
+    if (fit.length >= 2) sets.push(fit.slice(0, 2));
+    if (fit.length === 1 && other.length) sets.push([fit[0], other[0]]);
+    if (!fit.length && other.length >= 2) sets.push(other.slice(0, 2));
+    if (sets.length < 2 && fit.length >= 2 && other.length) sets.push([fit[0], other[0]]);
+    var cname = CONCERN[need] ? CONCERN[need].n : '';
+    return sets.slice(0, 2).map(function (pr) {
+      var off = S.setSale ? (pr.length >= 3 ? 0.85 : 0.9) : 1, each = pr.map(function (p) { return Math.round(priceOf(p) * off / 100) * 100; });
+      var nf = pr.filter(function (p) { return fits(p, c); }).length, sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+      return { items: pr, each: each, price: sum(each), full: sum(pr.map(priceOf)), tier: Math.max.apply(null, pr.map(function (p) { return p.tier || 0; })), fit: nf,
+        n: (nf === pr.length && cname ? cname + 'のケアセット（' : '') + pr.map(function (p) { return p.n; }).join('＋') + (nf === pr.length && cname ? '）' : '') };
     });
   }
   function setOpt(so, tryIt) {
-    return { label: 'セット：' + so.n + '　' + yen(so.price), sub: (S.setSale ? 'セット割で' + yen(so.full - so.price) + 'お得' : '2つ合わせて定価') + (so.fit >= 2 ? '。今日の悩みにぴったりの組み合わせ' : '') + '　在庫' + so.items.map(function (p) { return S.stock[p.k]; }).join('・') + '個', go: function () { tryIt(so); } };
+    return { label: 'セット：' + so.n + '　' + yen(so.price), sub: (S.setSale ? 'セット割で' + yen(so.full - so.price) + 'お得' : so.items.length + 'つ合わせて定価') + (so.fit === so.items.length ? '。今日の悩みにぴったりの組み合わせ' : '') + (so.items.some(function (p) { return (S.myProds || []).indexOf(p) >= 0; }) ? '。オリジナル商品入り' : '') + '　在庫' + so.items.map(function (p) { return S.stock[p.k]; }).join('・') + '個', go: function () { tryIt(so); } };
   }
   function sellSet(c, so) {
     so.items.forEach(function (p, i) { var pr = so.each[i]; S.cash += pr; c.revenue += pr; S.total.sold++; S.stock[p.k]--; S.wk.prod += pr; if (c.got) c.got.push(p.n); stSale(c.st, pr); });
   }
   // セットの受け入れやすさ：1つより少し高いが、悩みに合うほど、セット割にしているほど受け入れられやすい
-  function setBonus(so) { return (S.setSale ? 8 : 0) + so.fit * 3 - 6; }
+  function setBonus(so) { return (S.setSale ? 8 : 0) + so.fit * 3 - 6 - (so.items.length >= 3 ? 4 : 0); }
   // セット売り：商品が1つ売れたら、悩みに合うほかの商品もいっしょに買ってくれることがある（まとめ買いも）。セット割（1割引き）にすると買ってもらいやすい
   function bundleSale(c, it) {
     if (!it.cost || c.bundling) return '';
@@ -5780,9 +5787,9 @@
       }).concat(C.royal ? [] : setOffers(C).map(function (so) {
         return setOpt(so, function (so) {
           say('me', so.n + 'のセット（' + yen(so.price) + '）はいかがですか。');
-          var hi = so.items[0].need > so.items[1].need ? so.items[0] : so.items[1];
+          var hi = so.items.reduce(function (a, b) { return (b.need || 0) > (a.need || 0) ? b : a; });
           var ok = C.budget + (C.loy >= 60 ? 1 : 0) >= so.tier && roll(clamp(0.5 + (regScore(C.st) - regNeed(hi) + setBonus(so)) / 40, 0.05, 0.95));
-          if (ok) { say('you', 'セットなら、両方ください。', 'good'); sellSet(C, so); }
+          if (ok) { say('you', (so.items.length >= 3 ? 'セットなら、ぜんぶください。' : 'セットなら、両方ください。'), 'good'); sellSet(C, so); }
           else { say('you', pick(['今日は大丈夫です。', 'また今度にします。']), 'bad'); C.loy = clamp(C.loy - 3, 0, 100); }
           regDone(ok);
         });
