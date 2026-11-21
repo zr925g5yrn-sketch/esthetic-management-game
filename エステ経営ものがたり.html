@@ -7301,14 +7301,43 @@
   }
   /* --- 経営戦略：フランチャイズ・M&A・上場 --- */
   var FCFEE = 2000000, FCROY = 120000;
+  // 加盟店：1店ずつ、町と加盟オーナーと売上をもつ。ロイヤリティは毎月の売上の何%か（契約したときの率）
+  var FCTOWN = ['仙台', '金沢', '広島', '岡山', '熊本', '鹿児島', '新潟', '静岡', '高松', '松山', '長野', '宇都宮', '千葉', '大宮', '町田', '吉祥寺', '船橋', '川崎', '那覇', '盛岡', '富山', '浜松', '姫路', '長崎', '大分', '秋田', '青森', '甲府', '岐阜', '奈良', '和歌山', '徳島', '高知', '松江', '鳥取', '山形', '福島', '水戸', '前橋', '津', '大津', '佐賀', '宮崎', '旭川', '函館', '倉敷', '北九州', '豊田', '藤沢', '柏'];
+  var FCOWN = ['佐藤', '鈴木', '高橋', '田中', '伊藤', '渡辺', '山本', '中村', '小林', '加藤', '吉田', '山田', '佐々木', '山口', '松本', '井上', '木村', '林', '清水', '森', '池田', '橋本', '石川', '前田', '藤田', '岡田', '長谷川', '村上', '近藤', '坂本'];
+  var FCRATES = [{ r: 3, n: '3%（低め）', d: '加盟が集まりやすく、やめる店も少ない' }, { r: 5, n: '5%（ふつう）', d: '業界でよくある率' }, { r: 8, n: '8%（高め）', d: '1店からの収入は多いが、加盟が集まりにくく、やめる店も出やすい' }];
   function fcQ() { return S.fc ? S.fc.q : 80; }
+  function fcRate() { return (S.fc && S.fc.rate) || 5; }
+  function fcNew() {
+    var used = S.fc.list.map(function (x) { return x.town; }), free = FCTOWN.filter(function (t) { return used.indexOf(t) < 0; });
+    var town = free.length ? pick(free) : pick(FCTOWN) + (S.fc.list.length + 1) + '号';
+    return { town: town, own: pick(FCOWN), wk: S.week, base: Math.round((1800000 + rnd() * 1400000) / 10000) * 10000, r: fcRate(), last: 0 };
+  }
+  // 前の版のセーブ（店の数だけ）は、加盟店を1店ずつ作り直す
+  function fcFix() {
+    if (!S.fc) return;
+    if (!S.fc.list) { S.fc.list = []; for (var i = 0; i < (S.fc.n || 0); i++) { var f = fcNew(); f.wk = Math.max(1, S.week - 6); f.r = 5; S.fc.list.push(f); } }
+    S.fc.n = S.fc.list.length;
+  }
+  function fcName(f) { return (S.brand ? S.brand + ' ' : '') + f.town + '店'; }
   function stratMonth() {
     var notes = [], inc = 0;
     // フランチャイズ：ロイヤリティが入るが、店が増えるほど理念とサービスの質が下がる
+    fcFix();
+    if (S.fc && S.fc.joinFee) { inc += S.fc.joinFee; notes.push({ t: 'フランチャイズの加盟金 ' + yen(S.fc.joinFee) + 'が入った。' }); S.fc.joinFee = 0; }
     if (S.fc && S.fc.n) {
-      var roy = Math.round(S.fc.n * FCROY * (0.5 + S.fc.q / 100) / 1000) * 1000; inc += roy + (S.fc.joinFee || 0);
-      if (S.fc.joinFee) notes.push({ t: 'フランチャイズの加盟金 ' + yen(S.fc.joinFee) + 'が入った。' });
-      S.fc.joinFee = 0;
+      // 加盟店ごとの売上：開いて半年ほどで伸びきる。理念とサービスの質が高いほど売れる
+      var fs = 0, roy = 0, quit = [];
+      S.fc.list.forEach(function (f) {
+        var age = S.week - f.wk, grow = Math.min(1, 0.55 + age * 0.08);
+        f.last = Math.round(f.base * grow * (0.55 + S.fc.q / 100 * 0.6) * (0.9 + rnd() * 0.2) / 10000) * 10000;
+        f.roy = Math.round(f.last * f.r / 100 / 1000) * 1000; fs += f.last; roy += f.roy;
+        if (age >= 3 && roll(Math.max(0, (45 - S.fc.q) / 300) + (f.r >= 8 ? 0.012 : 0))) quit.push(f);
+      });
+      inc += roy; S.fc.lastSales = fs; S.fc.lastRoy = roy;
+      notes.push({ t: 'フランチャイズ：加盟店' + S.fc.n + '店の売上 ' + yen(fs) + 'から、ロイヤリティ ' + yen(roy) + 'が入った。' });
+      if (quit.length) { S.fc.list = S.fc.list.filter(function (f) { return quit.indexOf(f) < 0; }); S.fc.n = S.fc.list.length; notes.push({ bad: true, t: quit.map(fcName).join('・') + 'が、フランチャイズをやめた（' + (S.fc.q < 45 ? '本部の指導が足りず、売上が伸びなかった' : 'ロイヤリティの負担が重かった') + '）。' }); }
+      // 質が高い加盟店がそろうと、ブランドの評判も上がる
+      if (S.fc.q >= 70 && S.fc.n >= 3) S.rep = clamp(S.rep + 0.3, 0, 100);
       S.fc.q = clamp(S.fc.q - 1 - Math.floor(S.fc.n / 10), 10, 100);
       if (S.fc.q < 50 && roll(0.15 + (50 - S.fc.q) / 200)) { S.rep = clamp(S.rep - 5, 0, 100); notes.push({ bad: true, t: pick(['加盟店で、マニュアルにない強引な勧誘があったと口コミが広がった', '加盟店の衛生管理が不十分だと、ニュースで取り上げられた', '加盟店の接客がひどいと、SNSで炎上した']) + '。評判−5' }); }
       if (S.fc.q < 60 && S.fc.n >= 5) S.rep = clamp(S.rep - 0.5, 0, 100);
@@ -7325,17 +7354,37 @@
     }
     S.wk.stratNote = notes;
   }
-  function stratView(note) {
+  function fcRateView() {
     bar();
+    view('<h1>ロイヤリティの率</h1><p class="lead">加盟店から毎月いただく、売上の割合。これから加盟する店との契約に使う。</p>',
+      FCRATES.map(function (o) { return { label: o.n, sub: o.d, picked: fcRate() === o.r, go: function () { S.fc = S.fc || { n: 0, q: 80, list: [] }; S.fc.rate = o.r; stratView('これからの加盟店のロイヤリティを、売上の' + o.r + '%にした。'); } }; })
+      .concat([{ main: true, label: 'もどる', go: function () { stratView(); } }]));
+  }
+  function fcListView() {
+    bar(); fcFix();
+    var L = S.fc.list.slice().sort(function (a, b) { return (b.last || 0) - (a.last || 0); });
+    view('<h1>加盟店の一覧</h1><p class="lead">' + L.length + '店。先月の売上 ' + yen(S.fc.lastSales || 0) + '、ロイヤリティ ' + yen(S.fc.lastRoy || 0) + '。理念とサービスの質 ' + Math.round(S.fc.q) + '／100</p>' +
+      '<div class="slip box"><dl>' + L.map(function (f) {
+        return '<dt>◆ ' + fcName(f) + '<br><small>' + f.own + 'オーナー・' + calOf(f.wk).replace(' ', '') + '〜・' + f.r + '%</small></dt><dd>' + (f.last ? yen(f.last) + '<br><small>ロイヤリティ ' + yen(f.roy || 0) + '</small>' : '<small>来月から</small>') + '</dd>';
+      }).join('') + '</dl></div>',
+      [{ main: true, label: 'もどる', go: function () { stratView(); } }], null);
+  }
+  function stratView(note) {
+    bar(); fcFix();
     ['フランチャイズ', 'M&A：事業を売る', 'M&A：会社を買う', '上場'].forEach(function (g) { if (GRPOPEN[g] === undefined) GRPOPEN[g] = true; });
     var L = mlv(), fc = S.fc || { n: 0, q: 80 };
     var ipoReq = [['本社をオフィスフロア以上に', S.hq && S.hq.lv >= 2], ['店舗を6店以上に（本店をふくむ）', S.shops.length >= 5], ['昨年度の利益3,000万円以上', (S.lastProfit || 0) >= 3e7], ['経営者レベル40以上', L >= 40]];
     var ipoOk = ipoReq.every(function (x) { return x[1]; });
     view('<h1>経営戦略</h1>' + (note ? '<div class="news good">' + note + '</div>' : '') +
-      '<p class="lead"><b>フランチャイズ</b>　加盟店 ' + fc.n + '店　理念とサービスの質 ' + Math.round(fc.q) + '／100<br>店が早く増え、加盟金とロイヤリティが入る。ただし加盟店が増えるほど質が下がり、トラブルで本体の評判も落ちる。<br>' +
+      '<p class="lead"><b>フランチャイズ</b>　加盟店 ' + fc.n + '店　理念とサービスの質 ' + Math.round(fc.q) + '／100<br>自分でお金を出さずに店が増え、加盟金と、毎月の売上の数%のロイヤリティが入る。質が高いと加盟店がよく売れ、ブランドの評判も上がる。ただし加盟店が増えるほど質が下がり、質が低いとトラブルで本体の評判が落ち、やめる店も出る。<br>' +
       '<b>上場</b>　' + (S.ipo ? '上場ずみ（時価総額 ' + yen(S.ipo.val) + '）' : S.ipoPrep ? '準備中（' + calOf(S.ipoPrep) + 'に上場）' : ipoReq.map(function (x) { return (x[1] ? '✓' : '・') + x[0]; }).join('　')) + '</p>',
-      [{ grp: 'フランチャイズ', label: '加盟店を募集する　' + yen(300000), sub: '説明会を開く。1〜3店が加盟し、1店ごとに加盟金' + yen(FCFEE) + '（来月入る）。質は1店ごとに−2', off: S.cash < 300000 || S.fc && S.fc.wk === S.week,
-          go: function () { pay(300000); S.fc = S.fc || { n: 0, q: 80 }; var k = 1 + (roll(0.5) ? 1 : 0) + (S.rep >= 80 ? 1 : 0); S.fc.n += k; S.fc.q = clamp(S.fc.q - 2 * k, 10, 100); S.fc.joinFee = (S.fc.joinFee || 0) + k * FCFEE; S.fc.wk = S.week; mxpAdd(20); SFX.coin(); stratView(k + '店が加盟した。'); } },
+      [{ grp: 'フランチャイズ', label: '加盟店を募集する　' + yen(300000), sub: '説明会を開く。1〜3店が加盟し、1店ごとに加盟金' + yen(FCFEE) + '（来月入る）。毎月、売上の' + fcRate() + '%がロイヤリティで入る。質は1店ごとに−2', off: S.cash < 300000 || S.fc && S.fc.wk === S.week,
+          go: function () { pay(300000); S.fc = S.fc || { n: 0, q: 80, list: [] }; fcFix(); var r = fcRate(), k = 1 + (roll(r <= 3 ? 0.75 : r >= 8 ? 0.25 : 0.5) ? 1 : 0) + (S.rep >= 80 ? 1 : 0), add = [];
+            for (var i = 0; i < k; i++) { var f = fcNew(); S.fc.list.push(f); add.push(f); }
+            S.fc.n = S.fc.list.length; S.fc.q = clamp(S.fc.q - 2 * k, 10, 100); S.fc.joinFee = (S.fc.joinFee || 0) + k * FCFEE; S.fc.wk = S.week; mxpAdd(20); SFX.coin();
+            stratView(add.map(function (f) { return fcName(f) + '（' + f.own + 'さん）'; }).join('・') + 'が加盟した。ロイヤリティは売上の' + r + '%。'); } },
+       { grp: 'フランチャイズ', label: 'ロイヤリティの率：売上の' + fcRate() + '%', sub: 'これから加盟する店との契約の率を決める。いまの加盟店は、契約したときの率のまま', go: fcRateView },
+       { grp: 'フランチャイズ', label: '加盟店の一覧（' + fc.n + '店）', sub: fc.n ? '先月の売上 ' + yen(fc.lastSales || 0) + '　ロイヤリティ ' + yen(fc.lastRoy || 0) : 'まだ加盟店はない', off: !fc.n, go: fcListView },
        { grp: 'フランチャイズ', label: 'スーパーバイザーが加盟店を指導する　' + yen(200000 * Math.max(1, Math.ceil(fc.n / 5))), sub: '理念とサービスの質+12（月1回）', off: !fc.n || S.cash < 200000 * Math.ceil(fc.n / 5) || fc.svWk === S.week,
           go: function () { pay(200000 * Math.ceil(fc.n / 5)); S.fc.q = clamp(S.fc.q + 12, 0, 95); S.fc.svWk = S.week; SFX.good(); stratView('スーパーバイザーが全加盟店をまわって、理念とマニュアルを伝え直した。'); } }]
       .concat(S.shops.map(function (b) { var v = shopValue(b); return { grp: 'M&A：事業を売る', label: b.name + 'を売却する　' + yen(v), sub: '店とスタッフごと、ほかの会社に売る。先月の収支 ' + yen(b.last ? b.last.net : 0), go: function () { sellShop(b, v); } }; }))
@@ -7376,13 +7425,16 @@
   }
   // オープンから3か月は、内装のアップデートはできない（本店は開業した月から数える）
   function renoWait(sh) { var o = sh ? (sh.opened || 0) : 1; return Math.max(0, 3 - (S.week - o)); }
-  function renoLeftList() { return [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && !renoWait(sh); }); }
+  // 内装のアップデートは、1店舗につき月に1段階まで（ほかの店舗とは同時に進められる）
+  function renoDone(sh) { return (sh ? sh.renoWk : S.renoHomeWk) === S.week; }
+  function renoMark(sh) { if (sh) sh.renoWk = S.week; else S.renoHomeWk = S.week; }
+  function renoLeftList() { return [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && !renoWait(sh) && !renoDone(sh); }); }
   // まとめてアップデート：to が null なら全店1段階ずつ、数字ならその段階まで。来月の家賃と給与は残す
   function renoPlan(to) {
     var steps = [];
     renoLeftList().forEach(function (sh) {
-      var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0), goal = to ? to : lv + 1, m = sh ? TIER[AREAS[sh.area].tier].m : 1;
-      for (var l = lv; l < Math.min(goal, MAXINT); l++) steps.push({ sh: sh, lv: l, cost: INTCOST[l] * m });
+      var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0), m = sh ? TIER[AREAS[sh.area].tier].m : 1;
+      if (lv < MAXINT) steps.push({ sh: sh, lv: lv, cost: INTCOST[lv] * m });
     });
     return steps.sort(function (a, b) { return a.lv - b.lv || a.cost - b.cost; });
   }
@@ -7390,9 +7442,9 @@
     var keep = homeRent() + wages(), done = 0, spent = 0, names = {}, renoShops = [];
     renoPlan(to).forEach(function (t) {
       var cur = t.sh ? (t.sh.interiorLv || 0) : (S.interiorLv || 0);
-      if (cur !== t.lv || S.cash - t.cost < keep) return;
+      if (cur !== t.lv || renoDone(t.sh) || S.cash - t.cost < keep) return;
       pay(t.cost); spent += t.cost; done++;
-      S.renoWeek = S.week;
+      S.renoWeek = S.week; renoMark(t.sh);
       if (t.sh) { t.sh.interiorLv = t.lv + 1; t.sh.interior = true; t.sh.rep = clamp(t.sh.rep + 5, 0, 100); }
       else { S.interiorLv = t.lv + 1; S.interior = true; S.rep = clamp(S.rep + 5, 0, 100); }
       names[t.sh ? t.sh.name : '本店'] = true; if (renoShops.indexOf(t.sh || 'home') < 0) renoShops.push(t.sh || 'home');
@@ -7408,17 +7460,17 @@
     var left = renoLeftList(), bulk = [];
     if (left.length > 1) {
       var p1 = renoPlan(null), c1 = p1.reduce(function (a, x) { return a + x.cost; }, 0);
-      var p3 = renoPlan(MAXINT), c3 = p3.reduce(function (a, x) { return a + x.cost; }, 0);
       bulk.push({ label: '全店舗を1段階ずつ上げる　' + yen(c1), sub: p1.length + '店舗。お金が足りなければ、安い順にできるだけ（来月の家賃と給与は残す）', off: S.cash - homeRent() - wages() < p1.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(null); } });
-      bulk.push({ label: '全店舗を最上級まで上げる　' + yen(c3), sub: p3.length + '回分。お金が足りなければ、低い段階から順にできるだけ', off: S.cash - homeRent() - wages() < p3.reduce(function (m, x) { return Math.min(m, x.cost); }, 1e12), go: function () { renoBulk(MAXINT); } });
     }
-    view('<h1>内装のアップデート</h1><p class="lead">1段階ごとに満足度と評判が上がり、スタッフをもう1人雇える。都心は2倍、海外は3倍の費用がかかる。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
+    view('<h1>内装のアップデート</h1><p class="lead">1店舗につき、月に1段階ずつ。ほかの店舗とは同時に進められる。1段階ごとに満足度と評判が上がり、スタッフをもう1人雇える。都心は2倍、海外は3倍の費用がかかる。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       bulk.concat(left.map(function (sh) {
         var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0), c2 = renoCost(sh);
         return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + lv + '／' + MAXINT + '）　' + yen(c2), sub: '新しく：' + LVNEW[lv + 1] + '　いま最大' + maxOf(sh) + '人', off: S.cash < c2, go: function () { renovate(sh, function () { renoView((sh ? sh.name : '本店') + 'を' + (lv + 1) + '段階目にした。'); }); } };
-      })).concat([null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && renoWait(sh); }).map(function (sh) {
+      })).concat([null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && renoDone(sh); }).map(function (sh) {
+        return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT + '）', sub: '今月は工事をした。次の段階は来月から', off: true, go: function () {} };
+      })).concat([null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && renoWait(sh) && !renoDone(sh); }).map(function (sh) {
         return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT + '）', sub: 'オープンから3か月は、アップデートできない（あと' + renoWait(sh) + 'か月）', off: true, go: function () {} };
-      })).concat(left.length || [null].concat(S.shops).some(renoWait) ? [] : [{ label: 'すべての店舗が最上級', off: true, go: function () {} }]).concat([{ main: true, label: 'もどる', go: investView }]));
+      })).concat(left.length || [null].concat(S.shops).some(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; }) ? [] : [{ label: 'すべての店舗が最上級', off: true, go: function () {} }]).concat([{ main: true, label: 'もどる', go: investView }]));
   }
 
   /* =========================================================
@@ -7685,7 +7737,7 @@
   function renovate(sh, then) {
     var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0);
     pay(renoCost(sh));
-    S.renoWeek = S.week;
+    S.renoWeek = S.week; renoMark(sh);
     if (sh) { sh.interiorLv = lv + 1; sh.interior = true; sh.rep = clamp(sh.rep + 5, 0, 100); }
     else { S.interiorLv = lv + 1; S.interior = true; S.rep = clamp(S.rep + 5, 0, 100); }
     SFX.hire();
@@ -8223,7 +8275,7 @@
         off: !roomAny() || S.cash < HIRE, go: hireView, rec: S.turnedWk && roomAny() && S.cash >= HIRE + burnR ? '予約をお断りしている。スタッフを増やせば、その分の売上が入る' : '' }
     ];
     opts.push({ label: '料金の方針：' + pm().n, go: priceView });
-    if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店' : ''), go: function () { stratView(); } });
+    if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店　ロイヤリティ 月' + yen(S.fc.lastRoy || 0) : ''), go: function () { stratView(); } });
     // 出店のおすすめは、いま本当に出店できるときだけ（前の出店の準備期間中は出さない）
     var minBr = (function () { if (S.lastOpen && OPENGAP - (S.week - S.lastOpen) > 0) return 0; var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
     opts.push({ label: '資金調達と返済', sub: loanRest() ? '借入の残り ' + yen(loanRest()) : '', go: function () { fundView(); },
@@ -8465,7 +8517,8 @@
     if (S.odot && S.odot.length && !S.odot.every(function (m) { return m.ai; })) T.push(dotUnread(true) ? { t: '公式dot.でお客様に返信する', s: '未返信 ' + dotUnread(true) + '件', go: function () { dotView(true); } } : { t: '公式dot.のメッセージ', s: 'ぜんぶ返信ずみ', done: true });
     var rl = renoLeftList();
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
-      T.push(S.renoWeek === S.week ? { t: '内装のアップデート', s: '今月はアップデートした', done: true } : { t: '内装をアップデートする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
+      T.push({ t: '内装をアップデートする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
+    else if (S.renoWeek === S.week) T.push({ t: '内装のアップデート', s: '今月はアップデートした', done: true });
     if (postOn() && monthOf() === 12) T.push(S.nengaY === nowYear() ? { t: '年賀状', s: '今年はもう出した', done: true } : { t: '年賀状を出す', s: '常連さんとスタッフに、新年のあいさつ（1枚' + postFee() + '円）', go: function () { var r = postSend('nenga'); SFX.good(); S.trainNote = r.n + '人の常連さんとスタッフに年賀状を書いた（' + yen(r.cost) + '）。常連の信頼+4、スタッフのやる気+3'; investView(); } });
     // 本社のタスク
     if (S.hq) {
