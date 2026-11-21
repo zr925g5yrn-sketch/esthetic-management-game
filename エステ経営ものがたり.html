@@ -1021,7 +1021,7 @@
     mood:   { n: 'ムードメーカー', d: '◯担当するたびに評判が上がる　×静かに過ごしたい慎重なお客様には、にぎやかすぎる' },
     rookie: { n: '新人',           d: '◯研修の伸びが1.2倍で、給与が安い　×いまは未熟' },
     vet:    { n: 'ベテラン',       d: '◯腕もトークも確か　×給与が高く、研修の伸びは0.8倍' },
-    tough:  { n: '体力自慢',       d: '◯月に4人まで担当できる　×力加減が強めで、ソフトが好きなお客様の満足度が下がる' },
+    tough:  { n: '体力自慢',       d: '◯ほかの人より、月に1人多く担当できる　×力加減が強めで、ソフトが好きなお客様の満足度が下がる' },
     listen: { n: '聞き上手',       d: '◯カウンセリングで3つ質問できる。悩みと好みを外さない　×押しが弱く、コースが決まりにくい' }
   };
   var INVEST = [
@@ -3316,7 +3316,9 @@
     intern:     { n: '美容学生のインターン', w: 2, choice: true, d: '美容専門学校から「学生をインターンで受け入れてもらえませんか」と相談があった。' },
     inbound:    { n: 'インバウンドのお客様', w: 2, d: '海外からの観光客が予約した。施術に満足してもらえれば、おみやげに商品を爆買いしてくれるかも。在庫が足りなくても、取り寄せでまとめて売れる。' }
   };
-  function capOf(st) { if (st.owner && S.ownerMale) return 0; if (st.owner && S.hq && !st.sick) return boss() === 'field' ? 2 : 1; return st.sick || (st.leaveUntil && st.leaveUntil > S.week) ? 0 : Math.max(0, st.cap + (S.ownerMale && !st.owner ? 1 : 0) + (has(st, 'tough') ? 1 : 0) - (st.pracWeek === S.week ? 1 : 0) - ((st.hurtUntil || 0) > S.week ? 2 : 0)); }
+  // スタッフは月に4人が基本（予約の取り方を工夫した分、前より1人多い）。腕が上がると、手早く確かな施術ができるので、さらに増える（技術4で+1人、5で+2人）
+  function skCap(st) { return st.owner ? 0 : 1 + ((st.tech || 0) >= 5 ? 2 : (st.tech || 0) >= 4 ? 1 : 0); }
+  function capOf(st) { if (st.owner && S.ownerMale) return 0; if (st.owner && S.hq && !st.sick) return boss() === 'field' ? 2 : 1; return st.sick || (st.leaveUntil && st.leaveUntil > S.week) ? 0 : Math.max(0, st.cap + skCap(st) + (S.ownerMale && !st.owner ? 1 : 0) + (has(st, 'tough') ? 1 : 0) - (st.pracWeek === S.week ? 1 : 0) - ((st.hurtUntil || 0) > S.week ? 2 : 0)); }
   function totalCap() { return S.staff.reduce(function (a, st) { return a + capOf(st); }, 0); }
   function staffPick() { var a = S.staff.filter(function (st) { return !st.owner; }); return a.length ? pick(a) : null; }
   var ROYALOFF = 0.8;
@@ -5219,7 +5221,7 @@
     S.turnedWk = turned;
     if (turned) {
       S.rep = clamp(S.rep - Math.min(turned, 3), 0, 100);
-      S.news.push({ bad: true, t: '予約がいっぱいで' + turned + '人をお断りした。' + (S.staff.length >= maxOf(null) ? ((S.interiorLv || 0) < MAXINT ? 'スタッフの枠もいっぱい。内装をアップデートすると枠が増える（' + (S.interiorLv || 0) + '／' + MAXINT + '）。' : 'スタッフの枠も最大。ほかの店舗で受けられるよう、出店を考えよう。') : 'スタッフを増やせば受けられる。') });
+      S.news.push({ bad: true, t: '予約がいっぱいで' + turned + '人をお断りした。' + (S.staff.length >= maxOf(null) ? ((S.interiorLv || 0) < MAXINT ? 'スタッフの枠もいっぱい。内装をアップデートすると枠が増える（' + (S.interiorLv || 0) + '／' + MAXINT + '）。' : 'スタッフの枠も最大。ほかの店舗で受けられるよう、出店を考えよう。') : 'スタッフを増やすか、研修で技術を上げると受けられる（技術4で月に+1人、5で+2人）。') });
     }
     // 特別なお客様（セレブ・記者・支配人など）は、いちばん最初に迎える（スタッフの手がまだ空いているうちに）
     var qq = shuffle(q); S.queue = qq.filter(function (c) { return c.sp; }).concat(qq.filter(function (c) { return !c.sp; })); S.idx = 0;
