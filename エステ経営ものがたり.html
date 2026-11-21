@@ -7398,7 +7398,7 @@
       '<details class="fold"><summary>部署の一覧と役割</summary><ul class="who-list depts">' + deptKeys().map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name; }).join('・') : 'なし') + '</span><span><b class="needk">必要な力：' + needSk(k) + '</b>　' + DEPT[k].d + '</span></li>'; }).join('') + '</ul></details>',
       [{ label: '本社の研修と資格取得', sub: !hs.length ? '本社のスタッフがまだいない' : S.autoHqTrain && deptN('train') ? '自動' : S.hqTrainWk === S.week ? '今月はすんだ' : '今月まだ', off: !hs.length, go: function () { hqTrainView(); }, rec: S.hqTrainWk !== S.week && hs.length ? '本社のスタッフの力が伸びる' : '' },
        { label: '本社で新しく採用する', sub: hs.length >= L.cap ? '満員' : 'あと' + Math.max(0, L.cap - hs.length) + '人', off: hs.length >= L.cap, go: function () { hqHireView(false); } },
-       { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人の療養にも', off: hs.length >= L.cap, go: transferHqView },
+       { label: '本社への異動の申し出' + (hqAskers().length ? '（' + hqAskers().length + '人）' : ''), sub: hqAskers().length ? hqAskers().map(function (x) { return x.name; }).join('・') + 'が希望している' : '体を痛めたり、年齢的にお店がつらくなったスタッフから申し出がある', off: !hqAskers().length, go: transferHqView },
        { label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? '' : '質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } }]
       .concat(S.staff.filter(function (st) { return !st.owner; }).length ? [{ label: '本店の店長を決めなおす', sub: mgr ? 'いまは' + mgr.name : 'いまはいない', go: function () { mgrView(); } }] : [])
       .concat(nx ? [{ label: '本社を「' + nx.n + '」に移す　' + yen(nx.cost), sub: '家賃 月' + yen(nx.rent) + '、本社のスタッフ' + nx.cap + '人まで。社長室も豪華になる', off: S.cash < nx.cost,
@@ -7433,15 +7433,24 @@
     view('<h1>部署を選ぶ</h1>', deptKeys().map(function (k) { return { label: DEPT[k].n + '　必要な力：' + needSk(k), sub: DEPT[k].d + '（いま' + deptN(k) + '人）', go: function () { then(k); } }; })
       .concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
+  function hqAskLine(st) {
+    return st.hqAsk === 'hurt' ? (st.hurtPart || '手') + 'を痛めてから、施術がつらくて…。本社のお仕事で、お店を支えられませんか' : '最近、立ち仕事が体にこたえるようになってきて…。これまでの経験を、本社で生かせたらと思うんです';
+  }
+  function hqAskers() { return allStaff().filter(function (st) { return !st.owner && st.hqAsk; }); }
+  // 本社への異動は、本人からの申し出があった人だけ（体を痛めた・年齢的に店舗がつらい）
   function transferHqView() {
     bar();
-    var list = allStaff().filter(function (st) { if (st.owner || st.id === S.mainMgr) return false; var sh = shopOf(st); return !(sh && sh.staff.length <= 1); });
-    view('<h1>本社に異動させる</h1><p class="lead">本店の店長と、1人しかいない店のスタッフは異動できない。</p>', list.map(function (st) {
-      var sh = shopOf(st);
-      return { label: st.name + '（' + (sh ? sh.name : '本店') + '）', sub: TRAITS[st.trait].n + '　' + moodText(st) + (hurt(st) ? '　手を痛めている' : '') + '　相性：' + fitMark(shopFit(st, sh)), go: function () {
-        deptPick(function (k) { var src = sh ? sh.staff : S.staff; src.splice(src.indexOf(st), 1); st.dept = k; st.hurtUntil = 0; st.hand = 0; st.leader = false; st.fromShop = true; S.hq.staff.push(st); moodUp(st, 10, 5); SFX.hire(); hqView(st.name + 'が本社の' + DEPT[k].n + 'に異動した。'); });
-      } };
-    }).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
+    var L = HQLV[S.hq.lv - 1], full = hqStaff().length >= L.cap;
+    var list = hqAskers();
+    view('<h1>本社への異動の申し出</h1><p class="lead">体を痛めたり、年齢的にお店の仕事がつらくなったりしたスタッフから、本社への異動の申し出があったときに、異動させられる。' + (full ? '<br>いまは本社の席がいっぱい。本社を広くすると受け入れられる。' : '') + '</p>' + (list.length ? '' : '<div class="news">いまは申し出はない。</div>'),
+      [].concat.apply([], list.map(function (st) {
+        var sh = shopOf(st), last = sh && sh.staff.length <= 1;
+        return [{ sec: st.name + '（' + (sh ? shortShop(sh.name) : '本店') + '・' + ageOf(st) + '歳）', label: '本社に異動させる', sub: '「' + hqAskLine(st) + '」' + (last ? '　この店のスタッフはこの人だけなので、先にほかの人を入れる' : st.id === S.mainMgr ? '　本店の店長なので、あとで店長を決めなおす' : '') + '　やる気・信頼が上がる',
+          off: full || last, go: function () {
+            deptPick(function (k) { var src = sh ? sh.staff : S.staff; src.splice(src.indexOf(st), 1); st.dept = k; st.hurtUntil = 0; st.hand = 0; st.leader = false; st.fromShop = true; st.hqAsk = null; if (S.mainMgr === st.id) S.mainMgr = null; S.hq.staff.push(st); moodUp(st, 15, 10); SFX.hire(); hqView(st.name + 'が本社の' + DEPT[k].n + 'に異動した。「これからは、本社からお店を支えます！」'); });
+          } },
+          { label: 'もう少しお店でがんばってほしいと伝える', sub: 'やる気と信頼が下がる。1年は申し出がない', go: function () { st.hqAsk = null; st.hqAskNo = S.week; moodUp(st, -8, -6); SFX.click(); transferHqView(); } }];
+      })).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
   // 本社の採用：今月の応募者の一覧から、何人でも選べる。部署は採用するときに決める
   function hqCandsOf(dis) {
@@ -8076,8 +8085,20 @@
       if (roll(0.12)) { var ev = pick(STLIFE); st.mot = clamp(st.mot + ev[1], 0, 100); S.wk.stLife = (S.wk.stLife || []).concat([{ good: ev[1] > 0, t: st.name + '：' + ev[0] + '（やる気' + (ev[1] > 0 ? '+' : '') + ev[1] + '）' }]); }
       // 手の負担：強めの施術が続くと、腱鞘炎になることがある
       if (!hurt(st) && (st.hand || 0) > 8 && roll(((st.hand || 0) - 8) * 0.08)) {
-        st.hurtUntil = S.week + 3; st.hand = 0; st.mot = clamp(st.mot - 10, 0, 100);
+        st.hurtUntil = S.week + 3; st.hand = 0; st.hurtPart = '手'; st.mot = clamp(st.mot - 10, 0, 100);
         S.wk.stLife = (S.wk.stLife || []).concat([{ good: false, t: st.name + '：強めの施術が続いて、手を痛めてしまった（腱鞘炎）。3か月は担当できる人数が減る' }]);
+      }
+      // 腰の負担：立ち仕事と中腰の施術で、年齢とともに腰を痛めやすくなる
+      var ag = ageOf(st) || 30;
+      if (!st.dept && !hurt(st) && ag >= 38 && roll(0.008 + (ag - 38) * 0.002)) {
+        st.hurtUntil = S.week + 3; st.hurtPart = '腰'; st.mot = clamp(st.mot - 10, 0, 100);
+        S.wk.stLife = (S.wk.stLife || []).concat([{ good: false, t: st.name + '：中腰の施術が続いて、腰を痛めてしまった。3か月は担当できる人数が減る' }]);
+      }
+      // 本社への異動の申し出：体を痛めたとき、年齢的に店舗がつらくなってきたとき（本社があるときだけ）
+      if (S.hq && !st.dept && !st.hqAsk && S.week - (st.hqAskNo || -99) >= 12) {
+        if (hurt(st) && roll(0.35)) st.hqAsk = 'hurt';
+        else if (ag >= 45 && roll(0.03 + (ag - 45) * 0.01)) st.hqAsk = 'age';
+        if (st.hqAsk) S.wk.stLife = (S.wk.stLife || []).concat([{ good: false, t: st.name + '：「' + hqAskLine(st) + '」本社への異動を希望している' }]);
       }
       st.hand = Math.max(0, (st.hand || 0) - 2);
       if (st.mot < 18 && roll((18 - st.mot) / 40 + (st.trust < 30 ? 0.1 : 0))) gone.push(st);
@@ -8248,7 +8269,7 @@
          go: act(0, 20, 0, '「ありがとうございます、リフレッシュしてきます」', function () { st.restWeek = S.week + 1; }) },
        hqStaff().indexOf(st) >= 0 ? { label: st.fromShop || !st.prev ? '部署を変える・店舗に戻す' : '部署を変える', sub: DEPT[st.dept] ? 'いまは' + DEPT[st.dept].n : '', go: function () { hqStaffView(st); } } : promoOpt(st), hqStaff().indexOf(st) >= 0 ? null : mgrOpt(st),
        hqStaff().indexOf(st) >= 0 ? null : { label: '別の店舗に移す', sub: 'いまの店との相性：' + fitMark(shopFit(st, shopOf(st))) + (S.shops.length ? '' : '（店舗が1つだけなので移せない）'), off: !S.shops.length, go: function () { moveView(st); } },
-       hurt(st) ? { label: '病院に通わせる　' + yen(30000), sub: '手の痛み（腱鞘炎）が早く治る。あと' + (st.hurtUntil - S.week) + 'か月', off: S.cash < 30000 || st.cureWeek === S.week,
+       hurt(st) ? { label: '病院に通わせる　' + yen(30000), sub: ((st.hurtPart || '手') === '腰' ? '腰の痛み' : '手の痛み（腱鞘炎）') + 'が早く治る。あと' + (st.hurtUntil - S.week) + 'か月', off: S.cash < 30000 || st.cureWeek === S.week,
          go: function () { pay(30000); st.cureWeek = S.week; st.hurtUntil = Math.max(S.week, st.hurtUntil - 2); moodUp(st, 5, 5); SFX.good(); careStaff(st, st.name + 'を病院に通わせた。痛みがだいぶ楽になったようだ。'); } } : null,
        { main: true, topBack: true, label: 'もどる', go: careView }].filter(Boolean));
   }
@@ -8880,6 +8901,7 @@
     var burn = homeRent() + wages() + adCost() + cinCost(), monthsLeft = burn > 0 ? Math.floor(S.cash / burn) : 99;
     if (S.cash < burn * 2) T.unshift({ t: '資金繰りを見直す', s: S.cash < burn ? '来月の家賃と給与が払えないかもしれない！ 銀行から借りるか、出費を見直そう' : '残りは約' + monthsLeft + 'か月分。借入・広告・人数を見直そう', go: function () { fundView(); } });
     if (S.hq && !S.boss) T.unshift({ t: '社長のスタイルを決める', s: 'いくつかの質問に答えると決まる', go: function () { bossView(function () { investView(); }); } });
+    if (S.hq && hqAskers().length) T.push({ t: '本社への異動の申し出に答える', s: hqAskers().map(function (x) { return x.name + '（' + (x.hqAsk === 'hurt' ? (x.hurtPart || '手') + 'を痛めた' : '年齢的に店舗がつらい') + '）'; }).join('・'), go: transferHqView });
     var asks = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && x.wantTalk; });
     if (asks.length) T.unshift({ t: '面談の申し出に応える', s: asks.map(function (x) { return x.name; }).slice(0, 3).join('・') + 'が相談したがっている', go: careView });
     var ready = allStaff().concat(hqStaff()).filter(function (x) { return !x.owner && epiReady(x); });
@@ -8935,7 +8957,7 @@
   }
   // タスクの優先度（1＝◎急ぎ、2＝○やっておきたい、3＝△どちらでも）と、やる順番。
   // 出店や内装でスタッフの枠が増える → 採用 → 研修、の順にすると、研修が1回ですむ
-  var TASKPRI = [[/^資金繰り/, 1, 10], [/^面談の申し出/, 1, 20], [/やる気が落ちている/, 1, 25], [/^本店の店長/, 1, 30], [/^社長のスタイル/, 2, 35], [/^社長に就任/, 2, 40],
+  var TASKPRI = [[/^資金繰り/, 1, 10], [/^面談の申し出/, 1, 20], [/^本社への異動の申し出/, 2, 24], [/やる気が落ちている/, 1, 25], [/^本店の店長/, 1, 30], [/^社長のスタイル/, 2, 35], [/^社長に就任/, 2, 40],
     [/^新しい店舗/, 2, 50], [/^内装/, 2, 55], [/^スタッフを採用/, 2, 60], [/^本社で採用|^本社の採用/, 2, 62], [/^スタッフの研修/, 2, 70], [/^本社の研修/, 2, 72],
     [/^商品を仕入れる/, 2, 80], [/^自動補充/, 1, 81], [/^広告/, 2, 85], [/dot/, 2, 88], [/^(携帯電話|スマートフォン)/, 2, 89], [/^スタッフの話/, 3, 90], [/SNS/, 3, 92], [/^ライブ配信/, 3, 94], [/^年賀状/, 3, 95], [/^オリジナル/, 3, 96]];
   function taskPri(T) {
