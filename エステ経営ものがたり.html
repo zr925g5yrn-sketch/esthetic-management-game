@@ -1654,6 +1654,7 @@
     R(2, 18, 15, 36, T ? T.door[0] : '#7A5A44'); R(4, 20, 11, 34, open ? '#4A3528' : (T ? T.door[1] : '#A8774D'));
     if (!open) { R(6, 22, 7, 12, '#CDE9F5'); R(13, 38, 1, 2, '#F2C230'); }
     R(8, 15, 3, 3, '#F2C230');
+    lvRoom(T, lv, now);
     // 観葉植物
     if (!T) {
     leafPlant(19, 46, '#C96F4A', '#4E9E5A', nice ? (lv === 3 ? '#FFFFFF' : '#F08DAE') : null, lv >= 2);
@@ -1694,6 +1695,43 @@
     if (lv === 3) for (var tw = 0; tw < 4; tw++) { var ph = (now / 400 + tw * 1.7) % 6; if (ph < 1) { var tx = [12, 50, 70, 118][tw], ty = [8, 36, 6, 34][tw]; R(tx, ty - 1, 1, 3, '#FFF4C0'); R(tx - 1, ty, 3, 1, '#FFF4C0'); } }
     if (S && !V && S.headSpa) { R(80, 49, 8, 7, '#FFFFFF'); R(81, 50, 6, 3, '#5AA9E6'); R(83, 56, 2, 6, '#9A93A8'); }
     if (!V) mainExtras(null, lv, now);
+  }
+  /* --- 内装の段階ごとの変化。どのスタイルの店にも重ねて、上がるたびにひと目でわかるようにする ---
+     1段階目：入口のマット、天井の廻り縁
+     2段階目：天井の飾り縁と間接照明、床のつや
+     3段階目：金の飾り縁、カーテンの房飾り、入口からのカーペット、ダウンライトの光だまり、鏡のような床 */
+  var LVGLOW = null;
+  function lvRoom(T, lv, now) {
+    var gold = '#E8C15A', dk = '#C9A227', trim = T ? T.dado[1] : '#FFFFFF', x, i;
+    var rugA = T ? T.rug[0] : '#C99094', rugB = T ? T.rug[2] : '#E9A9B9';
+    if (lv >= 1 && lv < 3) { R(3, 54, 13, 4, rugA); R(4, 55, 11, 2, rugB); R(3, 54, 13, 1, 'rgba(255,255,255,.35)'); }
+    if (lv >= 1) { R(0, 0, SW, 2, trim); F(0, 2, SW, 0.5, 'rgba(43,34,56,.18)'); }
+    if (lv >= 2) {
+      if (!LVGLOW) { LVGLOW = g.createLinearGradient(0, 3, 0, 16); LVGLOW.addColorStop(0, 'rgba(255,232,170,.45)'); LVGLOW.addColorStop(1, 'rgba(255,232,170,0)'); }
+      g.fillStyle = LVGLOW; g.fillRect(0, 3, SW, 13);
+      R(0, 0, SW, 3, lv >= 3 ? dk : trim); R(0, 3, SW, 1, lv >= 3 ? gold : shade(trim, -0.12));
+      for (x = 1; x < SW; x += 4) R(x, 4, 2, 1, lv >= 3 ? dk : shade(trim, -0.2));
+      // 床のつや
+      for (i = 0; i < 5; i++) F(6 + i * 26, 58 + (i % 2) * 9, 10, 0.5, 'rgba(255,255,255,.35)');
+    }
+    if (lv >= 3) {
+      R(0, 1, SW, 1, '#FFF4C0');
+      // 入口から続くカーペット
+      R(3, 54, 13, 30, '#9C2A4A'); R(4, 54, 11, 30, '#B8355A'); R(3, 54, 1, 30, gold); R(15, 54, 1, 30, gold);
+      for (var cy = 58; cy < SH; cy += 8) { R(8, cy, 3, 1, gold); R(9, cy - 1, 1, 3, gold); }
+      // 鏡のようにみがかれた床
+      R(16, 54, SW - 16, 30, 'rgba(255,255,255,.10)');
+      for (i = 0; i < 6; i++) F(22 + i * 18, 60 + (i % 3) * 7, 7, 0.5, 'rgba(255,255,255,.45)');
+      // ダウンライトと、床の光だまり
+      [44, 78, 120].forEach(function (lx, k) {
+        R(lx - 1, 3, 3, 1, '#FFFDF0'); g.globalAlpha = 0.07 + (reduce ? 0 : Math.sin(now / 900 + k) * 0.02);
+        g.fillStyle = '#FFF4C0'; g.beginPath(); g.moveTo(lx - 1, 4); g.lineTo(lx + 2, 4); g.lineTo(lx + 9, 54); g.lineTo(lx - 8, 54); g.fill(); g.globalAlpha = 1;
+        F(lx - 7, 54, 15, 1, 'rgba(255,244,192,.35)');
+      });
+      // カーテンの房飾り
+      for (x = 26; x < 62; x += 3) R(x, 6, 2, 1, gold);
+      R(27, 22, 3, 3, gold); R(58, 22, 3, 3, gold);
+    }
   }
   /* --- 支店ごとの内装テーマ --- */
   var THEME = {
@@ -2570,6 +2608,12 @@
     R(90, 62, 2, 8, leg); R(120, 62, 2, 8, leg);
     R(89, 51, 9, 3, lv >= 2 ? '#FFFFFF' : '#F4EDE4');
     if (lv >= 2) { R(108, 54, 14, 4, T ? tw2 : (lv === 3 ? '#F7EBD8' : '#F7D6DF')); R(108, 56, 14, 1, lv === 3 ? '#E8C15A' : (T ? '#FFFFFF' : '#E58BA3')); R(89, 53, 9, 1, T ? tw2 : '#F2C3CF'); }
+    // 3段階目：金の脚と縁取り、ベッドの裾飾り、足もとのキャンドル
+    if (lv >= 3) {
+      R(88, 60, 36, 2, '#E8C15A'); R(90, 62, 2, 8, '#E8C15A'); R(120, 62, 2, 8, '#E8C15A'); R(89, 62, 1, 8, '#C9A227'); R(121, 62, 1, 8, '#C9A227');
+      for (var bx = 93; bx < 120; bx += 3) R(bx, 62, 2, 2, T ? T.rug[0] : '#9C2A4A');
+      [94, 98].forEach(function (cx, k) { R(cx, 68, 2, 3, '#FFFDF0'); R(cx, 67, 2, 1, '#FFFDF0'); R(cx + 0.5, 66, 1, 1, (reduce || (performance.now() / 260 + k) % 2 < 1) ? '#FFD86A' : '#FFF4C0'); });
+    }
   }
   function drawTable(now) {
     R(30, 49, 33, 1, '#C49065'); R(30, 50, 33, 3, '#A8774D'); R(31, 53, 31, 9, '#8E6440'); R(33, 55, 27, 5, '#9C7049');
@@ -2578,6 +2622,13 @@
       R(58, 46, 3, 3, '#F4EDE4'); R(58, 48, 3, 1, '#D8CCBA');
       if (scene.tod === 'evening' || scene.tod === 'night') { R(59, 44 + (reduce ? 0 : Math.floor(now / 260) % 2 ? 0 : 1), 1, 2, '#FFD86A'); R(59, 45, 1, 1, '#FFF4C0'); }
     }
+    var lvT = viewLv(), T2 = themeOf();
+    // 1段階目から：カウンターの前板に、店の色の帯
+    if (lvT >= 1) { R(33, 55, 27, 5, T2 ? T2.rug[0] : '#C99094'); R(33, 55, 27, 1, 'rgba(255,255,255,.3)'); }
+    // 2段階目から：天板が大理石に
+    if (lvT >= 2) { R(30, 49, 33, 4, '#F3F0EC'); R(30, 49, 33, 1, '#FFFFFF'); R(34, 50, 5, 1, '#CFC7BC'); R(44, 51, 6, 1, '#CFC7BC'); R(54, 50, 4, 1, '#CFC7BC'); R(30, 52, 33, 1, '#B8B0A6'); }
+    // 3段階目：金の縁と、店名の金のプレート
+    if (lvT >= 3) { R(30, 53, 33, 1, '#E8C15A'); R(31, 54, 1, 8, '#E8C15A'); R(61, 54, 1, 8, '#E8C15A'); R(41, 56, 11, 3, '#E8C15A'); R(42, 57, 9, 1, '#C9A227'); }
     if (S && S.interior) { R(45, 45, 3, 4, '#FFFFFF'); R(44, 43, 2, 2, '#F08DAE'); R(47, 42, 2, 2, '#F2C230'); }
   }
   function staffLook(st) { return st ? st.look : OWNER_LOOK; }
@@ -2604,8 +2655,12 @@
     return S.queue.slice(S.idx + 1).filter(function (x) { return x !== scene.cust; }).slice(0, 2);
   }
   function drawWaiting(now, list, chatStaff) {
-    var T = themeOf(), sc = T ? T.rug[0] : '#D98BA0', i;
+    var T = themeOf(), lvW = viewLv(), sc = lvW ? (T ? T.rug[0] : '#D98BA0') : '#A8774D', i;
     R(28, 64, 29, 11, sc); R(28, 64, 29, 1, 'rgba(255,255,255,.35)'); R(28, 72, 29, 3, 'rgba(43,34,56,.15)');
+    // 開業したては木のベンチ。1段階目からソファになる
+    if (!lvW) { R(28, 67, 29, 1, '#8E6440'); R(28, 70, 29, 1, '#8E6440'); }
+    if (lvW >= 2) { R(30, 65, 11, 6, T ? T.rug[2] : '#E9A9B9'); R(44, 65, 11, 6, T ? T.rug[2] : '#E9A9B9'); R(30, 65, 11, 1, 'rgba(255,255,255,.4)'); R(44, 65, 11, 1, 'rgba(255,255,255,.4)'); }
+    if (lvW >= 3) { for (i = 0; i < 4; i++) { R(32 + i * 7, 66, 1, 1, '#E8C15A'); R(35 + i * 7, 69, 1, 1, '#E8C15A'); } R(28, 64, 29, 1, '#E8C15A'); }
     var pair = list.length === 2 && (now % 10000) < 2600, staffTalk = !pair && chatStaff && list.length && (now + 4500) % 11000 < 2400;
     list.forEach(function (w, k) {
       var x = 30 + k * 15, y = 63, ph = reduce ? (w.id % 2 ? 2 : 5) : ((now / 1000) + w.id * 2.3) % 12, o = { blink: (now + w.id * 900) % 3700 < 130, face: null };
@@ -2621,7 +2676,9 @@
     });
     R(28, 74, 29, 5, sc); R(28, 74, 29, 1, 'rgba(255,255,255,.4)'); R(28, 79, 29, 3, 'rgba(43,34,56,.28)'); R(28, 79, 29, 3, sc); R(28, 79, 29, 3, 'rgba(43,34,56,.25)');
     R(26, 66, 3, 15, sc); R(56, 66, 3, 15, sc); R(26, 66, 3, 1, 'rgba(255,255,255,.4)'); R(56, 66, 3, 1, 'rgba(255,255,255,.4)');
-    R(29, 82, 2, 2, '#6E4A2E'); R(54, 82, 2, 2, '#6E4A2E');
+    R(29, 82, 2, 2, lvW >= 3 ? '#E8C15A' : '#6E4A2E'); R(54, 82, 2, 2, lvW >= 3 ? '#E8C15A' : '#6E4A2E');
+    if (!lvW) { R(28, 76, 29, 1, '#8E6440'); R(26, 66, 3, 15, '#8E6440'); R(56, 66, 3, 15, '#8E6440'); }
+    if (lvW >= 3) { R(28, 74, 29, 1, '#E8C15A'); R(26, 66, 3, 1, '#E8C15A'); R(56, 66, 3, 1, '#E8C15A'); }
     return staffTalk;
   }
   function floorShade(x, y, w) { g.fillStyle = 'rgba(43,34,56,.16)'; g.fillRect(Math.round(x) + 1, y, w - 2, 1); g.fillRect(Math.round(x), y + 1, w, 1); }
@@ -4228,9 +4285,18 @@
       }
       if (buzz) { confetti(30); hearts(64, 6); }
     } else if (k === 'v_reno') {
-      var shs = scene.story.shops || ['home'], per = 4.5, idx = reduce ? 0 : Math.floor(t / per) % shs.length, tg = shs[idx] === 'home' ? null : shs[idx], el = reduce ? 9 : t % per;
-      var keepV = scene.shop; scene.shop = tg; drawRoom(now); scene.shop = keepV;
+      var shs = scene.story.shops || ['home'], per = 6, idx = reduce ? 0 : Math.floor(t / per) % shs.length, tg = shs[idx] === 'home' ? null : shs[idx], el = reduce ? 9 : t % per;
       var lvR = tg ? (tg.interiorLv || 0) : (S.interiorLv || 0);
+      // まず前の内装を見せ（1.5秒）、幕が閉じて開くと新しい内装になる
+      var before = el < 1.9, keepV = scene.shop; scene.shop = tg; scene.lvOv = before ? Math.max(0, lvR - 1) : null;
+      try { drawRoom(now); if (!tg) { drawBed(); drawTable(now); drawWaiting(now, [], false); } } finally { scene.shop = keepV; scene.lvOv = null; }
+      if (before) { g.globalAlpha = 0.18; R(0, 0, SW, SH, '#2B2238'); g.globalAlpha = 1; }
+      if (before) {
+        sprite(meU, 44, 50, { eye: Math.floor(t * 1.5) % 2 ? 1 : -1 }); sprite(tm(0), 70, 50, { eye: Math.floor(t * 1.5) % 2 ? -1 : 1 });
+        if (el > 1.4) { var cc = Math.round(66 * (el - 1.4) / 0.5); R(0, 0, cc, SH, '#B8344A'); R(SW - cc, 0, cc, SH, '#B8344A'); R(0, 0, SW, 4, '#C9A227'); }
+        return;
+      }
+      el -= 1.9;
       sprite(meU, 44, 50 + (reduce ? 0 : -Math.abs(Math.round(Math.sin(t * 4) * 2))), { face: 'bliss', arms: Math.floor(t * 3) % 2 === 0 });
       sprite(tm(0), 70, 50 + (reduce ? 0 : -Math.abs(Math.round(Math.sin(t * 4 + 1) * 2))), { face: 'bliss', arms: Math.floor(t * 3 + 1) % 2 === 0 });
       if (el < 1.4) { var cw = Math.round(66 * (1 - el / 1.4)); R(0, 0, cw, SH, '#B8344A'); R(SW - cw, 0, cw, SH, '#B8344A'); for (x = 4; x < cw; x += 8) { R(x, 0, 2, SH, '#8E2238'); R(SW - x - 2, 0, 2, SH, '#8E2238'); } R(0, 0, SW, 4, '#C9A227'); }
@@ -6531,6 +6597,7 @@
 
   /* --- 各店舗の内装を見に行く --- */
   function viewLv() {
+    if (scene.lvOv != null) return scene.lvOv;
     var V = scene.shop;
     if (V === 'ph') return 3;
     if (V) return V.interiorLv || (V.interior ? 1 : 0);
@@ -7348,7 +7415,7 @@
     view('<h1>内装のアップデート</h1><p class="lead">1段階ごとに満足度と評判が上がり、スタッフをもう1人雇える。都心は2倍、海外は3倍の費用がかかる。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       bulk.concat(left.map(function (sh) {
         var lv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0), c2 = renoCost(sh);
-        return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + lv + '／' + MAXINT + '）　' + yen(c2), sub: 'いま最大' + maxOf(sh) + '人', off: S.cash < c2, go: function () { renovate(sh, function () { renoView((sh ? sh.name : '本店') + 'を' + (lv + 1) + '段階目にした。'); }); } };
+        return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + lv + '／' + MAXINT + '）　' + yen(c2), sub: '新しく：' + LVNEW[lv + 1] + '　いま最大' + maxOf(sh) + '人', off: S.cash < c2, go: function () { renovate(sh, function () { renoView((sh ? sh.name : '本店') + 'を' + (lv + 1) + '段階目にした。'); }); } };
       })).concat([null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT && renoWait(sh); }).map(function (sh) {
         return { grp: regionOf(sh), label: (sh ? sh.name : '本店') + '（' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT + '）', sub: 'オープンから3か月は、アップデートできない（あと' + renoWait(sh) + 'か月）', off: true, go: function () {} };
       })).concat(left.length || [null].concat(S.shops).some(renoWait) ? [] : [{ label: 'すべての店舗が最上級', off: true, go: function () {} }]).concat([{ main: true, label: 'もどる', go: investView }]));
@@ -7610,6 +7677,8 @@
      内装と、スタッフのやる気・信頼
      ========================================================= */
   var INTCOST = [100000, 150000, 220000], MAXINT = 3;
+  // 段階ごとに、店内で新しくなるところ（lvRoom などの絵と合わせる）
+  var LVNEW = ['', '待合がソファに。窓まわりやカウンターにも店の色', '天井の間接照明、大理石のカウンター、じゅうたん', '金の飾り縁、入口のカーペット、ダウンライト、金のベッド'];
   function baseCap(sh) { return sh ? (AREAS[sh.area] && AREAS[sh.area].cap) || MAXSTAFF : homeLoc().cap || MAXSTAFF; }
   function maxOf(sh) { return baseCap(sh) + (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0) + (S.mainExtra || 0)); }
   function intBonus(lv) { return (lv ? 5 + 3 * lv : 0) + (S && brandOn(12) ? 3 : 0); }
@@ -7621,7 +7690,7 @@
     else { S.interiorLv = lv + 1; S.interior = true; S.rep = clamp(S.rep + 5, 0, 100); }
     SFX.hire();
     evScene(['v_reno']); if (scene.story) { scene.story.shops = [sh || 'home']; scene.story.t0 = performance.now(); }
-    showCut({ kicker: 'アップデート', title: (sh ? sh.name : '本店') + 'の内装 ' + (lv + 1) + '段階目', sub: 'スタッフをもう1人雇えるようになった',
+    showCut({ kicker: 'アップデート', title: (sh ? sh.name : '本店') + 'の内装 ' + (lv + 1) + '段階目', sub: LVNEW[lv + 1] + '。スタッフをもう1人雇える',
       icon: 'star', c1: '#7FC8E8', c2: '#62B2D6', sound: function () { SFX.fanfare(true); } }, then || investView);
   }
   function moodUp(st, m, t) {
