@@ -7061,6 +7061,29 @@
     return S.hqCands[key];
   }
   // いまの部署ごとの人数（だれもいない部署が分かるように）
+  function needDepts() {
+    if (!hqOn()) return [];
+    var n = 1 + S.shops.length, y = eraY(), want = ['acct', 'hr', 'train'];
+    if (S.eshop || y >= 2000) want.push('online');
+    want.push('sns');
+    if (y >= 1995) want.push('eng');
+    if (freeAreas().length) want.push('sdev');
+    return want.filter(function (k) { return !deptN(k); });
+  }
+  // 人事にまかせる：必要な部署にだれもいなければ、毎月1人まで、その部署を目指す応募者を採用する
+  function autoHqHireMonth() {
+    if (!S.autoHqHire || !deptN('hr') || !hqOn()) return '';
+    var room = hqCap() - hqStaff().length, need = needDepts();
+    if (room <= 0 || !need.length || S.cash - HIRE - 300000 < trainReserve()) return '';
+    var list = hqCandsOf(false), k = need.filter(function (d) { return list.some(function (c) { return c.fit === d; }); })[0];
+    if (!k) return '';
+    var cd = list.filter(function (c) { return c.fit === k; })[0];
+    pay(HIRE); var st = hqFromCand(cd, k); S.hq.staff.push(st); list.splice(list.indexOf(cd), 1); S.hqHireWk = S.week;
+    return '人事：本社の' + DEPT[k].n + 'に' + st.name + 'を採用';
+  }
+  function hqFromCand(cd, k) {
+    return { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, born: cd.born, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: false, hqsk: cd.hqsk, certs: cd.certs, prev: cd.prev, male: !!cd.male };
+  }
   function deptNow() {
     return '<div class="dnow box"><b>いまの部署</b><ul>' + Object.keys(DEPT).map(function (k) {
       var n = deptN(k), bu = hqStaff().some(function (st) { return st.dept === k && isBucho(st); });
@@ -7072,7 +7095,7 @@
     bar();
     var list = hqCandsOf(dis), L = HQLV[S.hq.lv - 1], room = L.cap - hqStaff().length;
     cardCands = list;
-    view('<h1>本社の採用' + '' + '</h1>' + deptNow() + '<p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用するときに部署を決める。' + '' + '</p>' +
+    view('<h1>本社の採用' + '' + '</h1>' + deptGate('hr') + (deptN('hr') ? autoSeg('人事にまかせる', '必要な部署にだれもいなければ、毎月はじめに人事がその部署の人を1人採用する（家賃と給与の2か月分は残す）', 'autoHqHire', [[false, 'しない'], [true, '自動']]) : '') + deptNow() + '<p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用するときに部署を決める。' + '' + '</p>' +
       (note ? '<div class="news good">' + note + '</div>' : '') + '<div class="cdlist">' + list.map(function (cd, i) {
         return '<div class="cdcard"><canvas width="120" height="126" data-cid="' + i + '" aria-hidden="true"></canvas><div class="cdinfo">' +
           '<b class="nm">' + cd.name + (cd.born ? '<small class="ag">' + (nowYear() - cd.born) + '歳</small>' : '') + (cd.male ? '<span class="mk">男性</span>' : '') + '</b><span class="tr">前職：' + cd.prev + '</span>' +
@@ -7095,6 +7118,7 @@
       });
     });
     cardLoop();
+    autoSegBind(function () { hqHireView(); });
   }
   function hqStaffView(st) {
     bar();
@@ -8093,7 +8117,7 @@
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
     view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
       S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
-      S.hq ? { label: '本社', sub: (function () { var hs = hqStaff(), w = []; if (hs.length && S.hqTrainWk !== S.week && !(S.autoHqTrain && deptN('train'))) w.push('研修まだ'); var rm = hqCap() - hs.length; if (rm > 0) w.push('採用の空き' + rm + '人'); var em = Object.keys(DEPT).filter(function (k) { return !deptN(k); }).length; if (em) w.push('だれもいない部署' + em + 'つ'); return w.join('・') || 'スタッフ' + hs.length + '人'; })(), go: function () { curCat = null; hqView(); }, cls: 'hqbtn' } : null,
+      S.hq ? { label: '本社', sub: (function () { var hs = hqStaff(), w = []; if (hs.length && S.hqTrainWk !== S.week && !(S.autoHqTrain && deptN('train'))) w.push('研修まだ'); var nd = needDepts(); if (nd.length && hqCap() > hs.length && !(S.autoHqHire && deptN('hr'))) w.push(nd.map(function (k) { return DEPT[k].n; }).slice(0, 2).join('・') + (nd.length > 2 ? 'など' : '') + 'がいない'); return w.join('・') || 'スタッフ' + hs.length + '人'; })(), go: function () { curCat = null; hqView(); }, cls: 'hqbtn' } : null,
       { label: 'スタッフ', sub: [lowN ? '⚠やる気が落ちている人が' + lowN + '人' : '', roomAny() ? '採用の空きあり' : ''].filter(Boolean).join('・'), go: function () { catView('staff'); }, rec: catRec('staff') },
       { label: 'お店づくり', sub: prods().some(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); }) ? '⚠在庫が少ない商品あり' : '', go: function () { catView('shop'); }, rec: catRec('shop') },
       { label: '発信・記録・そのほか', sub: S.autoSns && deptN('sns') ? '' : (snsOn() ? 'SNS' : 'お店の宣伝') + 'あと' + snsLeft() + '回', go: function () { catView('other'); }, rec: catRec('other') }]));
@@ -8281,7 +8305,8 @@
       if (hqStaff().length && !(S.autoHqTrain && deptN('train'))) T.push(S.hqTrainWk === S.week ? { t: '本社の研修', s: '今月はすんだ', done: true } : { t: '本社の研修', s: '勉強会・セミナー・資格の支援で、本社のスタッフを育てる', go: function () { hqTrainView(); } });
       var HL = HQLV[S.hq.lv - 1], hroom = HL.cap - hqStaff().length;
       var emptyD = Object.keys(DEPT).filter(function (k) { return !deptN(k); }).map(function (k) { return DEPT[k].n; });
-      if (hroom > 0) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: 'あと' + hroom + '人まで' + (emptyD.length ? '・' + emptyD.slice(0, 3).join('、') + (emptyD.length > 3 ? 'など' : '') + 'がいない' : ''), go: function () { hqHireView(false); } });
+      var needD = needDepts();
+      if (hroom > 0 && needD.length && !(S.autoHqHire && deptN('hr'))) T.push(S.hqHireWk === S.week ? { t: '本社の採用', s: '今月は採用した', done: true } : { t: '本社で採用する', s: needD.map(function (k) { return DEPT[k].n; }).slice(0, 3).join('、') + (needD.length > 3 ? 'など' : '') + 'がいない', go: function () { hqHireView(false); } });
       if (!S.staff.some(function (st) { return st.id === S.mainMgr; }) && S.staff.some(function (st) { return !st.owner; })) T.push({ t: '本店の店長を決める', s: '社長になったので、本店をまかせる人が必要', go: function () { mgrView(); } });
     }
     var burn = homeRent() + wages() + adCost() + cinCost(), monthsLeft = burn > 0 ? Math.floor(S.cash / burn) : 99;
@@ -9100,6 +9125,7 @@
       });
       if (hired.length) out.push('人事：予約をお断りしていた店に採用（' + hired.join('、') + '）');
     }
+    var hh = autoHqHireMonth(); if (hh) out.push(hh);
     if (out.length) S.news.push({ good: true, t: '本社の部署の仕事：' + out.join('。') + '。' });
   }
   function autoSeg(label, sub, key, vals) {
