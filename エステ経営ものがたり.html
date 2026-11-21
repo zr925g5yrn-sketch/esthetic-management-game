@@ -3608,8 +3608,9 @@
       { label: '様子を見る', sub: '3か月、新規が1人ずつ減る', go: function () { S.rivalUntil = S.week + 2; done('しばらく新規が減りそうだ。'); } } ];
     if (k === 'campaign') return [
       { label: 'コース2割引き（今月だけ）', sub: 'コースと会員が安くなり、ぐっと決まりやすくなる', go: function () { S.disc = true; done('今月はコースと会員が2割引き。店内に飾りつけをした。'); } },
-      { label: 'SNS広告を打つ　' + yen(40000), sub: '今月の新規が3人増える（空きがあれば）', off: S.cash < 40000,
-        go: function () { pay(40000); var n = addNew(3); done('広告を見た' + n + '人が予約した。' + (n < 3 ? '空きが足りず、' + (3 - n) + '人はお断りした。' : '')); } },
+      { label: 'SNS広告を打つ　' + yen(40000), sub: S.queue.length >= totalCap() ? '今月は予約がいっぱい。広告を見た人は来月の予約になる' : '', keep: S.queue.length >= totalCap(), off: S.cash < 40000,
+        go: function () { pay(40000); var n = addNew(3), later = 3 - n; if (later) S.ad = (S.ad || 0) + later;
+          done('広告を見た3人から予約が入った。' + (n ? '今月は' + n + '人。' : '') + (later ? '今月は空きがないので、' + later + '人は来月の予約を入れてくれた。' : '')); } },
       { label: '見送る', go: function () { done('今回は見送った。'); } } ];
     if (k === 'complaint') return [
       { label: '誠実に返信して、無料券を送る　' + yen(15000), sub: '評判が少し上がる', off: S.cash < 15000,
