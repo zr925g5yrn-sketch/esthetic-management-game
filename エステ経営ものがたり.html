@@ -2159,7 +2159,7 @@
     return { bud: 0, n: 0, d: '' };
   }
   // 時代の広告
-  function adNm(i) { var y = eraY(), a = ADLV[i]; if (i === 1) return y < 1998 ? 'チラシと新聞の折り込み' : y < 2010 ? 'チラシとホームページ' : a.n; if (i === 2) return y < 2006 ? '女性誌とタウン誌' : y < 2012 ? 'ネット広告と雑誌' : a.n; return a.n; }
+  function adNm(i) { var y = eraY(), a = ADLV[i]; if (i === 1) return y < 1998 ? '新聞の折り込み広告' : y < 2010 ? '折り込み広告とホームページ' : a.n; if (i === 2) return y < 2006 ? '女性誌とタウン誌' : y < 2012 ? 'ネット広告と雑誌' : a.n; return a.n; }
   // 機械や設備が登場した年
   var INVYEAR = { hifu: 1995, rfFace: 2000, aromaPro: 1990, cavi: 2008, lymphM: 1995, devFace: 1995, devEms: 2000, eshop: 2000 };
   function invOn(k) { return eraY() >= (INVYEAR[k] || 0); }
@@ -6858,8 +6858,8 @@
   function adPrView(note) {
     bar(); var P = snsFix(), left = snsLeft();
     var use = function () { P.n = (P.n || 0) + 1; };
-    view('<h1>お店の宣伝</h1>' + deptGate('sns') + (deptN('sns') ? autoSeg('広報にまかせる', '毎月はじめに、広報がタウン誌の記事とハガキで宣伝する（家賃と給与の2か月分は残す）', 'autoSns', [[false, 'しない'], [true, '自動']]) : '') + '<p class="lead">まだSNSがない時代。タウン誌に記事を出したり、常連さんにハガキを送ったりして、お店を知ってもらう。月2回まで。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
-      [{ label: 'タウン誌に記事を出す　' + yen(30000), sub: left > 0 ? '新しいお客様にお店を知ってもらう' : '今月はもう2回宣伝した', off: left <= 0 || S.cash < 30000, go: function () { pay(30000); use(); S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; SFX.good(); adPrView('タウン誌に、お店の紹介が載った。（評判+2、来月の新規+1人）'); } },
+    view('<h1>お店の宣伝</h1>' + deptGate('sns') + (deptN('sns') ? autoSeg('広報にまかせる', '毎月はじめに、広報が駅前でのチラシ配りとハガキで宣伝する（家賃と給与の2か月分は残す）', 'autoSns', [[false, 'しない'], [true, '自動']]) : '') + '<p class="lead">まだSNSがない時代。スタッフと駅前でチラシを手配りしたり、常連さんにハガキを送ったりして、お店を知ってもらう。月2回まで。お金を払って出す「広告」（折り込みや雑誌）とは別に、自分たちの足でできる宣伝。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
+      [{ label: '駅前でチラシを手配りする　' + yen(10000), sub: left > 0 ? '印刷代だけ。道ゆく人に、直接お店を知ってもらう' : '今月はもう2回宣伝した', off: left <= 0 || S.cash < 10000, go: function () { pay(10000); use(); S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; SFX.good(); adPrView('駅前で、手書きのチラシを配った。「こんなところにエステがあったのね」と、足を止めてくれる人も。（評判+2、来月の新規+1人）'); } },
        { label: 'お知らせのハガキを送る', sub: left > 0 ? '常連さんに、季節のおすすめとお礼をハガキで届ける（1枚' + postFee() + '円＋印刷代）' : '今月はもう2回宣伝した', off: left <= 0 || !postOn(), go: function () { use(); var r = postSend('dm'); SFX.good(); adPrView(r.n + '人の常連さんにハガキを送った（' + yen(r.cost) + '）。（常連の信頼+3）'); } },
        { main: true, label: 'もどる', go: investView }]);
     autoSegBind(function () { adPrView(); });
@@ -8608,7 +8608,7 @@
     var t = null;
     if (!(S.adLv || 0) && S.week >= 1) t = '広告を出すと、新しいお客様がぐっと増える。「お店づくり」→「広告」から。';
     else if (S.staff.length <= 1 && S.week >= 2) t = 'スタッフを雇うと、受けられるお客様が増える。「スタッフ」→「スタッフを採用する」から。';
-    else if (!(S.sns && S.sns.f) && S.week >= 2) t = snsOn() ? 'SNSに投稿すると、フォロワーが増えてお客様が来やすくなる。下の「今月のタスク」から。' : 'タウン誌やニュースレターで宣伝すると、お客様が来やすくなる。下の「今月のタスク」から。';
+    else if (!(S.sns && S.sns.f) && S.week >= 2) t = snsOn() ? 'SNSに投稿すると、フォロワーが増えてお客様が来やすくなる。下の「今月のタスク」から。' : '駅前でのチラシ配りやハガキで宣伝すると、お客様が来やすくなる。下の「今月のタスク」から。';
     else if (S.cash < homeRent() * 2) t = 'お金が心細いときは、「お店づくり」→「資金調達と返済」で銀行から借りられる。';
     return t ? '<div class="news good"><b>経営のヒント</b>　' + t + '</div>' : '';
   }
@@ -9378,7 +9378,7 @@
           var R = snsPostCore(ks[0], pf); out.push(SNSPF[pf].n + 'に「' + snsName(ks[0], pf) + '」（フォロワー+' + fmtN(R.gain) + (R.buzz ? '・話題に！' : '') + '）');
         }
       } else {
-        if (left > 0 && S.cash - 30000 >= trainReserve()) { pay(30000); P.n = (P.n || 0) + 1; S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; out.push('タウン誌に記事（評判+2）'); left--; }
+        if (left > 0 && S.cash - 10000 >= trainReserve()) { pay(10000); P.n = (P.n || 0) + 1; S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; out.push('駅前でチラシ配り（評判+2）'); left--; }
         if (left > 0 && postOn() && P.post !== S.week) { P.n = (P.n || 0) + 1; P.post = S.week; var r = postSend('dm'); out.push(r.n + '人の常連さんにハガキ'); }
       }
       if (out.length) out = ['広報：' + out.join('、')];
