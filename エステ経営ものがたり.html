@@ -3863,6 +3863,20 @@
     R(44, 45, 12, 5, '#2B2238'); R(45, 46, 10, 3, night ? '#7FC8E8' : '#BFE3F5'); R(70, 47, 8, 3, '#FFFFFF'); R(80, 45, 4, 5, '#4E9E5A');
     if (lv >= 2) { R(40, 47, 3, 3, '#C9A227'); }
   }
+  // 工房カフェの段階で、外観に増えていくもの（見学コースの看板・体験教室のテント・ハーブ畑）。アップデートした直後は、紙吹雪と光
+  function koboExtras(t, now) {
+    var lv = S && S.kobo ? koboLv() : 1, i;
+    if (lv >= 2) { R(56, 46, 9, 6, '#FFFFFF'); R(56, 46, 9, 1, '#E0567A'); R(57, 48, 7, 1, '#9FD8F0'); R(57, 50, 5, 1, '#9FD8F0'); R(60, 52, 1, 5, '#8E6440'); }
+    if (lv >= 3) { R(14, 50, 20, 2, '#F4EDE0'); for (i = 0; i < 5; i++) R(14 + i * 4, 48 - (i % 2), 4, 2, i % 2 ? '#F7B8C8' : '#FFFFFF'); R(15, 52, 1, 7, '#8E6440'); R(32, 52, 1, 7, '#8E6440');
+      for (i = 0; i < 6; i++) R(12 + i * 4, 46 + (i % 2), 2, 2, ['#E0567A', '#F2C230', '#5AA9E6', '#7FC49A', '#B48CFF', '#F08A3A'][i]); }
+    if (lv >= 4) { for (i = 0; i < 9; i++) { R(2 + i * 14, 79, 10, 3, '#5E8A52'); R(3 + i * 14, 77, 2, 2, '#B48CFF'); R(7 + i * 14, 77, 2, 2, '#B48CFF'); R(10 + i * 14, 78, 1, 1, '#FFFFFF'); } }
+    var st = scene.story;
+    if (st && st.kup && !reduce && t < 4) {
+      var a = Math.max(0, 1 - t / 1.2); if (a > 0) { g.globalAlpha = a * 0.7; R(0, 0, SW, SH, '#FFFFFF'); g.globalAlpha = 1; }
+      for (i = 0; i < 26; i++) { var cx = (i * 37 + 11) % SW, cy = ((t * (18 + i % 5 * 6)) + i * 9) % (SH + 10) - 10; R(cx + Math.round(Math.sin(t * 3 + i) * 2), cy, 2, 1, ['#E0567A', '#F2C230', '#5AA9E6', '#7FC49A', '#FFFFFF', '#B48CFF'][i % 6]); }
+      var bw = Math.min(70, Math.round(t * 90)); R(64 - bw / 2, 2, bw, 7, '#E0567A'); R(64 - bw / 2, 2, bw, 1, '#F7B8C8'); if (bw >= 70) for (i = 0; i < 5; i++) icon('star', 34 + i * 14, 3, (Math.floor(now / 200) + i) % 2 ? '#FFE08A' : '#FFFFFF');
+    }
+  }
   function drawStory(now) {
     var k = scene.story.pic || 'open';
     if (k === 'v_taxi' && !bgImg('v_taxi')) k = 'v_vip';
@@ -4498,6 +4512,7 @@
       big(crew(0), 40, 45, 1, { rows: 13 });
       big(guest(1), 6, 60, 1, { face: 'smile' }); big(guest(3), 108, 60, 1, { face: 'smile' });
       x = reduce ? 62 : 46 + Math.round(((t * 4) % 40)); big(guest(5), x > 86 ? 86 : x, 64, 1, { face: 'smile', walkB: !reduce && Math.floor(t * 3) % 2 === 0 });
+      koboExtras(t, now);
     } else if (k === 'v_kobo') {
       R(0, 0, SW, SH, '#F1E6D2'); R(0, 0, SW, 8, '#D9C4A0'); R(0, 62, SW, 22, '#B48A5E'); for (i = 0; i < 8; i++) R(i * 16, 62, 1, 22, '#9C744C');
       // 工房（ガラスの向こう）
@@ -4513,6 +4528,7 @@
       big(guest(1), 64, 36, 1, { face: 'smile' }); big(guest(3), 116, 36, 1, { face: 'smile' }); big(guest(5), 86, 38, 1, { face: 'smile' });
       R(110, 28, 10, 14, '#6E4A30'); R(111, 30, 8, 2, '#9ED68A'); R(111, 34, 8, 2, '#F2C230'); R(111, 38, 8, 2, '#E0567A');
       R(62, 56, 6, 6, '#9C744C'); R(61, 50, 8, 7, '#7FA36E'); R(122, 56, 5, 6, '#9C744C'); R(121, 51, 7, 6, '#5E8A52');
+      koboExtras(t, now);
     } else if (k === 'v_oracle') {
       var hero = scene.story.hero || OWNER_LOOK, pulse = reduce ? 0.5 : (Math.sin(now / 700) + 1) / 2;
       for (y = 0; y < SH; y++) R(0, y, SW, 1, y < 30 ? '#14122A' : y < 60 ? '#1C1A36' : '#24213F');
@@ -6487,7 +6503,9 @@
       (r ? '<div class="box" style="padding:10px 12px"><dl class="hcond"><dt>先月の来場</dt><dd>' + fmtN(r.visitors) + '人</dd><dt>カフェ</dt><dd>' + yen(r.cafe) + '</dd><dt>精油づくり体験</dt><dd>' + yen(r.work) + '</dd><dt>商品の販売</dt><dd>' + yen(r.shop) + '</dd><dt>収支</dt><dd>' + yen(r.net) + '</dd></dl></div>' : '') +
       '<p class="lead">産地の生産者さんと契約すると、その素材で、オリジナル商品を1種類ずつ作れるようになる。自社の工房でつくるので、仕入れ値が15%安く、品質も上がりやすい。</p>',
       (nx ? [{ label: '工房をアップデート：' + nx.n + '　' + yen(nx.cost), sub: wait ? '前のアップデートの工事中。あと' + wait + 'か月' : nx.d + '。契約できる生産者さんが' + nx.cap + '軒までに', off: !!wait || S.cash < nx.cost,
-        go: function () { pay(nx.cost); K.lv = koboLv() + 1; K.upWk = S.week; mxpAdd(40); hum(2); S.rep = clamp(S.rep + 2, 0, 100); SFX.fanfare(true); koboView('工房が「' + nx.n + '」になった。契約できる生産者さんが' + nx.cap + '軒までに増えた。'); } }] : [])
+        go: function () { pay(nx.cost); K.lv = koboLv() + 1; K.upWk = S.week; mxpAdd(40); hum(2); S.rep = clamp(S.rep + 2, 0, 100);
+          showCut({ kicker: '工房をアップデート', title: nx.n, sub: '契約できる生産者さん ' + nx.cap + '軒まで', icon: 'shop', c1: '#7FA36E', c2: '#5E8A52', sound: function () { SFX.fanfare(true); } }, function () {
+            koboView('工房が「' + nx.n + '」になった。契約できる生産者さんが' + nx.cap + '軒までに増えた。'); if (scene.story) { scene.story.kup = true; scene.story.t0 = performance.now(); } }); } }] : [])
       .concat(SANCHI.filter(function (x) { return x.cat || (S.farms && S.farms[x.k]); }).map(function (x) {
         var has = S.farms && S.farms[x.k], loc = sanchiLocal(x), c = loc ? FARMCOST / 2 : FARMCOST;
         return { sec: '産地の生産者さん（' + farmN() + '／' + farmCap() + '軒まで）', label: x.n + (loc ? '（地元）' : '') + (x.cat ? ' → ' + DEVCAT[x.cat].n : '') + (has ? '' : '　' + yen(c)), picked: !!has, sub: x.area + '。' + x.d + (has ? '　つながって' + Math.max(1, Math.floor((S.week - has.since) / 12) + 1) + '年目' : '　毎月の仕入れ ' + yen(FARMMON)),
