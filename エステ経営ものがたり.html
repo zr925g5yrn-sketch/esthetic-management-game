@@ -2029,7 +2029,7 @@
   function eraY() { return S && S.startYear ? nowYear() : 2026; }
   function dotNm(off) { var y = eraY(); return off ? (y < 1997 ? 'お店の電話' : y < 2012 ? 'お店のメール' : '公式dot.') : (y < 1995 ? '電話とFAX' : y < 2000 ? 'ポケベルとFAX' : y < 2012 ? '携帯メール' : 'dot.'); }
   function aiNm() { return eraY() >= 2023 ? 'AI' : '受付スタッフ'; }
-  var PFYEAR = { yt: 2006, ig: 2012, tt: 2017 };
+  var PFYEAR = { blog: 2004, yt: 2006, ig: 2012, tt: 2017 };
   function pfOn(k) { return eraY() >= PFYEAR[k]; }
   function pfList() { return Object.keys(SNSPF).filter(pfOn); }
   function snsOn() { return pfList().length > 0; }
@@ -2098,6 +2098,8 @@
     if (y < 1995) t = t.replace(/メールで/g, '手紙で').replace(/メール/g, '手紙');
     if (y < 2012) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
     if (y < 2023) t = t.replace(/AI(?=[がにのへ])/g, '受付スタッフ');
+    // ブログしかない時代（2004〜2005年）は、SNSではなくブログ、フォロワーではなく読者
+    if (snsOn() && !pfOn('yt')) t = t.replace(/SNSで発信する/g, 'ブログで発信する').replace(/SNSに投稿する/g, 'ブログに書く').replace(/SNS/g, 'ブログ').replace(/フォロワー/g, '読者');
     if (!snsOn()) t = t.replace(/写真をSNSに投稿する/g, '写真をのせたチラシを配る').replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/SNS広告/g, 'チラシ').replace(/SNSに載せたら/g, '雑誌に話したら').replace(/SNSに/g, y < 2000 ? '雑誌に' : 'ネットの掲示板に').replace(/SNSで/g, y < 2000 ? '雑誌やチラシで' : 'ネットや雑誌で').replace(/写真が拡散して、/g, '評判が広まって、').replace(/フォロワー/g, 'お店のファン').replace(/インフルエンサー/g, '人気の読者モデル').replace(/SNSで発信する/g, 'お店の宣伝').replace(/SNSに投稿する/g, 'お店の宣伝をする').replace(/SNSの投稿/g, 'お店の宣伝').replace(/毎月、フォロワーの少ないSNSに会社として発信して伸ばす。人数が多いほどバズりやすく、取材も来やすい/g, '雑誌やタウン誌に記事を出して、お店の評判を上げる。人数が多いほど、雑誌やテレビの取材が来やすい');
     return t;
   }
@@ -2986,7 +2988,7 @@
         '<button class="snd" id="snd" type="button"></button>' +
         '<span class="sub"><span>評判 ' + '★★★★★'.slice(0, full) + '☆☆☆☆☆'.slice(0, 5 - full) + '</span>' +
         '<span>常連 ' + S.clients.filter(function (c) { return c.active; }).length + '人</span>' +
-        '<span>人間力 ' + S.hum + '</span><span>' + (S.gen > 1 ? S.gen + '代目・' : '') + ownerAge() + '歳</span>' + (S.sns && S.sns.f ? '<span>' + (snsOn() ? 'フォロワー ' : 'ファン ') + fmtN(S.sns.f) + '</span>' : '') + (S.shops.length ? '<span>店舗 ' + (1 + S.shops.length) + '</span>' : '<span>スタッフ ' + S.staff.length + '人</span>') + '</span>';
+        '<span>人間力 ' + S.hum + '</span><span>' + (S.gen > 1 ? S.gen + '代目・' : '') + ownerAge() + '歳</span>' + (S.sns && S.sns.f ? '<span>' + (snsOn() ? (pfOn('yt') ? 'フォロワー ' : '読者 ') : 'ファン ') + fmtN(S.sns.f) + '</span>' : '') + (S.shops.length ? '<span>店舗 ' + (1 + S.shops.length) + '</span>' : '<span>スタッフ ' + S.staff.length + '人</span>') + '</span>';
     }
     var tb = $('toTitle');
     if (tb) tb.addEventListener('click', function () { SFX.click(); askTitle(); });
@@ -4966,7 +4968,7 @@
       return false;
     }));
     // 紹介と新規
-    var refs = 0;
+    var refs = 0, frN = S.startYear ? frRefs() : 0;
     S.clients.forEach(function (c) { if (c.loy >= 60 && S.week - c.last <= 3 && roll(0.12 + S.hum / 500)) refs++; });
     var cinK = opArea() ? cinN(true) : cinN(false);
     var newN = 1 + Math.floor(S.rep / 25) + adOf().n + cinK + webN() + S.ad + (roll(0.5) ? 1 : 0) - (S.storm ? 2 : 0) - (S.week <= S.rivalUntil ? 1 : 0) + (S.week <= S.buzz.until ? S.buzz.n : 0);
@@ -4976,7 +4978,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); homeMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
+    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); homeMonth(); frMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -4996,6 +4998,7 @@
     ret.slice(keep).forEach(function (c) { c.loy = clamp(c.loy - 10, 0, 100); });
     var fresh = [], i;
     for (i = 0; i < refs; i++) fresh.push(makeCustomer(used, true));
+    for (i = 0; i < frN; i++) { var fc = makeCustomer(used, true); fc.frVia = Object.keys(FRSNS).filter(frOn)[0] || 'blender'; fresh.push(fc); }
     for (i = 0; i < newN; i++) fresh.push(makeCustomer(used, false));
     // コールドシナモンを見て予約したお客様（クーポンがあると、値段にきびしい人が多い）
     fresh.filter(function (c) { return !c.ref; }).slice(0, S.cinK || 0).forEach(function (c) {
@@ -5036,6 +5039,7 @@
     if (c.celeb) return c.isNew ? 'お忍びの芸能人' : 'お忍びの常連（芸能人）';
     if (c.bride) return '式を控えた花嫁・新規';
     if (c.sns && c.isNew) return (SNSPF[c.sns] ? SNSPF[c.sns].n : 'SNS') + 'を見て来店・新規';
+    if (c.isNew && c.frVia && FRSNS[c.frVia]) return FRSNS[c.frVia].n + 'の友だち・新規';
     if (c.isNew && c.cin) return 'コールドシナモン・新規' + (c.cpn ? '（クーポン）' : '');
     if (c.isNew) return c.ref ? '紹介・新規' : '新規';
     if (c.friend && !c.visits) return '地元の知り合い・開店祝いに5回券';
@@ -6609,24 +6613,45 @@
       ages: [20, 30, 30, 40], bud: 0.05, grd: 0, view: 1, gain: 1, buzz: 1, live: { s: 1.3, g: 1 } },
     tt: { n: 'dopaTK', who: '10〜20代が中心', d: 'いちばんバズりやすく、新規のお客様が増える。ただし予算は控えめ。伸びしろのある若い人から求人が集まる',
       ages: [20, 20, 20, 30], bud: -0.12, grd: 0, view: 1.5, gain: 1.2, buzz: 2, live: { s: 0.8, g: 1.6 } },
+    blog: { n: 'シロクマブログ', who: '20〜40代の女性が中心。芸能人のブログも人気', d: 'お店の日記を、外の人に読んでもらう。読んで安心して来るお客様が多い',
+      ages: [20, 30, 30, 40], bud: 0.05, grd: 5, view: 0.8, gain: 0.9, buzz: 0.7 },
     yt: { n: 'MYch', who: '30〜50代が中心', d: '伸びはゆっくり。信頼されやすく、予算の高いお客様が来る。経験のある人から求人が集まる',
       ages: [30, 40, 50, 60], bud: 0.15, grd: 8, view: 0.7, gain: 0.8, buzz: 0.6, live: { s: 1, g: 0.8, rich: true } }
   };
   function snsFix() {
     if (!S.sns) S.sns = { f: 0, wk: 0, n: 0, last: 0, best: 0, used: {} };
     if (!S.sns.mix) S.sns.mix = { ig: 0.6, tt: 0.25, yt: 0.15 };
+    if (S.sns.mix.blog === undefined) S.sns.mix.blog = 0;
     return S.sns;
   }
   // 媒体のかたよりで効き目が変わる。1つだけなら0.65倍、3つ均等なら1.25倍
   function snsBal() { var m = snsFix().mix, L = pfList(); if (!L.length) return 0.65; var mx = Math.max.apply(null, L.map(function (k) { return m[k]; })); return clamp(1.25 - 0.9 * (mx - 1 / L.length), 0.65, 1.25); }
   function snsQ() { var P = snsFix(), f = P.f * snsBal(); return f / (f + 5000); }
   function pfN(pf) { var P = snsFix(); return Math.round(P.f * P.mix[pf]); }
-  function pfPick() { var m = snsFix().mix, x = rnd(); return x < m.ig ? 'ig' : (x < m.ig + m.tt ? 'tt' : 'yt'); }
+  function pfPick() { var m = snsFix().mix, x = rnd(), L = pfList(), acc = 0; for (var i = 0; i < L.length; i++) { acc += m[L[i]] || 0; if (x < acc) return L[i]; } return L[L.length - 1] || 'ig'; }
   // 媒体のフォロワーを増やす（全体の割合も、その媒体の方へ寄る）
   function addF(pf, g) {
     var P = snsFix(), tot = P.f + g;
     if (tot > 0) Object.keys(P.mix).forEach(function (k) { P.mix[k] = (P.mix[k] * P.f + (k === pf ? g : 0)) / tot; });
     P.f = tot;
+  }
+  /* --- 友だちとつながるSNS：集客ではなく、友だちがお店に来てくれる（その時代に流行ったものだけ） --- */
+  var FRSNS = {
+    blender: { n: 'blender', from: 2004, to: 2012, d: '招待制の日記サイト。日記を書くと、友だちの足あとが付く', act: '日記を書く' },
+    realname: { n: 'Realname', from: 2010, to: 9999, d: '本名で登録して、昔の同級生や仕事仲間とつながる', act: '近況を投稿する' }
+  };
+  function frOn(k) { var y = eraY(), x = FRSNS[k]; return y >= x.from && y <= x.to; }
+  function frFix() { S.fr = S.fr || {}; Object.keys(FRSNS).forEach(function (k) { if (!S.fr[k]) S.fr[k] = { n: 0, wk: 0 }; }); return S.fr; }
+  function frPost(k) {
+    var F = frFix()[k], g = (F.n ? 6 : 18) + Math.round((S.hum || 30) / 12) + Math.floor(rnd() * 8);
+    F.n += g; F.wk = S.week; hum(1);
+    return FRSNS[k].n + 'で' + FRSNS[k].act.replace('く', 'いた').replace('する', 'した') + '。「お店、行ってみたい！」とコメントが付いた。（つながり+' + g + '人）';
+  }
+  // 毎月、つながりのある友だちが、お店に来てくれる
+  function frRefs() { var n = 0; frFix(); Object.keys(FRSNS).forEach(function (k) { if (!frOn(k)) return; var f = S.fr[k].n; n += Math.min(2, Math.floor(f / 60)) + (roll((f % 60) / 60) ? 1 : 0); }); return Math.min(3, n); }
+  function frMonth() {
+    frFix(); Object.keys(FRSNS).forEach(function (k) { var F = S.fr[k], x = FRSNS[k];
+      if (F.n && eraY() > x.to && !F.gone) { F.gone = true; S.news.push({ t: x.n + 'を使う人が、ずいぶん減ってしまった。友だちとは、ほかのSNSでつながっている。' }); } });
   }
   function fmtN(n) { n = Math.round(n); return n >= 10000 ? (Math.round(n / 1000) / 10) + '万' : n.toLocaleString('ja-JP'); }
   var SNSP = {
@@ -6692,7 +6717,7 @@
     if (!snsOn()) return adPrView(note);
     if (!note || !scene.story || !scene.story.ev) evScene(['v_sns']);
     bar(); var P = snsFix(), left = snsLeft(), liveDone = P.live === S.week;
-    var PFC2 = { ig: '#E0567A', tt: '#3AC0C8', yt: '#E0304A' }, bal = Math.round(snsBal() * 100);
+    var PFC2 = { ig: '#E0567A', tt: '#3AC0C8', yt: '#E0304A', blog: '#5C8AC8' }, bal = Math.round(snsBal() * 100);
     view('<h1>SNSで発信する</h1>' + deptGate('sns') + (deptN('sns') ? autoSeg('広報にまかせる', '毎月はじめに、広報がフォロワーの少ない媒体から、出来ばえのいい投稿を今月の回数ぶん出す', 'autoSns', [[false, 'しない'], [true, '自動']]) : '') + '<div class="snsbox box"><div class="tot"><span>フォロワー合計</span><b>' + fmtN(P.f) + '<small>人</small></b></div>' +
       pfList().map(function (k) { var share = P.f ? Math.round(pfN(k) / P.f * 100) : 0; return '<div class="pf"><span class="nm">' + SNSPF[k].n + '</span><i><u style="width:' + share + '%;background:' + PFC2[k] + '"></u></i><b>' + fmtN(pfN(k)) + '</b></div>'; }).join('') +
       '<div class="pf bal"><span class="nm">バランス</span><i><u style="width:' + Math.round((bal - 65) / 60 * 100) + '%"></u></i><b>' + bal + '%</b></div>' +
@@ -6700,8 +6725,9 @@
       '<details class="more"><summary>くわしく</summary><p class="lead">媒体ごとにフォロワーの年齢層が違い、力を入れた媒体で、来るお客様と求人に集まる人が変わる。いくつかの媒体を同じくらい伸ばすほど（バランスが高いほど）、来店や求人への効き目が大きい。投稿は月2回まで。しばらく投稿しないと、フォロワーは少しずつ減る。</p></details>' + (note || ''),
       pfList().map(function (k) {
         var x = SNSPF[k];
-        return { label: x.n + 'に投稿する', sub: x.who, off: left <= 0, go: function () { snsPfView(k); } };
-      }).concat(postOn() ? [{ label: 'お知らせのハガキを送る', sub: '常連さんにお礼とおすすめを届ける（1枚' + postFee() + '円＋印刷代）', off: P.post === S.week, go: function () { P.post = S.week; var r = postSend('dm'); SFX.good(); snsView('<div class="news good">' + r.n + '人の常連さんにハガキを送った（' + yen(r.cost) + '）。</div>'); } }] : [])
+        return { sec: 'お店の発信（集客）', label: x.n + 'に投稿する', sub: x.who, off: left <= 0, go: function () { snsPfView(k); } };
+      }).concat(Object.keys(FRSNS).filter(frOn).map(function (k) { var x = FRSNS[k], F = frFix()[k], done = F.wk === S.week;
+        return { sec: '友だちとつながる（月1回ずつ）', label: x.n + 'で' + x.act, sub: 'つながり ' + F.n + '人' + (done ? '・今月は書いた' : '') + '　' + x.d, off: done, go: function () { snsView('<div class="news good">' + frPost(k) + '</div>'); } }; })).concat(postOn() ? [{ label: 'お知らせのハガキを送る', sub: '常連さんにお礼とおすすめを届ける（1枚' + postFee() + '円＋印刷代）', off: P.post === S.week, go: function () { P.post = S.week; var r = postSend('dm'); SFX.good(); snsView('<div class="news good">' + r.n + '人の常連さんにハガキを送った（' + yen(r.cost) + '）。</div>'); } }] : [])
       .concat(eraY() < 2016 ? [] : [{ label: 'ライブ配信をする', sub: liveDone ? '今月は配信ずみ' : (P.f < LIVEMIN ? 'フォロワーが' + LIVEMIN + '人をこえるとできる' : '在庫の商品がその場でネットで売れ、フォロワーも増える。月1回まで。あなたの疲れ+8'),
         off: liveDone || P.f < LIVEMIN || eraY() < 2016, go: liveView }])
       .concat([{ main: true, label: 'もどる', go: investView }]));
@@ -6712,19 +6738,21 @@
     view('<h1>' + x.n + 'に投稿する</h1><p class="lead">' + x.who + '。フォロワー ' + fmtN(pfN(pf)) + '人。今月あと' + left + '回投稿できる。</p>',
       Object.keys(SNSP).map(function (k) {
         var t = SNSP[k], q = t.q();
-        return { label: t.n, sub: t.d + '　出来ばえ ' + starsQ(q) + (P.used[k] ? '　今月は投稿ずみ' : ''),
+        return { label: snsName(k, pf), sub: t.d + '　出来ばえ ' + starsQ(q) + (P.used[k] ? '　今月は投稿ずみ' : ''),
           off: left <= 0 || P.used[k], go: function () { snsPost(k, pf); } };
       }).concat([{ main: true, label: 'もどる', go: function () { snsView(); } }]));
   }
+  // ブログは文章と写真：投稿の名前と数え方を変える
+  function snsName(k, pf) { var n = SNSP[k].n; return pf === 'blog' ? ({ tech: '施術のビフォーアフターを書く', prod: '商品の使い心地を書く', team: 'スタッフの日常を書く', room: 'お店の写真をのせる' }[k] || n) : n; }
   function snsPost(k, pf) {
     pf = pf || 'ig';
     var x = SNSPF[pf], t = SNSP[k];
     evScene(['v_sns_' + k]); if (scene.story) scene.story.pf = pf;
     var R = snsPostCore(k, pf), views = R.views, gain = R.gain, buzz = R.buzz, extra = R.extra;
     if (buzz && scene.story) scene.story.buzz = true;
-    var note = '<div class="news good">' + x.n + 'で' + t.n.replace('する', 'した').replace('撮る', '撮った') + '。再生 ' + fmtN(views) + '回、フォロワー +' + fmtN(gain) + '人。' + extra + '</div>';
+    var bl = pf === 'blog', note = '<div class="news good">' + x.n + 'で' + snsName(k, pf).replace('する', 'した').replace('撮る', '撮った').replace('書く', '書いた').replace('のせる', 'のせた') + '。' + (bl ? '読まれた回数 ' : '再生 ') + fmtN(views) + '回、' + (bl ? '読者' : 'フォロワー') + ' +' + fmtN(gain) + '人。' + (bl ? extra.replace('動画を見て', 'ブログを読んで') : extra) + '</div>';
     SFX.good();
-    if (buzz) return showCut({ kicker: x.n + 'でバズった！', title: fmtN(views) + '回再生', sub: 'フォロワー +' + fmtN(gain) + '人', icon: 'heart', c1: '#FF7AA8', c2: '#E8558A',
+    if (buzz) return showCut({ kicker: x.n + (bl ? 'の記事が人気に！' : 'でバズった！'), title: fmtN(views) + (bl ? '回読まれた' : '回再生'), sub: 'フォロワー +' + fmtN(gain) + '人', icon: 'heart', c1: '#FF7AA8', c2: '#E8558A',
       sound: function () { SFX.fanfare(true); } }, function () { snsView(note); });
     snsView(note);
   }
@@ -6749,7 +6777,7 @@
     bar();
     var stock = inStock().reduce(function (a, p) { return a + S.stock[p.k]; }, 0);
     view('<h1>ライブ配信をする</h1><p class="lead">どこで配信する？ 商品はお店の在庫から送る（いまの在庫 ' + stock + '個）。在庫がないと、フォロワーが増えるだけになる。</p>',
-      Object.keys(SNSPF).map(function (k) {
+      Object.keys(SNSPF).filter(function (k) { return SNSPF[k].live && pfOn(k); }).map(function (k) {
         var x = SNSPF[k], L = x.live;
         return { label: x.n + 'で配信する', sub: 'フォロワー ' + fmtN(pfN(k)) + '人　' + (L.rich ? '高い商品から売れやすい' : L.s > 1 ? '商品がよく売れる' : 'フォロワーがよく増える。商品は売れにくい'), go: function () { doLive(k); } };
       }).concat([{ main: true, label: 'もどる', go: function () { snsView(); } }]));
@@ -9105,7 +9133,7 @@
           var pf = pfList().slice().sort(function (a, b) { return P.mix[a] - P.mix[b]; })[0];
           var ks = Object.keys(SNSP).filter(function (k) { return !P.used[k]; }).sort(function (a, b) { return SNSP[b].q() - SNSP[a].q(); });
           if (!ks.length || !pf) break;
-          var R = snsPostCore(ks[0], pf); out.push(SNSPF[pf].n + 'に「' + SNSP[ks[0]].n + '」（フォロワー+' + fmtN(R.gain) + (R.buzz ? '・話題に！' : '') + '）');
+          var R = snsPostCore(ks[0], pf); out.push(SNSPF[pf].n + 'に「' + snsName(ks[0], pf) + '」（フォロワー+' + fmtN(R.gain) + (R.buzz ? '・話題に！' : '') + '）');
         }
       } else {
         if (left > 0 && S.cash - 30000 >= trainReserve()) { pay(30000); P.n = (P.n || 0) + 1; S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; out.push('タウン誌に記事（評判+2）'); left--; }
