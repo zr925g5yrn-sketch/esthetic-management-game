@@ -5019,7 +5019,8 @@
       S.rep = clamp(S.rep - Math.min(turned, 3), 0, 100);
       S.news.push({ bad: true, t: '予約がいっぱいで' + turned + '人をお断りした。' + (S.staff.length >= maxOf(null) ? ((S.interiorLv || 0) < MAXINT ? 'スタッフの枠もいっぱい。内装をアップデートすると枠が増える（' + (S.interiorLv || 0) + '／' + MAXINT + '）。' : 'スタッフの枠も最大。ほかの店舗で受けられるよう、出店を考えよう。') : 'スタッフを増やせば受けられる。') });
     }
-    S.queue = shuffle(q); S.idx = 0;
+    // 特別なお客様（セレブ・記者・支配人など）は、いちばん最初に迎える（スタッフの手がまだ空いているうちに）
+    var qq = shuffle(q); S.queue = qq.filter(function (c) { return c.sp; }).concat(qq.filter(function (c) { return !c.sp; })); S.idx = 0;
     if (S.ev === 'bridal') markBrides();
     newMission();
     C = null; setScene('idle');
