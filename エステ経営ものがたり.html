@@ -6529,16 +6529,38 @@
     list.push({ id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, born: cd.born, male: !!cd.male, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: cd.cap, used: 0, look: cd.look, mot: 65, trust: 30 + ((S && S.heroTrust) || 0) });
   }
   function openCost(A) { return A.hotel || !hqOn() ? A.cost : Math.round(A.cost * (1 - Math.min(0.3, 0.1 * deptPow('sdev'))) / 10000) * 10000; }
-  function openBranch(k, free, concept) {
+  // 新しい店舗の店長を選ぶ：いまのスタッフから抜てきするか、新しく採用する
+  function mgrCandsFor(k) {
+    var A = AREAS[k]; S.mgrCands = S.mgrCands && S.mgrCands.k === k && S.mgrCands.week === S.week ? S.mgrCands : null;
+    if (!S.mgrCands) { var taken = {}; allStaff().forEach(function (st) { taken[st.name] = true; });
+      S.mgrCands = { k: k, week: S.week, list: [0, 1, 2].map(function () { var cd = genCand(taken, A.names, A.base || k); if (A.tier !== 'local') { Object.keys(cd.sk).forEach(function (q) { cd.sk[q] = Math.max(cd.sk[q], 3); }); skFix(cd); cd.wage = baseWage(cd) + 20000; } return cd; }) }; }
+    return S.mgrCands.list;
+  }
+  function mgrPickView(k, t, c) {
+    bar(); var A = AREAS[k];
+    var mine = allStaff().filter(function (st) { if (st.owner || st.sick) return false; var sh = shopOf(st); return !(sh && sh.staff.length <= 1); });
+    var openW = function (mgr) { var b = openBranch(k, false, c, mgr); mxpAdd(50); markOpen(b); S.mgrCands = null; showCut(branchCut(b), function () { if (openLeft() && freeAreas().length) branchView(); else investView(); }); };
+    view('<h1>' + A.n + 'の店長を選ぶ</h1><p class="lead">いまのスタッフから抜てきすると、本人のやる気と信頼が上がる（元の店は1人減る）。新しく採用すると、その街に合った人が来る。' + (A.tier !== 'local' ? '都心や海外の店は、店長のほかにスタッフを2人連れていく。' : '') + '</p>',
+      mine.sort(function (a, b) { return (b.tech + b.talk) - (a.tech + a.talk); }).slice(0, 6).map(function (st) {
+        var sh = shopOf(st);
+        return { sec: 'いまのスタッフから抜てきする', label: st.name + '　技術' + st.tech + '・トーク' + st.talk, sub: (TRAITS[st.trait] ? TRAITS[st.trait].n + '　' : '') + 'いまは' + (sh ? shortShop(sh.name) : '本店') + '　やる気' + Math.round(st.mot || 60) + '　月給' + yen(payOf(st)), go: function () { openW({ st: st }); } };
+      }).concat(mgrCandsFor(k).map(function (cd) {
+        return { sec: '新しく採用する', label: cd.name + '　技術' + cd.tech + '・トーク' + cd.talk, sub: TRAITS[cd.trait].n + '　' + (nowYear() - (cd.born || nowYear() - 30)) + '歳　月給' + yen(cd.wage || baseWage(cd)), go: function () { openW({ cd: cd }); } };
+      })).concat([{ main: true, label: 'もどる', go: function () { conceptView(k, t); } }]));
+  }
+  function openBranch(k, free, concept, mgr) {
     var A = AREAS[k];
     if (!free) pay(openCost(A));
     var taken = {};
     allStaff().forEach(function (st) { taken[st.name] = true; });
     var b = { id: 'b' + (S.uid++), area: k, name: (S.brand ? S.brand + ' ' : '') + A.n, staff: [], rep: Math.min(90, Math.max(30, S.rep - 10) + (hqOn() ? Math.round(5 * deptPow('sdev')) : 0)), regs: [], interior: false, opened: S.week, last: null, sponsor: !!free, concept: concept || ((AREAFIT[k] || {}).g || ['relax'])[0] };
     S.shops.push(b);
-    var cd = genCand(taken, A.names, A.base || k);
-    if (A.tier !== 'local') { Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = Math.max(cd.sk[k], 3); }); skFix(cd); cd.wage = baseWage(cd) + 20000; }
-    hireTo(b, cd);
+    if (mgr && mgr.st) { removeStaff(mgr.st); b.staff.push(mgr.st); moodUp(mgr.st, 15, 10); if (S.mainMgr === mgr.st.id) S.mainMgr = null; }
+    else {
+      var cd = mgr && mgr.cd ? mgr.cd : genCand(taken, A.names, A.base || k);
+      if (!(mgr && mgr.cd) && A.tier !== 'local') { Object.keys(cd.sk).forEach(function (k) { cd.sk[k] = Math.max(cd.sk[k], 3); }); skFix(cd); cd.wage = baseWage(cd) + 20000; }
+      hireTo(b, cd);
+    }
     // 都心と海外は、開店時にスタッフを2人連れていく
     if (A.tier !== 'local') for (var e2 = 0; e2 < 2; e2++) hireTo(b, genCand(taken, A.names, A.base || k));
     if (A.hotel) { b.interiorLv = 2; b.hmem = []; }
@@ -6651,7 +6673,7 @@
       Object.keys(CONCEPTS).map(function (c) {
         var m = fitOf(k, c);
         return { label: CONCEPTS[c].n + '　' + fitText(m), sub: CONCEPTS[c].d, go: function () {
-          var b = openBranch(k, false, c); mxpAdd(50); markOpen(b); showCut(branchCut(b), function () { if (openLeft() && freeAreas().length) branchView(); else investView(); });
+          mgrPickView(k, t, c);
         } };
       }).concat([{ main: true, label: 'もどる', go: function () { branchView(t); } }]));
   }
@@ -7741,6 +7763,19 @@
       }).concat([{ main: true, label: 'もどる', go: investView }]));
   }
   function autoOf(p) { var A = S.autoStock || {}; return A[p.k] !== undefined ? A[p.k] : (S.autoAll || 0); }
+  // 自動補充しているのに売り切れた商品（月末に在庫0）。上限を上げるか確かめる
+  function soldOutAuto() { return S.stockAskWk === S.week ? [] : prods().filter(function (p) { return autoOf(p) > 0 && !(S.stock[p.k] > 0); }); }
+  function autoUpView() {
+    bar(); var L = soldOutAuto();
+    if (!L.length) return investView();
+    var up = function (p) { var n = autoOf(p); return n >= 30 ? n + 10 : n * 2; };
+    var setTo = function (p, n) { S.autoStock = S.autoStock || {}; S.autoStock[p.k] = n; };
+    view('<h1>自動補充の数を見直す</h1><p class="lead">今月、自動補充している商品が売り切れた。売り切れているあいだは、すすめても売れない。上限を上げると、毎月はじめにその数まで仕入れる（仕入れ代がかかる）。</p>',
+      [{ label: '売り切れた商品を、まとめて上げる', sub: L.map(function (p) { return p.n + ' ' + autoOf(p) + '個→' + up(p) + '個'; }).join('・'), rec: '売れる数に合わせると、売り逃しがなくなる', go: function () { L.forEach(function (p) { setTo(p, up(p)); }); S.stockAskWk = S.week; SFX.good(); investView(); } }]
+      .concat(L.map(function (p) { return { label: p.n + '　' + autoOf(p) + '個→' + up(p) + '個にする', sub: '仕入れ値 1個' + yen(costOf(p)), go: function () { setTo(p, up(p)); SFX.click(); autoUpView(); } }; }))
+      .concat([{ label: 'このままにする', sub: '今月は聞かない', go: function () { S.stockAskWk = S.week; investView(); } },
+        { main: true, label: '月末の画面にもどる', go: investView }]));
+  }
   function autoRestock() {
     var got = [], cost = 0;
     prods().forEach(function (p) {
@@ -8837,6 +8872,8 @@
       T.push(tl.length ? { t: 'スタッフの研修', s: 'あと' + tl.length + '店舗（' + tl.map(function (g2) { return shortShop(g2.name); }).join('・') + '）', go: function () { trainView(); } } : { t: 'スタッフの研修', s: '今月はすべての店舗で研修ずみ', done: true }); }
     var low = team.filter(function (st) { moodFix(st); return st.mot < 40; });
     if (low.length) T.push({ t: 'やる気が落ちているスタッフと過ごす', s: low.map(function (st) { return st.name; }).slice(0, 3).join('・') + (low.length > 3 ? 'ほか' : ''), go: careView });
+    var soA = soldOutAuto();
+    if (soA.length) T.push({ t: '自動補充の数を見直す', s: soA.map(function (p) { return p.n; }).join('・') + 'が売り切れた（自動補充 ' + soA.map(function (p) { return autoOf(p); }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join('・') + '個）。上限を上げる？', go: autoUpView });
     var lowStock = prods().filter(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); });
     if (lowStock.length) T.push({ t: '商品を仕入れる', s: '在庫が少ない：' + lowStock.map(function (p) { return p.n; }).join('・'), go: function () { stockView(); } });
     var wait = openWait(), L = mlv();
@@ -8881,7 +8918,7 @@
   // 出店や内装でスタッフの枠が増える → 採用 → 研修、の順にすると、研修が1回ですむ
   var TASKPRI = [[/^資金繰り/, 1, 10], [/^面談の申し出/, 1, 20], [/やる気が落ちている/, 1, 25], [/^本店の店長/, 1, 30], [/^社長のスタイル/, 2, 35], [/^社長に就任/, 2, 40],
     [/^新しい店舗/, 2, 50], [/^内装/, 2, 55], [/^スタッフを採用/, 2, 60], [/^本社で採用|^本社の採用/, 2, 62], [/^スタッフの研修/, 2, 70], [/^本社の研修/, 2, 72],
-    [/^商品を仕入れる/, 2, 80], [/^広告/, 2, 85], [/dot/, 2, 88], [/^(携帯電話|スマートフォン)/, 2, 89], [/^スタッフの話/, 3, 90], [/SNS/, 3, 92], [/^ライブ配信/, 3, 94], [/^年賀状/, 3, 95], [/^オリジナル/, 3, 96]];
+    [/^商品を仕入れる/, 2, 80], [/^自動補充/, 1, 81], [/^広告/, 2, 85], [/dot/, 2, 88], [/^(携帯電話|スマートフォン)/, 2, 89], [/^スタッフの話/, 3, 90], [/SNS/, 3, 92], [/^ライブ配信/, 3, 94], [/^年賀状/, 3, 95], [/^オリジナル/, 3, 96]];
   function taskPri(T) {
     T.forEach(function (x) {
       var r = TASKPRI.filter(function (q) { return q[0].test(x.t); })[0];
