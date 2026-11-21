@@ -5208,7 +5208,7 @@
       sub: S.queue.length && S.autoMode ? (S.ownerMale ? '特別なお客様には、オーナーとしてもてなしに出る' : '特別なお客様だけ、あなたが接客する') : '', go: S.queue.length ? nextCust : night }];
     if (S.queue.length) opts.push({ label: S.autoMode ? 'ひとりずつ自分で迎えるモードにする' : 'スタッフにおまかせにする',
       sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : S.ownerMale ? 'ふだんのお客様はスタッフが自動で接客。セレブや取材など特別なお客様には、あなたが担当を選び、もてなし方を決める' : 'セレブや取材など特別なお客様だけ自分で対応し、あとは自動で進む',
-      go: function () { S.autoMode = !S.autoMode; weekIntro(); } });
+      go: function () { S.autoMode = !S.autoMode; weekIntro(); }, rec: autoRec() });
     // 営業を始めるボタンを上に：要点と今月のお客様だけ上に置き、お知らせ・ミッション・できごとのふり返りはボタンの下へ
     var topH = '<h1>' + calOf(S.week) + '</h1>' + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') +
       '<p class="lead">今月のご来店 約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名・あなたが見届けるのは' + S.queue.length + '名</p>';
@@ -5219,6 +5219,16 @@
     $('app').insertAdjacentHTML('beforeend', eraText('<div class="below">' + belowH + '</div>'));
   }
 
+  // スタッフが育ち、店舗を広げる段階に入ったら、おまかせモードをすすめる
+  function autoRec() {
+    if (S.autoMode || !S.queue.length || S.week < 12) return '';
+    var team = S.staff.filter(function (st) { return !st.owner && !st.tired; });
+    if (team.length < 2) return '';
+    var tech = team.reduce(function (a, st) { return a + (st.tech || 0); }, 0) / team.length, mot = team.reduce(function (a, st) { return a + (st.mot || 0); }, 0) / team.length;
+    if (tech < 3 || mot < 45) return '';
+    if (!(S.shops.length || S.hq || mlv() >= 10)) return '';
+    return 'スタッフが育ってきた（技術 平均' + tech.toFixed(1) + '）。ふだんの接客はまかせて、出店や' + (S.hq ? '本社' : 'スタッフ育成') + 'に力を注ぐと、店舗展開が早くなる';
+  }
   /* --- 来店と担当決め --- */
   function nextCust() {
     evScene([]);
