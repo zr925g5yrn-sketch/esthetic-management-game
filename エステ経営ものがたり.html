@@ -7492,15 +7492,26 @@
     return want.filter(function (k) { return !deptN(k); });
   }
   // 人事にまかせる：必要な部署にだれもいなければ、毎月1人まで、その部署を目指す応募者を採用する
+  // 1人いても、増やすとまだ効果がある部署（効果が頭打ちになる人数まで）。役に立つ順に
+  var DEPTMAX = { sdev: 4, acct: 3, train: 4, eng: 2, comp: 2, online: 3, sns: 3, hr: 3 };
+  function moreDepts() {
+    if (!hqOn()) return [];
+    var y = eraY(), useful = {
+      sdev: freeAreas().length > 0, acct: (S.lastProfit || 0) > 0 || (S.yrNet || 0) > 0, train: allStaff().length >= 6, eng: y >= 1997 && Math.round(deptPow('eng')) < 2,
+      comp: y >= 2005 && 0.3 * deptPow('comp') < 0.6, online: !!S.eshop || y >= 2000, sns: true, hr: 0.2 * deptPow('hr') < 0.6 };
+    return ['sdev', 'acct', 'train', 'eng', 'comp', 'online', 'sns', 'hr'].filter(function (k) { return DEPT[k] && deptKeys().indexOf(k) >= 0 && deptN(k) >= 1 && deptN(k) < DEPTMAX[k] && useful[k]; });
+  }
   function autoHqHireMonth() {
     if (!S.autoHqHire || !deptN('hr') || !hqOn()) return '';
     var room = hqCap() - hqStaff().length, need = needDepts();
-    if (room <= 0 || !need.length || S.cash - HIRE - 300000 < trainReserve()) return '';
-    var list = hqCandsOf(false), k = need.filter(function (d) { return list.some(function (c) { return c.fit === d; }); })[0];
+    if (room <= 0 || S.cash - HIRE - 300000 < trainReserve()) return '';
+    // だれもいない部署が先。そろったら、増やすと効果がある部署へ（お金に余裕があるときだけ）
+    var more = !need.length && S.cash >= (homeRent() + wages()) * 4 ? moreDepts() : [];
+    var list = hqCandsOf(false), k = need.concat(more).filter(function (d) { return list.some(function (c) { return c.fit === d; }); })[0];
     if (!k) return '';
     var cd = list.filter(function (c) { return c.fit === k; })[0];
     pay(HIRE); var st = hqFromCand(cd, k); S.hq.staff.push(st); list.splice(list.indexOf(cd), 1); S.hqHireWk = S.week;
-    return '人事：本社の' + DEPT[k].n + 'に' + st.name + 'を採用';
+    return '人事：本社の' + DEPT[k].n + 'に' + st.name + 'を採用' + (need.indexOf(k) < 0 ? '（増やすと効果がある部署）' : '');
   }
   function hqFromCand(cd, k) {
     return { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, born: cd.born, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: false, hqsk: cd.hqsk, certs: cd.certs, prev: cd.prev, male: !!cd.male };
@@ -7519,9 +7530,9 @@
     var dOf = function (cd) { return cd.fit && DEPT[cd.fit] ? cd.fit : bestDept(cd); };
     list.sort(function (a, b) { return DK.indexOf(dOf(a)) - DK.indexOf(dOf(b)); });
     cardCands = list;
-    view('<h1>本社の採用' + '' + '</h1>' + deptGate('hr') + (deptN('hr') ? autoSeg('人事にまかせる', '必要な部署にだれもいなければ、毎月はじめに人事がその部署の人を1人採用する（家賃と給与の2か月分は残す）', 'autoHqHire', [[false, 'しない'], [true, '自動']]) : '') + deptNow() + '<p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。応募者は、部署ごとの求人に応募してきた人。採用すると、その部署に入る。' + '' + '</p>' +
+    view('<h1>本社の採用' + '' + '</h1>' + deptGate('hr') + (deptN('hr') ? autoSeg('人事にまかせる', '毎月はじめに人事が1人採用する。だれもいない部署が先で、そろったら、増やすと効果がある部署（店舗開発・経理・教育研修など）に足していく（お金に余裕があるときだけ）', 'autoHqHire', [[false, 'しない'], [true, '自動']]) : '') + deptNow() + '<p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。応募者は、部署ごとの求人に応募してきた人。採用すると、その部署に入る。' + '' + '</p>' +
       (note ? '<div class="news good">' + note + '</div>' : '') + '<div class="cdlist">' + list.map(function (cd, i) {
-        var dk = dOf(cd), head = i === 0 || dOf(list[i - 1]) !== dk ? '<h3 class="cdgrp">' + DEPT[dk].n + 'の求人<small>いま' + deptN(dk) + '人' + (deptN(dk) ? '' : '・だれもいない') + '　必要な力：' + needSk(dk) + '</small></h3>' : '';
+        var dk = dOf(cd), head = i === 0 || dOf(list[i - 1]) !== dk ? '<h3 class="cdgrp">' + DEPT[dk].n + 'の求人<small>いま' + deptN(dk) + '人' + (deptN(dk) ? (moreDepts().indexOf(dk) >= 0 ? '・増やすと効果あり' : '・いまの人数で十分') : '・だれもいない') + '　必要な力：' + needSk(dk) + '</small></h3>' : '';
         return head + '<div class="cdcard"><canvas width="120" height="126" data-cid="' + i + '" aria-hidden="true"></canvas><div class="cdinfo">' +
           '<b class="nm">' + cd.name + (cd.born ? '<small class="ag">' + (nowYear() - cd.born) + '歳</small>' : '') + (cd.male ? '<span class="mk">男性</span>' : '') + '</b><span class="tr">前職：' + cd.prev + '</span>' +
           '<span class="row"><span class="lb">資格</span>' + certText(cd) + '</span>' +
