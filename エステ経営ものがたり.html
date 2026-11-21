@@ -93,6 +93,7 @@
   .snsbox .left b { color: var(--ink); font-size: 1rem; }
   .tgl { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 10px 12px; }
   .dnow { margin: 0 0 12px; padding: 10px 12px; } .dnow ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 2px; } .dnow li + li { border-top: 1px dashed var(--line); padding-top: 2px; } .dnow li { display: flex; justify-content: space-between; gap: 6px; font-size: .85rem; } .dnow li.none b { color: var(--accent); } .dnow li b { font-weight: 700; white-space: nowrap; }
+  .below { margin-top: 14px; } .below > * + * { margin-top: 10px; }
   .tgl.stack { flex-direction: column; align-items: stretch; } .tgl.stack .seg { align-self: flex-start; }
   .tgl b { display: block; font-size: .95rem; }
   .tgl small { display: block; font-size: .76rem; color: var(--sub); line-height: 1.45; }
@@ -5087,7 +5088,14 @@
     if (S.queue.length) opts.push({ label: S.autoMode ? 'ひとりずつ自分で迎えるモードにする' : 'スタッフにおまかせにする',
       sub: S.autoMode ? 'すべてのお客様を、担当決めから自分で進める' : S.ownerMale ? 'ふだんのお客様はスタッフが自動で接客。セレブや取材など特別なお客様には、あなたが担当を選び、もてなし方を決める' : 'セレブや取材など特別なお客様だけ自分で対応し、あとは自動で進む',
       go: function () { S.autoMode = !S.autoMode; weekIntro(); } });
-    view(head + list, opts);
+    // 営業を始めるボタンを上に：要点と今月のお客様だけ上に置き、お知らせ・ミッション・できごとのふり返りはボタンの下へ
+    var topH = '<h1>' + calOf(S.week) + '</h1>' + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') +
+      '<p class="lead">今月のご来店 約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名・あなたが見届けるのは' + S.queue.length + '名</p>';
+    var recap = (life ? 1 : 0) + (sev ? 1 : 0) + (ev ? 1 : 0);
+    var belowH = (S.holNote && !S.holShown ? holBox() : '') + (S.lotNote ? '<div class="news good"><b>お年玉付き年賀はがきの当選発表</b><br>' + S.lotNote + '</div>' : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') +
+      missionBox() + news + (recap ? '<details class="fold"><summary>今月のできごと（' + recap + '）</summary>' + life + sev + ev + '</details>' : '');
+    view(topH + list, opts);
+    $('app').insertAdjacentHTML('beforeend', '<div class="below">' + belowH + '</div>');
   }
 
   /* --- 来店と担当決め --- */
