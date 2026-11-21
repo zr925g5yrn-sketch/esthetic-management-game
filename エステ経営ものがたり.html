@@ -92,6 +92,7 @@
   .snsbox .left { margin: 2px 0 0; font-size: .82rem; color: var(--sub); }
   .snsbox .left b { color: var(--ink); font-size: 1rem; }
   .tgl { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 10px 12px; }
+  .dnow { margin: 0 0 12px; padding: 10px 12px; } .dnow ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 2px; } .dnow li + li { border-top: 1px dashed var(--line); padding-top: 2px; } .dnow li { display: flex; justify-content: space-between; gap: 6px; font-size: .85rem; } .dnow li.none b { color: var(--accent); } .dnow li b { font-weight: 700; white-space: nowrap; }
   .tgl.stack { flex-direction: column; align-items: stretch; } .tgl.stack .seg { align-self: flex-start; }
   .tgl b { display: block; font-size: .95rem; }
   .tgl small { display: block; font-size: .76rem; color: var(--sub); line-height: 1.45; }
@@ -7040,18 +7041,25 @@
     }
     return S.hqCands[key];
   }
+  // いまの部署ごとの人数（だれもいない部署が分かるように）
+  function deptNow() {
+    return '<div class="dnow box"><b>いまの部署</b><ul>' + Object.keys(DEPT).map(function (k) {
+      var n = deptN(k), bu = hqStaff().some(function (st) { return st.dept === k && isBucho(st); });
+      return '<li class="' + (n ? '' : 'none') + '"><span>' + DEPT[k].n + '</span><b>' + (n ? n + '人' + (bu ? '・部長' : '') : 'だれもいない') + '</b></li>';
+    }).join('') + '</ul></div>';
+  }
   function hqHireView(dis, note) {
     dis = false;  // 障害者雇用は廃止
     bar();
     var list = hqCandsOf(dis), L = HQLV[S.hq.lv - 1], room = L.cap - hqStaff().length;
     cardCands = list;
-    view('<h1>本社の採用' + '' + '</h1><p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用するときに部署を決める。' + '' + '</p>' +
+    view('<h1>本社の採用' + '' + '</h1>' + deptNow() + '<p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用するときに部署を決める。' + '' + '</p>' +
       (note ? '<div class="news good">' + note + '</div>' : '') + '<div class="cdlist">' + list.map(function (cd, i) {
         return '<div class="cdcard"><canvas width="120" height="126" data-cid="' + i + '" aria-hidden="true"></canvas><div class="cdinfo">' +
           '<b class="nm">' + cd.name + (cd.born ? '<small class="ag">' + (nowYear() - cd.born) + '歳</small>' : '') + (cd.male ? '<span class="mk">男性</span>' : '') + '</b><span class="tr">前職：' + cd.prev + '</span>' +
           '<span class="row"><span class="lb">資格</span>' + certText(cd) + '</span>' +
           '<span class="row sk">' + hqSkText(cd) + '</span>' +
-          '<span class="row"><span class="lb">向く部署</span>' + DEPT[bestDept(cd)].n + '</span>' +
+          '<span class="row"><span class="lb">向く部署</span>' + DEPT[bestDept(cd)].n + '（いま' + deptN(bestDept(cd)) + '人）' + (deptN(bestDept(cd)) ? '' : '<span class="mk">空き</span>') + '</span>' +
           '<span class="row"><span class="lb">月給</span>' + yen(cd.wage) + '</span></div>' +
           '<button type="button" class="cdhire" data-hire="' + i + '"' + (S.cash < HIRE || room <= 0 ? ' disabled' : '') + '>採用する<small>' + yen(HIRE) + '</small></button></div>';
       }).join('') + '</div>',
