@@ -7028,7 +7028,7 @@
     view('<h1>本社に異動させる</h1><p class="lead">本店の店長と、1人しかいない店のスタッフは異動できない。</p>', list.map(function (st) {
       var sh = shopOf(st);
       return { label: st.name + '（' + (sh ? sh.name : '本店') + '）', sub: TRAITS[st.trait].n + '　' + moodText(st) + (hurt(st) ? '　手を痛めている' : '') + '　相性：' + fitMark(shopFit(st, sh)), go: function () {
-        deptPick(function (k) { var src = sh ? sh.staff : S.staff; src.splice(src.indexOf(st), 1); st.dept = k; st.hurtUntil = 0; st.hand = 0; st.leader = false; S.hq.staff.push(st); moodUp(st, 10, 5); SFX.hire(); hqView(st.name + 'が本社の' + DEPT[k].n + 'に異動した。'); });
+        deptPick(function (k) { var src = sh ? sh.staff : S.staff; src.splice(src.indexOf(st), 1); st.dept = k; st.hurtUntil = 0; st.hand = 0; st.leader = false; st.fromShop = true; S.hq.staff.push(st); moodUp(st, 10, 5); SFX.hire(); hqView(st.name + 'が本社の' + DEPT[k].n + 'に異動した。'); });
       } };
     }).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
@@ -7093,7 +7093,9 @@
   }
   function hqStaffView(st) {
     bar();
-    var rooms = [null].concat(S.shops).filter(function (sh) { return (sh ? sh.staff : S.staff).length < maxOf(sh); });
+    // 店舗から来た人だけ、店舗に戻せる（最初から本社で雇った人は、接客の経験がないので戻さない）
+    var canBack = st.fromShop || !st.prev;
+    var rooms = canBack ? [null].concat(S.shops).filter(function (sh) { return (sh ? sh.staff : S.staff).length < maxOf(sh); }) : [];
     view('<h1>' + st.name + '</h1><p class="lead">' + DEPT[st.dept].n + '　月給' + yen(payOf(st)) + '<br>' + hqSkText(st) + '<br>資格：' + certText(st) + (st.prev ? '　前職：' + st.prev : '') + '</p>',
       [{ label: '部署を変える', go: function () { deptPick(function (k) { st.dept = k; hqView(st.name + 'が' + DEPT[k].n + 'に移った。'); }); } }]
       .concat(rooms.map(function (sh) { return { label: (sh ? sh.name : '本店') + 'に戻す', sub: '接客の現場にもどる　相性：' + fitMark(shopFit(st, sh)), go: function () {
@@ -7714,7 +7716,7 @@
          go: act(20000, 25, 0, '「えっ、いいんですか！ がんばります！」', null, 'v_gift') },
        { label: '来月は休みをあげる', sub: '来月は接客しない' + (used ? '（今月はもう、ごほうびをあげた）' : ''), off: used,
          go: act(0, 20, 0, '「ありがとうございます、リフレッシュしてきます」', function () { st.restWeek = S.week + 1; }) },
-       hqStaff().indexOf(st) >= 0 ? { label: '部署を変える・店舗に戻す', sub: DEPT[st.dept] ? 'いまは' + DEPT[st.dept].n : '', go: function () { hqStaffView(st); } } : promoOpt(st), hqStaff().indexOf(st) >= 0 ? null : mgrOpt(st),
+       hqStaff().indexOf(st) >= 0 ? { label: st.fromShop || !st.prev ? '部署を変える・店舗に戻す' : '部署を変える', sub: DEPT[st.dept] ? 'いまは' + DEPT[st.dept].n : '', go: function () { hqStaffView(st); } } : promoOpt(st), hqStaff().indexOf(st) >= 0 ? null : mgrOpt(st),
        hqStaff().indexOf(st) >= 0 ? null : { label: '別の店舗に移す', sub: 'いまの店との相性：' + fitMark(shopFit(st, shopOf(st))) + (S.shops.length ? '' : '（店舗が1つだけなので移せない）'), off: !S.shops.length, go: function () { moveView(st); } },
        hurt(st) ? { label: '病院に通わせる　' + yen(30000), sub: '手の痛み（腱鞘炎）が早く治る。あと' + (st.hurtUntil - S.week) + 'か月', off: S.cash < 30000 || st.cureWeek === S.week,
          go: function () { pay(30000); st.cureWeek = S.week; st.hurtUntil = Math.max(S.week, st.hurtUntil - 2); moodUp(st, 5, 5); SFX.good(); careStaff(st, st.name + 'を病院に通わせた。痛みがだいぶ楽になったようだ。'); } } : null,
