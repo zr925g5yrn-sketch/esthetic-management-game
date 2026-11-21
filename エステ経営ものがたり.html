@@ -264,6 +264,7 @@
   .olist > button:active:not(:disabled), details.fold.grp > .opts > button:active:not(:disabled) { transform: none; box-shadow: none; background: var(--chip); }
   .olist > button.picked, details.fold.grp > .opts > button.picked { background: var(--chip); }
   .cinlogo { margin: -6px 0 8px; font: italic 700 1.05rem Georgia, 'Times New Roman', serif; letter-spacing: .06em; color: #B0623A; }
+  button.hqbtn { box-shadow: inset 6px 0 0 #6C5AA8; } button.hqbtn b { font-size: 1.12rem; } button.hqbtn b::before { content: '■ '; color: #6C5AA8; }
   button.rec { position: relative; background: #E8F5EC !important; box-shadow: inset 4px 0 0 #3E9E6A; }
   button.rec .rectag { display: inline-block; margin: 0 0 3px; padding: 0 6px; font-size: .68rem; line-height: 1.6; background: #3E9E6A; color: #FFFFFF; }
   button.rec .recwhy { display: block; color: #2E7A50 !important; font-size: .76rem; }
@@ -3018,7 +3019,7 @@
     });
   }
   function view(html, opts, cls) {
-    onTitle = false; menuEra();
+    onTitle = false; menuEra(); opts = (opts || []).filter(Boolean);
     var app = $('app');
     // 選択肢が多い画面は、上にも「もどる」を出す
     var bk = (opts || []).filter(function (o) { return o.topBack && !o.off; })[0] || ((opts || []).length >= 6 ? (opts || []).filter(function (o) { return !o.off && /もどる/.test(o.label); }).slice(-1)[0] : null);
@@ -3046,7 +3047,7 @@
       }
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = (o.main ? 'main' : '') + (o.picked ? ' picked' : '') + (o.rec && !o.off ? ' rec' : '');
+      b.className = (o.main ? 'main' : '') + (o.picked ? ' picked' : '') + (o.rec && !o.off ? ' rec' : '') + (o.cls ? ' ' + o.cls : '');
       b.innerHTML = (o.rec && !o.off ? '<span class="rectag">おすすめ</span>' : '') + '<b></b>' + (o.sub ? '<small class="osub"></small>' : '') + (o.rec && !o.off ? '<small class="recwhy"></small>' : '');
       b.querySelector('b').textContent = eraText(o.label);
       if (o.sub) b.querySelector('.osub').textContent = eraText(o.sub);
@@ -8013,61 +8014,60 @@
     var TK = monthTasks(); h = shopSwitch() + h + (S.trainNote ? '<div class="news good">' + S.trainNote + '</div>' : '') + earlyTip() + taskBox(TK) + missionBox(); S.trainNote = null;
     var burnR = homeRent() + wages() + adCost() + cinCost();
     var opts = [
-      { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: '在庫 ' + prods().map(function (p) { return p.n + S.stock[p.k]; }).join('　'), go: stockView },
-      { label: '研修と自主練習', sub: '店舗ごとに月1回。気質に合う教え方ほど伸びる。レベル5の先は毎月自動で練習して神技・神対応へ', go: function () { trainView(); } },
-      { label: 'スタッフを採用する　' + yen(HIRE), sub: !roomAny() ? 'どの店舗もこれ以上は雇えない' : '受け入れられるお客様が増える。給与がかかる',
+      { label: '商品を仕入れる' + (S.sale ? '（今月は半額）' : ''), sub: (function () { var lo = prods().filter(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); }).length; return lo ? '⚠在庫が少ない商品が' + lo + 'つ' : (S.autoAll ? '自動補充：' + S.autoAll + '個' : ''); })(), go: stockView },
+      { label: '研修と自主練習', sub: (function () { var tl = tGroups().filter(function (g2) { return g2.mem.length && !tDone(g2.key); }).length; return S.autoTrain && deptN('train') ? '自動' : tl ? '今月あと' + tl + '店舗' : '今月はすんだ'; })(), go: function () { trainView(); } },
+      { label: 'スタッフを採用する　' + yen(HIRE), sub: !roomAny() ? 'どの店舗も満員' : '空きあり',
         off: !roomAny() || S.cash < HIRE, go: hireView, rec: S.turnedWk && roomAny() && S.cash >= HIRE + burnR ? '予約をお断りしている。スタッフを増やせば、その分の売上が入る' : '' }
     ];
-    opts.push({ label: '料金の方針：' + pm().n, sub: pm().d, go: priceView });
-    if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店　' : '') + '会社を大きくする', go: function () { stratView(); } });
+    opts.push({ label: '料金の方針：' + pm().n, go: priceView });
+    if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店' : ''), go: function () { stratView(); } });
     // 出店のおすすめは、いま本当に出店できるときだけ（前の出店の準備期間中は出さない）
     var minBr = (function () { if (S.lastOpen && OPENGAP - (S.week - S.lastOpen) > 0) return 0; var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
-    opts.push({ label: '資金調達と返済', sub: '借入の残り ' + yen(loanRest()) + '　銀行からの追加融資・繰り上げ返済', go: function () { fundView(); },
+    opts.push({ label: '資金調達と返済', sub: loanRest() ? '借入の残り ' + yen(loanRest()) : '', go: function () { fundView(); },
       rec: S.cash < burnR * 2 ? '資金が心細い。借りて立て直すと、赤字の月も乗り切れる' : (minBr && S.cash < minBr + burnR * 3 && S.cash >= burnR * 3 && !loanRest() && S.week >= 6) ? '銀行から借りると、2店舗目を早く出せる。お店が増えるほど、会社の成長が早まる' : '' });
-    if (cinOn()) opts.push({ label: '集客サイト：コールドシナモン（' + CINPLAN[cinFix().plan].n + (cinFix().cpn ? '・クーポンあり' : '') + '）', sub: 'cold cinnamon。ネット予約サイトに掲載して新規を集める　星★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
-      rec: !cinFix().plan && S.cash >= burnR * 3 ? 'ネットでサロンを探して予約する人が増えている。掲載すると新規が安定して来る' : '' });
-    opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: ADLV[S.adLv || 0].d + (adCost() ? '　月' + yen(adCost()) : ''), go: adView, rec: !(S.adLv || 0) && !S.turnedWk && S.week >= 2 && S.cash >= burnR * 4 ? '新規のお客様が増えると、常連さんとコースの売上も育つ' : '' });
-    if (S.hq) opts.unshift({ label: '本社（' + HQLV[S.hq.lv - 1].n + '）', sub: '部署・本社のスタッフ・本社の移転・本店の店長', go: function () { hqView(); } });
-    opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : (S.myProds.length >= MAXMINE ? '枠がいっぱい（廃番にすると作れる）' : 'オリジナル商品を作る（' + S.myProds.length + '／' + MAXMINE + '）'),
+    if (cinOn()) opts.push({ label: 'コールドシナモン：' + CINPLAN[cinFix().plan].n.replace('プラン', '') + (cinFix().cpn ? '・クーポン' : ''), sub: '★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
+      rec: !cinFix().plan && S.cash >= burnR * 3 ? 'ネットで予約する人が増えている。新規が安定する' : '' });
+    opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: adCost() ? '月' + yen(adCost()) : '', go: adView, rec: !(S.adLv || 0) && !S.turnedWk && S.week >= 2 && S.cash >= burnR * 4 ? '新規が増えると、常連とコースも育つ' : '' });
+    opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : ('オリジナル ' + S.myProds.length + '／' + MAXMINE + '品'),
       go: devView });
-    opts.push({ label: 'サロンランキングと実績', sub: '年間売上のライバル比較　実績 ' + Object.keys(S.ach || {}).length + '／' + ACH.length, go: function () { view('<h1>ランキングと実績</h1>', [{ label: 'サロンランキング（途中経過）', go: rankView }, { label: '実績', go: achView }, { main: true, label: 'もどる', go: investView }]); } });
-    opts.push({ label: 'SNSで発信する', sub: 'フォロワー ' + fmtN(snsFix().f) + '人　今月あと' + snsLeft() + '回', go: function () { snsView(); } });
-    if (S.shops.length || S.ph) opts.push({ label: '各店舗を見に行く', sub: '内装や、働いているスタッフの様子を見る', go: function () { visitView(S.shops[0] || 'ph'); } });
-    if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: '近所・都心・海外。いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); }, rec: minBr && S.cash >= minBr + burnR * 3 ? '出店できるだけの資金がある。お店が増えると、売上が大きく伸びる' : '' });
+    opts.push({ label: 'サロンランキングと実績', sub: '実績 ' + Object.keys(S.ach || {}).length + '／' + ACH.length, go: function () { view('<h1>ランキングと実績</h1>', [{ label: 'サロンランキング（途中経過）', go: rankView }, { label: '実績', go: achView }, { main: true, label: 'もどる', go: investView }]); } });
+    opts.push({ label: 'SNSで発信する', sub: S.autoSns && deptN('sns') ? '広報にまかせている' : '今月あと' + snsLeft() + '回', go: function () { snsView(); } });
+    if (S.shops.length || S.ph) opts.push({ label: '各店舗を見に行く', go: function () { visitView(S.shops[0] || 'ph'); } });
+    if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: 'いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); }, rec: minBr && S.cash >= minBr + burnR * 3 ? '資金は十分。お店が増えると売上が大きく伸びる' : '' });
     opts = opts.concat(phOpts()).concat(koboOpts());
     var renoLeft = [null].concat(S.shops).filter(function (sh) { return (sh ? (sh.interiorLv || 0) : (S.interiorLv || 0)) < MAXINT; });
     if (renoLeft.length) opts.push({ label: '内装のアップデート', sub: renoLeft.map(function (sh) { return (sh ? shortShop(sh.name) : '本店') + ' ' + (sh ? sh.interiorLv || 0 : S.interiorLv || 0) + '／' + MAXINT; }).join('・'), go: renoView });
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (team.length) { team.forEach(moodFix); var low = team.filter(function (st) { return st.mot < 30; }).length;
-      opts.splice(4, 0, { label: 'スタッフと過ごす', sub: low ? 'やる気が落ちている人が' + low + '人いる' : 'ご飯に誘う、面談、ボーナス、休み', go: careView }); }
-    if (S.ekarte !== 2 && eraY() >= 2000) opts.push(S.ekarte ? { label: '電子カルテのセキュリティを強化する　' + yen(60000), sub: '情報漏洩をしっかり防ぐ', off: S.cash < 60000, go: function () { pay(60000); S.ekarte = 2; SFX.hire(); investView(); } }
-      : { label: '電子カルテを導入する　' + yen(80000), sub: '常連の好みや経過を全員で共有。常連の満足度とコースの決まりやすさが上がる', off: S.cash < 80000, go: function () { pay(80000); S.ekarte = 1; SFX.hire(); investView(); } });
+      opts.splice(4, 0, { label: 'スタッフと過ごす', sub: low ? '⚠やる気が落ちている人が' + low + '人' : '', go: careView }); }
+    if (S.ekarte !== 2 && eraY() >= 2000) opts.push(S.ekarte ? { grp: '設備と機械', label: '電子カルテのセキュリティを強化する　' + yen(60000), sub: '情報漏洩をしっかり防ぐ', off: S.cash < 60000, go: function () { pay(60000); S.ekarte = 2; SFX.hire(); investView(); } }
+      : { grp: '設備と機械', label: '電子カルテを導入する　' + yen(80000), sub: '常連の好みや経過を全員で共有。常連の満足度とコースの決まりやすさが上がる', off: S.cash < 80000, go: function () { pay(80000); S.ekarte = 1; SFX.hire(); investView(); } });
     INVEST.forEach(function (v) {
-      if (!invOn(v.k) && !S[v.k]) return opts.push({ label: v.n, sub: (INVYEAR[v.k]) + '年ごろに登場する', off: true, go: function () {} });
+      if (!invOn(v.k) && !S[v.k]) return opts.push({ grp: '設備と機械', label: v.n, sub: (INVYEAR[v.k]) + '年ごろに登場する', off: true, go: function () {} });
       if (MACHGEN[v.k] && S[v.k]) {
         var mx = machFix()[v.k], yrs = Math.floor((S.week - mx.wk) / 12) + 1, old = curGen(v.k) > mx.gen || S.week - mx.wk >= 72;
-        return opts.push({ label: v.n + '（' + genName(v.k, mx.gen) + '・' + yrs + '年目）' + (old ? '　買い替え ' + yen(v.price) : ''), sub: old ? (curGen(v.k) > mx.gen ? '新しい型が出ている。買い替えると満足度が上がる' : '古くなってきた。8年をこえると壊れやすい') : '最新の状態で使えている', off: !old || S.cash < v.price,
+        return opts.push({ grp: '設備と機械', label: v.n + '（' + genName(v.k, mx.gen) + '・' + yrs + '年目）' + (old ? '　買い替え ' + yen(v.price) : ''), sub: old ? (curGen(v.k) > mx.gen ? '新しい型が出ている。買い替えると満足度が上がる' : '古くなってきた。8年をこえると壊れやすい') : '最新の状態で使えている', off: !old || S.cash < v.price,
           go: function () { pay(v.price); buyMach(v.k); SFX.hire(); investView(); } });
       }
-      opts.push({ label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: S[v.k] || S.cash < v.price, go: function () {
+      opts.push({ grp: '設備と機械', label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: S[v.k] || S.cash < v.price, go: function () {
         pay(v.price); if (MACHGEN[v.k]) buyMach(v.k); else S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
       } });
     });
-    opts.push({ label: 'お店と会社の名前を変える', sub: 'いま：' + (S.brand || '（未設定）') + (S.company ? '／' + S.company : '') + '　支店の名前もまとめて変わる', go: nameView });
+    opts.push({ label: 'お店と会社の名前を変える', go: nameView });
     if (S.holAuto) opts.push({ label: 'お休みの過ごし方：おまかせ', sub: '自分で選ぶようにもどす', go: function () { S.holAuto = false; SFX.click(); investView(); } });
-    opts.push({ label: '公式dot.を見る', sub: 'お客様と取引先からの連絡。AIに返信を任せる：' + (S.dotAI !== false ? 'ON' : 'OFF'), go: function () { dotView(true); } });
-    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末やブラウザに引き継ぐ。アプリの中のブラウザで遊ぶときのお守りに', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
-    if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', sub: 'ここまでの' + S.week + 'か月の成績をまとめて、このお店の物語を終える', go: closingConfirm });
+    opts.push({ label: '公式dot.を見る', sub: (S.dotAI !== false ? 'AIが返信中' : ''), go: function () { dotView(true); } });
+    opts.push({ label: 'セーブコードを書き出す（セーブ' + SLOT + '）', sub: '別の端末に引き継ぐ', go: function () { saveGame('night'); codeOut(SLOT, investView); } });
+    if (S.endless) opts.push({ label: '店じまいして、最終結果を見る', go: closingConfirm });
     // メニューを3つにまとめて、月末画面を短くする
     var CAT = { staff: [], shop: [], other: [] };
     opts.forEach(function (o) {
       var l = o.label;
       if (/研修|採用|スタッフと過ごす/.test(l)) CAT.staff.push(o);
-      else if (/工房|仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|集客サイト|本社|資金調達|経営戦略/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
+      else if (/工房|仕入れ|内装|店舗|ペントハウス|カルテ|導入済み|マシン|キャビ|取り扱い|ヘッドスパ|痩身|料金の方針|商品開発|広告|集客サイト|コールドシナモン|本社|資金調達|経営戦略/.test(l) || INVEST.some(function (v) { return l.indexOf(v.n) === 0; })) CAT.shop.push(o);
       else CAT.other.push(o);
     });
     var TITLES = { staff: 'スタッフ', shop: 'お店づくり', other: '発信・記録・そのほか' };
-    var SECOF = function (l) { return /本社|料金の方針|経営戦略|資金調達|広告|集客サイト|名前/.test(l) ? '経営' : /工房|仕入れ|商品開発|内装|店舗|ペントハウス|ホテル/.test(l) ? 'お店と商品' : '設備・機械'; };
+    var SECOF = function (l) { return /本社|料金の方針|経営戦略|資金調達|広告|集客サイト|コールドシナモン|名前/.test(l) ? '経営' : /工房|仕入れ|商品開発|内装|店舗|ペントハウス|ホテル/.test(l) ? 'お店と商品' : '設備・機械'; };
     CAT.shop.forEach(function (o) { o.sec = SECOF(o.label); });
     var SO = { '経営': 0, 'お店と商品': 1, '設備・機械': 2 };
     CAT.shop = CAT.shop.map(function (o, i) { return [o, i]; }).sort(function (a, b) { return SO[a[0].sec] - SO[b[0].sec] || a[1] - b[1]; }).map(function (x) { return x[0]; });
@@ -8076,14 +8076,15 @@
       view('<h1>' + TITLES[key] + '</h1>', CAT[key].concat([{ main: true, label: '月末の画面にもどる', go: function () { curCat = null; investView(); } }]));
     };
     if (curCat && CAT[curCat]) return catView(curCat);
-    var catRec = function (k) { var r = CAT[k].filter(function (o) { return o.rec && !o.off; })[0]; return r ? '「' + r.label.split('　')[0].replace(/：.*$/, '') + '」' + r.rec : ''; };
+    var catRec = function (k) { var r = CAT[k].filter(function (o) { return o.rec && !o.off; })[0]; return r ? '「' + r.label.split('　')[0].replace(/[：（].*$/, '') + '」がおすすめ' : ''; };
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
     view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
       S.shops.length ? [{ label: '来月の営業店舗：' + shortShop(nx ? nx.name : homeName()), sub: 'あなたが店に立つ店舗を切り替える', go: opView }] : []).concat([
-      { label: 'スタッフ', sub: '採用・研修・スタッフと過ごす' + (lowN ? '　⚠やる気が落ちている人が' + lowN + '人' : '') + (roomAny() ? '　採用の空きあり' : ''), go: function () { catView('staff'); }, rec: catRec('staff') },
-      { label: 'お店づくり', sub: '仕入れ・料金・商品開発・内装・出店・機械' + (prods().some(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); }) ? '　⚠在庫が少ない商品あり' : ''), go: function () { catView('shop'); }, rec: catRec('shop') },
-      { label: '発信・記録・そのほか', sub: (snsOn() ? 'SNS' : 'お店の宣伝') + '（今月あと' + snsLeft() + '回）・ランキングと実績・各店舗を見に行く・セーブコード', go: function () { catView('other'); }, rec: catRec('other') }]));
+      S.hq ? { label: '本社', sub: (function () { var hs = hqStaff(), w = []; if (hs.length && S.hqTrainWk !== S.week && !(S.autoHqTrain && deptN('train'))) w.push('研修まだ'); var rm = hqCap() - hs.length; if (rm > 0) w.push('採用の空き' + rm + '人'); var em = Object.keys(DEPT).filter(function (k) { return !deptN(k); }).length; if (em) w.push('だれもいない部署' + em + 'つ'); return w.join('・') || 'スタッフ' + hs.length + '人'; })(), go: function () { curCat = null; hqView(); }, cls: 'hqbtn' } : null,
+      { label: 'スタッフ', sub: [lowN ? '⚠やる気が落ちている人が' + lowN + '人' : '', roomAny() ? '採用の空きあり' : ''].filter(Boolean).join('・'), go: function () { catView('staff'); }, rec: catRec('staff') },
+      { label: 'お店づくり', sub: prods().some(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); }) ? '⚠在庫が少ない商品あり' : '', go: function () { catView('shop'); }, rec: catRec('shop') },
+      { label: '発信・記録・そのほか', sub: S.autoSns && deptN('sns') ? '' : (snsOn() ? 'SNS' : 'お店の宣伝') + 'あと' + snsLeft() + '回', go: function () { catView('other'); }, rec: catRec('other') }]));
     $('app').insertAdjacentHTML('beforeend', below);
     taskBind(TK); shopSwBind();
   }
