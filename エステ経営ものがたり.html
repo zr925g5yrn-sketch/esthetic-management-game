@@ -8690,7 +8690,7 @@
       reps: [{ t: 'うれしいです！ 来月のご予約、お取りしましょうか？', fx: 'book', res: 'ぜひお願いします！ 楽しみにしています。' }, { t: '（ありがとうのスタンプ）', fx: 'loy', res: '（にっこりのスタンプ）' }] }); }
     var low = crew.filter(function (st) { return (st.mot || 60) < 45; });
     if (low.length) { var st = pick(low); C2.push({ kind: 'staffLow', from: st.name, sid: st.id, w: 4,
-      lines: [{ t: '店長、少しお時間いいですか…。' }, { t: sayOf(st, 'low') + '。' }],
+      lines: [{ t: '店長、少しお時間いいですか…。' }, { t: lowReason(st) + '…。' + sayOf(st, 'low') + '。' }],
       reps: [{ t: 'いつもありがとう。明日ゆっくり話そう。', fx: 'moodBig', res: 'ありがとうございます。少し気が楽になりました。' }, { t: '大丈夫！ 一緒にがんばろう！', fx: 'moodSmall', res: '…はい、がんばります。' }] }); }
     var high = crew.filter(function (st) { return (st.mot || 60) >= 70; });
     if (high.length) { var sh = pick(high); C2.push({ kind: 'staffHigh', from: sh.name, sid: sh.id, w: 2,
@@ -9264,6 +9264,17 @@
     mypace:   { hi: 'この仕事、天職かもしれないです', mid: 'まあ、なんとかなりますよ', low: 'ちょっとペースを落としたいかも', vlow: '……しばらく、ひとりにしてほしいです' },
     shokunin: { hi: '新しい手技、だいぶ手になじんできました', mid: '手で覚えるのが一番です', low: '最近、手が思うように動かなくて', vlow: '……もう、向いてないのかも' }
   };
+  // やる気が落ちているわけ（具体的に）
+  function lowReason(st) {
+    var fr = frictionOf(st), rv = fr.filter(function (x) { return x.k === 'rival'; })[0];
+    if (hurt(st)) return 'このところ' + (st.hurtPart || '手') + 'が痛くて、施術のたびにつらいんです';
+    if (st.tired || (capOf(st) > 0 && (st.used || 0) >= capOf(st))) return '予約がずっとぎっしりで、疲れがなかなか抜けなくて';
+    if (rv) return 'ライバルの' + rv.who.name + 'さんと、どうしても息が合わなくて';
+    if (fr.some(function (x) { return x.k === 'fit'; })) return 'お店の雰囲気に、なかなかなじめなくて';
+    if ((st.trust || 50) < 35) return '最近、ちゃんと見てもらえているのか、ちょっと不安で';
+    if ((st.tech || 1) >= 4) return '仕事には慣れたんですけど、このごろ新しい目標が見つからなくて';
+    return 'このごろ、自分が成長している気がしなくて';
+  }
   function sayOf(st, lv) { return (SAYT[temperOf(st)] || SAYT.sunao)[lv]; }
   // 相性：組み合わせごとに決まる（仲良し・ライバル）
   function relOf(a, b) { if (!a || !b || a === b || a.owner || b.owner) return null; var ids = [String(a.id), String(b.id)].sort(), h = hashOf(ids.join('|')) % 9; return h <= 1 ? 'pal' : h === 2 ? (S && S.mended && S.mended[ids.join('|')] ? null : 'rival') : null; }
