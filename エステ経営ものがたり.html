@@ -7437,9 +7437,14 @@
       .concat([{ main: true, label: '本社の画面にもどる', go: function () { hqView(); } }]));
     autoSegBind(function () { hqTrainView(); });
   }
-  function deptPick(then) {
+  // 部署を選ぶ。st を渡すと、その人の本社での力（接客で身につけた力から決まる）と、向いている部署が分かる
+  function deptPick(then, st) {
     bar();
-    view('<h1>部署を選ぶ</h1>', deptKeys().map(function (k) { return { label: DEPT[k].n + '　必要な力：' + needSk(k), sub: DEPT[k].d + '（いま' + deptN(k) + '人）', go: function () { then(k); } }; })
+    var k5 = st ? hqSkFix(st) : null, keys = deptKeys();
+    var best = st ? keys.slice().sort(function (a, b) { return (k5[DEPTSK[b]] || 0) - (k5[DEPTSK[a]] || 0) || deptN(a) - deptN(b); })[0] : null;
+    view('<h1>部署を選ぶ</h1>' + (st ? '<p class="lead">' + st.name + 'の本社での力（接客で身につけた力から決まる）。部署で必要な力が高いほど、すぐに活躍できる。</p><div class="box" style="padding:8px 12px"><span class="row sk">' + hqSkText(st, DEPTSK[best]) + '</span></div>' : ''),
+      keys.map(function (k) { var v = st ? k5[DEPTSK[k]] : null;
+        return { label: DEPT[k].n + '　必要な力：' + needSk(k) + (st ? '（' + v + '）' : ''), sub: DEPT[k].d + '（いま' + deptN(k) + '人）', rec: st && k === best ? st.name + 'の' + needSk(k) + 'の力（' + v + '）が生かせる' : '', go: function () { then(k); } }; })
       .concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
   function hqAskLine(st) {
@@ -7456,7 +7461,7 @@
         var sh = shopOf(st), last = sh && sh.staff.length <= 1;
         return [{ sec: st.name + '（' + (sh ? shortShop(sh.name) : '本店') + '・' + ageOf(st) + '歳）', label: '本社に異動させる', sub: '「' + hqAskLine(st) + '」' + (last ? '　この店のスタッフはこの人だけなので、先にほかの人を入れる' : st.id === S.mainMgr ? '　本店の店長なので、あとで店長を決めなおす' : '') + '　やる気・信頼が上がる',
           off: full || last, go: function () {
-            deptPick(function (k) { var src = sh ? sh.staff : S.staff; src.splice(src.indexOf(st), 1); st.dept = k; st.hurtUntil = 0; st.hand = 0; st.leader = false; st.fromShop = true; st.hqAsk = null; if (S.mainMgr === st.id) S.mainMgr = null; S.hq.staff.push(st); moodUp(st, 15, 10); SFX.hire(); hqView(st.name + 'が本社の' + DEPT[k].n + 'に異動した。「これからは、本社からお店を支えます！」'); });
+            deptPick(function (k) { var src = sh ? sh.staff : S.staff; src.splice(src.indexOf(st), 1); st.dept = k; st.hurtUntil = 0; st.hand = 0; st.leader = false; st.fromShop = true; st.hqAsk = null; if (S.mainMgr === st.id) S.mainMgr = null; S.hq.staff.push(st); moodUp(st, 15, 10); SFX.hire(); hqView(st.name + 'が本社の' + DEPT[k].n + 'に異動した。「これからは、本社からお店を支えます！」'); }, st);
           } },
           { label: 'もう少しお店でがんばってほしいと伝える', sub: 'やる気と信頼が下がる。1年は申し出がない', go: function () { st.hqAsk = null; st.hqAskNo = S.week; moodUp(st, -8, -6); SFX.click(); transferHqView(); } }];
       })).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
@@ -8738,6 +8743,12 @@
       reps: [{ t: 'ぜひ！ お話ししたいことがたくさんあります。', fx: 'lunch', res: 'じゃあ来週ね！ 楽しみにしてる。' }, { t: '落ち着いたら、ぜひ！', fx: 'none', res: 'うん、無理しないでね。' }] });
     // 先月届いた種類は、今月は少し出にくくする（毎月同じお誘いばかりにならないように）
     var last = S.dotLast || {};
+    // 電話とポケベルの時代は、グループのやりとりはない。だれか1人が、みんなを代表して連絡してくる
+    if (isMemo(false)) C2.forEach(function (m) {
+      if (m.kind !== 'group' && m.kind !== 'groupBd') return;
+      var who = (m.lines.filter(function (l) { return l.who; })[0] || {}).who || (crew[0] && crew[0].name) || '';
+      m.from = who + '（みんなを代表して）'; m.lines = [{ t: m.lines.map(function (l) { return l.t; }).join(' ') }];
+    });
     C2.forEach(function (m) { if (last[m.kind] && S.week - last[m.kind] <= 1) m.w = m.w * 0.25; });
     // お客様と取引先からの連絡は、お店の「公式dot.」に届く。個人のdot.には、スタッフや家族・友だちから
     var choose = function (pool, n) {
@@ -8856,7 +8867,7 @@
     var md = commMode(off), memo = isMemo(off);
     view('<h1>' + (memo ? (off ? 'お店への電話とFAX' : '電話とFAXの伝言') : md === 'mail' ? (off ? 'お店へのメール' : 'メール') : (off ? 'お店の公式アカウント' : 'メッセージ')) + '</h1><div class="dotapp m-' + md + (off ? ' off' : '') + '">' + dotHead(off, memo ? '伝言メモ' : md === 'mail' ? '受信箱' : off ? (S.brand || 'お店') + ' の公式アカウント' : 'あなたのメッセージ', u) +
       (list.length ? list.map(function (m, i) {
-        var last = m.done >= 0 ? m.reps[m.done].res : m.lines[m.lines.length - 1].t;
+        var last = memoTxt(m.done >= 0 ? m.reps[m.done].res : m.lines[m.lines.length - 1].t, memo);
         var via = viaOf(m);
         if (via === 'ポケベル' && m.done < 0) last = pagerLine(last).replace(/（[\s\S]*$/, '');
         return '<button type="button" class="dotrow" data-dot="' + i + '">' + (memo ? '<span class="via">' + via + '</span>' : dav(m.from)) + '<span><span class="nm">' + m.from + '</span><span class="pv">' + last + '</span></span>' +
@@ -8871,6 +8882,9 @@
     }
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-dot]'), function (bt) { bt.addEventListener('click', function () { SFX.click(); dotThread(list[+bt.getAttribute('data-dot')]); }); });
   }
+  // スタンプは、電話とポケベルの時代にはない。ことばに言いかえる
+  var STAMPW = { 'ありがとう': 'ありがとう！ うれしいよ。', 'にっこり': 'はい、こちらこそ！', '拍手': 'すごい！ よくがんばったね！', 'ハート': 'ありがとうございます！ うれしいです！', 'クラッカー': 'みんなにも伝えておきますね！' };
+  function memoTxt(t, memo) { return memo ? String(t).replace(/（([^（）]*)のスタンプ）/g, function (a, k) { return STAMPW[k] || 'ありがとうございます！'; }) : t; }
   function dotThread(m, note) {
     bar();
     var back = function () { dotView(!!m.off); };
@@ -8880,14 +8894,14 @@
     if (memo || mailM) {
       var cls = via === 'FAX' ? 'fax' : mailM ? 'mail' : 'memo';
       var top = via === 'FAX' ? 'FAX　送信元：' + m.from + '　' + nowYear() + '年' + monthOf() + '月' : via === 'ポケベル' ? 'ポケベルに呼び出し：' + m.from + '（数字のメッセージ）' : mailM ? '差出人：' + m.from : '電話の伝言メモ：' + m.from + 'から';
-      h += '<div class="paper ' + cls + '"><div class="ph">' + top + '</div>' + m.lines.map(function (l) { return '<p>' + (l.who ? '<b>' + l.who + '</b>　' : '') + (via === 'ポケベル' ? pagerLine(l.t) : l.t) + '</p>'; }).join('') + '</div>';
+      h += '<div class="paper ' + cls + '"><div class="ph">' + top + '</div>' + (memo && m.lines.some(function (l) { return l.who; }) ? [{ t: m.lines.map(function (l) { return l.t; }).join(' ') }] : m.lines).map(function (l) { return '<p>' + (l.who && !memo ? '<b>' + l.who + '</b>　' : '') + (via === 'ポケベル' ? pagerLine(l.t) : l.t) + '</p>'; }).join('') + '</div>';
     } else h += m.lines.map(function (l) { var w = l.who || m.from; return '<div class="dmsg">' + dav(w) + '<div class="bb">' + (l.who || m.from.indexOf('・') >= 0 ? '<span class="who">' + w + '</span>' : '') + l.t + '</div></div>'; }).join('');
-    if (m.done >= 0 && (memo || mailM)) { var rq = m.reps[m.done]; h += '<div class="paper me ' + (mailM ? 'mail' : via === 'FAX' ? 'fax' : 'memo') + '"><div class="ph">' + (mailM ? 'あなたの返信' : via === 'FAX' ? 'FAXで返事を送った' : 'あなたが電話をかけた') + '</div><p>' + rq.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</p></div><div class="paper ' + (mailM ? 'mail' : 'memo') + '"><div class="ph">' + m.from + (mailM ? 'からの返信' : 'の返事') + '</div><p>' + rq.res + '</p></div>' + (note ? '<p class="dnote">' + note + '</p>' : ''); }
+    if (m.done >= 0 && (memo || mailM)) { var rq = m.reps[m.done]; h += '<div class="paper me ' + (mailM ? 'mail' : via === 'FAX' ? 'fax' : 'memo') + '"><div class="ph">' + (mailM ? 'あなたの返信' : via === 'FAX' ? 'FAXで返事を送った' : 'あなたが電話をかけた') + '</div><p>' + memoTxt(rq.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, ''), memo) + '</p></div><div class="paper ' + (mailM ? 'mail' : 'memo') + '"><div class="ph">' + m.from + (mailM ? 'からの返信' : 'の返事') + '</div><p>' + memoTxt(rq.res, memo) + '</p></div>' + (note ? '<p class="dnote">' + note + '</p>' : ''); }
     else if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="dmsg me"><div class="bb">' + rp.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</div></div><div class="dmsg">' + dav(m.from) + '<div class="bb">' + rp.res + '</div></div>' + (note || m.note ? '<div class="dnote">' + (note || m.note) + '</div>' : ''); }
     h += '</div>';
     if (m.done < 0) h += '<div class="dreply"><span class="lb">' + (memo ? (via === 'FAX' ? 'どう返事をする？' : '折り返しの電話で、なんと言う？') : '返信を選ぶ') + '</span>' + m.reps.map(function (rp, i) {
       var cost = rp.t.match(/　(¥[\d,]+)$/);
-      return '<button type="button" data-rep="' + i + '"' + (rp.cost && S.cash < rp.cost ? ' disabled' : '') + '>' + rp.t.replace(/　¥[\d,]+$/, '') + (cost ? '<small>' + cost[1] + '</small>' : '') + '</button>';
+      return '<button type="button" data-rep="' + i + '"' + (rp.cost && S.cash < rp.cost ? ' disabled' : '') + '>' + memoTxt(rp.t.replace(/　¥[\d,]+$/, ''), memo) + (cost ? '<small>' + cost[1] + '</small>' : '') + '</button>';
     }).join('') + '<button type="button" class="later" data-later="1">' + (memo ? 'あとで折り返す' : 'あとで返信する') + '</button></div>';
     h += '</div>';
     view(h, [{ main: true, label: memo ? '伝言の一覧にもどる' : mailM ? 'メールの一覧にもどる' : 'メッセージ一覧にもどる', go: back }]);
