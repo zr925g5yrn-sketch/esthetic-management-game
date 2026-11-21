@@ -1005,6 +1005,8 @@
     { k: 'bath',  n: 'アロマ入浴剤', d: 'お風呂で香りと温まり', cost: 700,  price: 6600, need: 22, tier: 0, col: '#9ED68A', cap: '#3E7E33' }
   ];
   var OPTION = { k: 'opt', n: 'オプション（ヘッド10分）', price: 3500, need: 28, tier: 0 };
+  // 海外からの観光客は通えないので、回数券や会員はすすめない。今日だけの追加ケアと、お土産になる商品を
+  var TRIPCARE = { k: 'opt', n: 'スペシャルケアを追加（今日だけ・60分）', price: 22000, need: 45, tier: 1, note: '旅行中でも、この場で受けられる' };
   var TRAITS = {
     god:    { n: '職人肌',         d: '◯施術の満足度が高い　×口数が少なく、コースをすすめるのが苦手' },
     talk:   { n: 'トーク上手',     d: '◯コースが売れやすい　×話に夢中で、施術の満足度が少し下がる' },
@@ -5544,9 +5546,9 @@
   function score() { return C.int - C.grd * 0.7 + (C.sat - (C.vip ? 62 : 50)) * (C.vip ? 0.6 : 0.3); }
   function offer(second) {
     bar();
-    var items = (C.vip ? VIPITEMS : []).concat(C.bride ? [BRIDAL] : []).concat(COURSES).concat(inStock());
+    var items = C.inbound ? [TRIPCARE].concat(inStock()) : (C.vip ? VIPITEMS : []).concat(C.bride ? [BRIDAL] : []).concat(COURSES).concat(inStock());
     view(karte() + talkHtml() +
-      stepHtml(second === true ? '別の提案をする' : '提案するものを選ぶ', second === true ? 'これが最後の提案になる。' : tip('offer', '高いものほど、強い気持ちと予算が要る。') + '断られても、もう一度だけ別の提案ができる。'),
+      stepHtml(second === true ? '別の提案をする' : '提案するものを選ぶ', (C.inbound ? '旅行中のお客様なので、通うコースはすすめられない。今日だけのケアや、お土産になる商品を。' : '') + (second === true ? 'これが最後の提案になる。' : tip('offer', '高いものほど、強い気持ちと予算が要る。') + '断られても、もう一度だけ別の提案ができる。')),
       items.map(function (it) {
         var over = C.known && C.known.budget && priceOf(it) > [10000, 100000, 300000, Infinity][C.budget];
         return { label: it.n + '　' + yen(priceOf(it)) + (priceOf(it) < it.price ? '（2割引き）' : ''), sub: (over ? '⚠予算（' + BUDGET[C.budget] + '）をこえる　' : '') + (it.cost ? '物販　在庫' + S.stock[it.k] + '個' : (it.note || '')),
