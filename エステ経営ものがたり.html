@@ -6356,6 +6356,28 @@
   }
   var TIER = { local: { n: '近所に出す', m: 1 }, city: { n: '都心に出す', m: 2 }, region: { n: '地方都市に出す', m: 2 }, world: { n: '海外に出す', m: 3 }, resort: { n: '海外リゾートに出す', m: 3 }, hotel: { n: '高級ホテル', m: 3 } };
   var OPENGAP = 3;
+  /* --- 1か月に出せる店舗の数と、次の出店までの間隔 ---
+     社長になる前：1店ずつ、3か月おき。
+     本社ができたら：同じ月に出せる数 ＝ 次の3つのうちいちばん小さいもの（最大5店）
+       ・本社の広さ：事務所2・オフィスフロア3・高層ビル4・タワー5
+       ・店舗開発部：1 ＋ 部員の数（部長がいれば＋1）
+       ・本社のスタッフの数：1 ＋ 3人ごとに1
+     次の出店までの間隔：本社だけなら2か月、店舗開発部がいれば1か月（毎月出せる） */
+  function openCap() {
+    if (!S.hq) return 1;
+    var sd = deptN('sdev'), bu = hqStaff().some(function (st) { return st.dept === 'sdev' && isBucho(st); }) ? 1 : 0;
+    return Math.max(1, Math.min(5, S.hq.lv + 1, 1 + sd + bu, 1 + Math.floor(hqStaff().length / 3)));
+  }
+  function openGap() { return !S.hq ? OPENGAP : deptN('sdev') ? 1 : 2; }
+  // いま出せる店舗の数（今月すでに出した分を引く）と、待つ月数
+  function openLeft() { if (!S.lastOpen) return openCap(); if (S.lastOpen === S.week) return Math.max(0, openCap() - (S.openN || 1)); return S.week - S.lastOpen >= openGap() ? openCap() : 0; }
+  function openWait() { if (openLeft() > 0) return 0; if (S.lastOpen === S.week) return openGap(); return Math.max(0, openGap() - (S.week - S.lastOpen)); }
+  function markOpen(b) { if (S.lastOpen === S.week) S.openN = (S.openN || 1) + 1; else S.openN = 1; S.lastOpen = S.week; S.wk.opened = b; S.wk.openedList = (S.wk.openedList || []).concat([b]); }
+  function openWhy() {
+    if (!S.hq) return '社長になって本社ができると、同じ月に何店舗も出せるようになる。';
+    var sd = deptN('sdev');
+    return '同じ月に出せるのは' + openCap() + '店舗まで（本社の広さ・店舗開発部' + sd + '人・本社のスタッフ' + hqStaff().length + '人で決まる。最大5店舗）。' + (openCap() < 5 ? (sd < 4 ? '店舗開発部を増やす' : '') + (S.hq.lv + 1 <= openCap() ? (sd < 4 ? 'か、' : '') + '本社を広くする' : '') + 'と、もっと出せる。' : '') + (sd ? '' : '店舗開発部がいると、毎月出店できる。');
+  }
   function hasTier(t) { return S.shops.some(function (b) { return AREAS[b.area].tier === t; }); }
   function tierOpen(t) {
     var L = mlv(), fa = freeAreas(t);
@@ -6564,11 +6586,11 @@
   function branchView(t) {
     bar();
     if (!t) {
-      return view('<h1>新しい店舗を出す</h1><p class="lead">経営者レベル ' + mlv() + '。レベルが上がるほど、出店できる街が増える。近所の店は店長1人、都心と海外は店長とスタッフ2人で開店する。支店の営業はスタッフが自動でこなし、収支は毎月の帳簿に入る。</p>',
+      return view('<h1>新しい店舗を出す</h1><div class="news' + (openLeft() ? ' good' : '') + '">' + (openLeft() ? '今月は、あと<b>' + openLeft() + '店舗</b>出せる。' : '今月はもう出店できない。') + openWhy() + '</div><p class="lead">経営者レベル ' + mlv() + '。レベルが上がるほど、出店できる街が増える。近所の店は店長1人、都心と海外は店長とスタッフ2人で開店する。支店の営業はスタッフが自動でこなし、収支は毎月の帳簿に入る。</p>',
         ['local', 'city', 'region', 'world', 'resort'].map(function (k) {
-          var lock = tierOpen(k), left = freeAreas(k).length, wait = S.lastOpen ? Math.max(0, OPENGAP - (S.week - S.lastOpen)) : 0;
+          var lock = tierOpen(k), left = freeAreas(k).length, wait = openWait();
           var lo = freeAreas(k).reduce(function (m, a) { return Math.min(m, openCost(AREAS[a])); }, 1e12);
-          return { label: TIER[k].n + (left ? '　出店費' + yen(lo) + '〜' : '　すべて出店済み'), sub: wait ? '前の出店の準備で手いっぱい。あと' + wait + 'か月で次の出店ができる' : lock || freeAreas(k).map(function (a) { return AREAS[a].n.replace(/店$/, ''); }).join('・') + (k === 'world' ? '。売上は為替で上下する' : k === 'resort' ? '。為替に加えて、ハイシーズンは大にぎわい、オフシーズンは静か' : ''),
+          return { label: TIER[k].n + (left ? '　出店費' + yen(lo) + '〜' : '　すべて出店済み'), sub: wait ? (S.lastOpen === S.week ? '今月はもう' + (S.openN || 1) + '店舗出した。' : '前の出店の準備で手いっぱい。') + 'あと' + wait + 'か月で次の出店ができる' : lock || freeAreas(k).map(function (a) { return AREAS[a].n.replace(/店$/, ''); }).join('・') + (k === 'world' ? '。売上は為替で上下する' : k === 'resort' ? '。為替に加えて、ハイシーズンは大にぎわい、オフシーズンは静か' : ''),
             off: !!lock || !left || !!wait, go: function () { branchView(k); } };
         }).concat([{ main: true, label: 'もどる', go: investView }]));
     }
@@ -6587,7 +6609,7 @@
       Object.keys(CONCEPTS).map(function (c) {
         var m = fitOf(k, c);
         return { label: CONCEPTS[c].n + '　' + fitText(m), sub: CONCEPTS[c].d, go: function () {
-          var b = openBranch(k, false, c); mxpAdd(50); S.wk.opened = b; S.lastOpen = S.week; showCut(branchCut(b), investView);
+          var b = openBranch(k, false, c); mxpAdd(50); markOpen(b); showCut(branchCut(b), function () { if (openLeft() && freeAreas().length) branchView(); else investView(); });
         } };
       }).concat([{ main: true, label: 'もどる', go: function () { branchView(t); } }]));
   }
@@ -6614,7 +6636,7 @@
       '<dt>ホテル会員</dt><dd>入会金' + yen(HMJOIN) + '・年会費' + yen(HMYEAR) + '。評判が高いほど入会が増える</dd>' +
       '<dt>スタッフ</dt><dd>店長とスタッフ2人で開店する</span></li></dl></div>',
       [{ main: true, label: '契約して出店する　' + yen(A.cost), sub: S.cash < A.cost ? 'お金が足りない。話は待ってもらえる' : '', off: S.cash < A.cost, go: function () {
-          var b = openBranch(k, false, 'luxe'); S.hotelOffer = null; S.hotelNext = S.week + 12; mxpAdd(80); hum(3); S.wk.opened = b; S.lastOpen = S.week;
+          var b = openBranch(k, false, 'luxe'); S.hotelOffer = null; S.hotelNext = S.week + 12; mxpAdd(80); hum(3); markOpen(b);
           showCut({ kicker: 'グランドオープン', title: b.name, sub: 'ホテルのスパを任された', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, investView); } },
         { label: '今回は見送る', sub: 'また機会があれば、別のホテルから声がかかるかもしれない', go: function () { S.hotelOffer = null; S.hotelNext = S.week + 6; investView(); } },
         { label: 'もどる', go: investView }]);
@@ -8403,7 +8425,7 @@
       : (S.wk.eshop.out ? '<div class="news bad">オンラインショップに注文が来たが、在庫がなかった。商品を仕入れておこう。</div>' : '<div class="news">オンラインショップは、今月は注文がなかった。</div>');
     if ((S.wk.spl || []).length) hn += '<details class="fold"><summary>スタッフが特殊スキルを覚えた（' + S.wk.spl.length + '）</summary>' + S.wk.spl.map(function (x) { return '<div class="news good">' + x.t + '</div>'; }).join('') + '</details>';
     if (S.yearRes && S.yearRes.y === yearOf() && monthOf() === 3) h = '<div class="news good">' + S.yearRes.y + '年目のサロンランキングは' + S.yearRes.rank + '位' + (S.yearRes.prize ? '。賞金' + yen(S.yearRes.prize) + 'を受け取った' : '') + '。</div>' + h;
-    if (S.wk.opened) hn += '<div class="news good">' + S.wk.opened.name + 'を開店した。店長は' + S.wk.opened.staff[0].name + '（' + TRAITS[S.wk.opened.staff[0].trait].n + '）。</div>';
+    (S.wk.openedList || (S.wk.opened ? [S.wk.opened] : [])).forEach(function (ob) { hn += '<div class="news good">' + ob.name + 'を開店した。店長は' + ob.staff[0].name + '（' + TRAITS[ob.staff[0].trait].n + '）。</div>'; });
     var notesHtml = hn ? '<section class="notes"><h2>今月のお知らせ</h2>' + hn + '</section>' : '';
     if (S.cash < -200000) return view(h + notesHtml + '<div class="news bad">資金が尽きた。これ以上は続けられない。</div>', [{ main: true, label: '結果を見る', go: result }]);
     if (S.week >= WEEKS && !S.endless) return view(h + notesHtml, [{ main: true, label: WEEKS + 'か月の結果を見る', go: result }]);
@@ -8419,7 +8441,7 @@
     opts.push({ label: '料金の方針：' + pm().n, go: priceView });
     if (S.hq) opts.push({ label: '経営戦略（フランチャイズ・M&A・上場）', sub: (S.ipo ? '上場企業　' : '') + (S.fc && S.fc.n ? '加盟店' + S.fc.n + '店　ロイヤリティ 月' + yen(S.fc.lastRoy || 0) : ''), go: function () { stratView(); } });
     // 出店のおすすめは、いま本当に出店できるときだけ（前の出店の準備期間中は出さない）
-    var minBr = (function () { if (S.lastOpen && OPENGAP - (S.week - S.lastOpen) > 0) return 0; var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
+    var minBr = (function () { if (!openLeft()) return 0; var L = mlv(), cs = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L; }).map(function (k) { return openCost(AREAS[k]); }); return cs.length ? Math.min.apply(null, cs) : 0; })();
     opts.push({ label: '資金調達と返済', sub: loanRest() ? '借入の残り ' + yen(loanRest()) : '', go: function () { fundView(); },
       rec: S.cash < burnR * 2 ? '資金が心細い。借りて立て直すと、赤字の月も乗り切れる' : (minBr && S.cash < minBr + burnR * 3 && S.cash >= burnR * 3 && !loanRest() && S.week >= 6) ? '銀行から借りると、2店舗目を早く出せる。お店が増えるほど、会社の成長が早まる' : '' });
     if (cinOn()) opts.push({ label: 'コールドシナモン：' + CINPLAN[cinFix().plan].n.replace('プラン', '') + (cinFix().cpn ? '・クーポン' : ''), sub: '★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
@@ -8744,9 +8766,9 @@
     if (low.length) T.push({ t: 'やる気が落ちているスタッフと過ごす', s: low.map(function (st) { return st.name; }).slice(0, 3).join('・') + (low.length > 3 ? 'ほか' : ''), go: careView });
     var lowStock = prods().filter(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); });
     if (lowStock.length) T.push({ t: '商品を仕入れる', s: '在庫が少ない：' + lowStock.map(function (p) { return p.n; }).join('・'), go: function () { stockView(); } });
-    var wait = S.lastOpen ? Math.max(0, OPENGAP - (S.week - S.lastOpen)) : 0, L = mlv();
+    var wait = openWait(), L = mlv();
     var canOpen = freeAreas().filter(function (k) { return !AREAS[k].hotel && (AREALV[k] || 1) <= L && S.cash >= openCost(AREAS[k]); });
-    if (!wait && canOpen.length) T.push({ t: '新しい店舗をオープンする', s: '出せる街：' + canOpen.slice(0, 4).map(function (k) { return AREAS[k].n; }).join('・') + (canOpen.length > 4 ? 'ほか' : ''), go: function () { branchView(); } });
+    if (!wait && canOpen.length) T.push({ t: '新しい店舗をオープンする', s: (openLeft() > 1 ? '今月はあと' + openLeft() + '店舗まで。' : '') + '出せる街：' + canOpen.slice(0, 4).map(function (k) { return AREAS[k].n; }).join('・') + (canOpen.length > 4 ? 'ほか' : ''), go: function () { branchView(); } });
     if (!S.adLv) T.push({ t: '広告を出す', s: '広告がないと、新しいお客様はなかなか来ない', go: adView });
     if (!S.hq && S.shops.length >= 2) T.push({ t: '社長に就任する', s: '本店の店長を決めて、本社に移る', go: presidentView });
     if (roomAny() && S.cash >= HIRE * 4 && !(S.autoHire && deptN('hr'))) T.push({ t: 'スタッフを採用する', s: '受け入れの空きがある', go: function () { hireView(); } });
