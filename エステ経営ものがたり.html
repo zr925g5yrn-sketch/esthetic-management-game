@@ -6871,7 +6871,12 @@
   function certText(st) { return st.certs && st.certs.length ? st.certs.join('・') : 'なし'; }
   // 部署の力：その部署の人の力の合計（力3で、ひとり分）
   function deptPow(k) { return hqStaff().filter(function (st) { return st.dept === k; }).reduce(function (a, st) { return a + 0.4 + 0.2 * hqSkFix(st)[DEPTSK[k]] + (isBucho(st) ? 0.3 : 0); }, 0); }
-  function bestDept(st) { var k = hqSkFix(st), b = HQSK.slice().sort(function (x, y) { return k[y[0]] - k[x[0]]; })[0][0]; return SKDEPT[b]; }
+  // 部署ごとの前職と資格（応募者は、目指す部署を決めてから作る）
+  var PREVD = { online: ['通販会社の企画', 'アパレルのEC担当', '雑貨店の店長'], sns: ['広告代理店', '雑誌の編集', 'ホテルの広報'], acct: ['会計事務所', 'メーカーの経理', '銀行の窓口'],
+    hr: ['人材紹介会社', 'ホテルの人事', '百貨店の人事'], train: ['大手サロンのトレーナー', '美容学校の講師', 'ホテルの接客指導'], sdev: ['不動産会社', '建設会社の営業', 'チェーン店の出店担当'], eng: ['Web制作会社', 'システム会社', 'ゲーム会社'] };
+  var CERTD = { online: ['ネットショップ実務士', 'マーケティング検定'], sns: ['PRプランナー', '秘書検定2級'], acct: ['日商簿記2級', '日商簿記3級', 'MOS（Excel）'], hr: ['キャリアコンサルタント', '秘書検定2級'],
+    train: ['美容インストラクター資格', '認定エステティシャン'], sdev: ['宅地建物取引士', '日商簿記3級'], eng: ['基本情報技術者', 'ITパスポート', 'ウェブデザイン技能検定'] };
+  function bestDept(st) { if (st.fit && DEPT[st.fit]) return st.fit; var k = hqSkFix(st), b = HQSK.slice().sort(function (x, y) { return k[y[0]] - k[x[0]]; })[0][0]; return SKDEPT[b]; }
   function webN() { return eraY() < 1997 ? 0 : Math.min(2, Math.round(deptPow('eng'))); }
   function hqCap() { return HQLV[S.hq.lv - 1].cap; }
   function employees() { return allStaff().filter(function (st) { return !st.owner; }).length + hqStaff().length; }
@@ -7025,17 +7030,20 @@
   function hqCandsOf(dis) {
     var key = dis ? 'dis' : 'gen';
     S.hqCands = S.hqCands && S.hqCands.week === S.week ? S.hqCands : { week: S.week };
-    if (!S.hqCands[key] || (S.hqCands[key][0] && !(S.hqCands[key][0].hqsk && S.hqCands[key][0].hqsk.coach))) {
+    if (!S.hqCands[key] || (S.hqCands[key][0] && !(S.hqCands[key][0].hqsk && S.hqCands[key][0].hqsk.coach && S.hqCands[key][0].fit))) {
       var taken = {}; everyone().forEach(function (x) { taken[x.name] = true; });
       S.hqCands[key] = [0, 1, 2, 3, 4, 5].map(function () {
         var cd = genCand(taken, null, null);
         if (roll(0.45)) { var mpool = eraNames(cd.born || nowYear() - 30, true), mn = mpool.filter(function (n) { return !taken[cd.name.split(' ')[0] + ' ' + n]; }); cd.name = cd.name.split(' ')[0] + ' ' + pick(mn.length ? mn : mpool); cd.look.style = 'short'; cd.look.hair = pick(['#2B2238', '#3A2A26', '#5A3A28', '#4A3A30']); cd.male = true; }
-        var main = pick(HQSK)[0], k = { plan: 1 + Math.floor(rnd() * 2), pr: 1 + Math.floor(rnd() * 2), num: 1 + Math.floor(rnd() * 2), it: 1 + Math.floor(rnd() * 2), coach: 1 + Math.floor(rnd() * 2) };
+        // 目指す部署：だれもいない部署の人ほど来やすい
+        var dks = Object.keys(DEPT), wts = dks.map(function (d) { return deptN(d) ? 1 : 3; }), tot = wts.reduce(function (a, b) { return a + b; }, 0), r0 = rnd() * tot, fit = dks[0];
+        for (var di = 0; di < dks.length; di++) { r0 -= wts[di]; if (r0 < 0) { fit = dks[di]; break; } }
+        var main = DEPTSK[fit], k = { plan: 1 + Math.floor(rnd() * 2), pr: 1 + Math.floor(rnd() * 2), num: 1 + Math.floor(rnd() * 2), it: 1 + Math.floor(rnd() * 2), coach: 1 + Math.floor(rnd() * 2) };
         k[main] = Math.min(5, k[main] + 1 + Math.floor(rnd() * 2));
-        var cs = CERTS.filter(function (c) { return c.sk === main; }), certs = [];
-        if (roll(0.75)) { var c1 = pick(cs); certs.push(c1.n); k[main] = Math.min(5, k[main] + c1.v - 1); }
+        var cs = CERTS.filter(function (c) { return (CERTD[fit] || []).indexOf(c.n) >= 0; }), certs = [];
+        if (roll(0.75)) { var c1 = pick(cs); certs.push(c1.n); k[c1.sk] = Math.min(5, k[c1.sk] + c1.v - 1); }
         if (roll(0.3)) { var c2 = pick(CERTS.filter(function (c) { return certs.indexOf(c.n) < 0; })); certs.push(c2.n); k[c2.sk] = Math.min(5, k[c2.sk] + 1); }
-        cd.hqsk = k; cd.certs = certs; cd.prev = pick(PREVJOB[main]);
+        cd.hqsk = k; cd.certs = certs; cd.prev = pick(PREVD[fit]); cd.fit = fit;
         cd.wage = 200000 + 12000 * (k.plan + k.pr + k.num + k.it + k.coach - 5) + 8000 * certs.length; cd.dis = false; return cd;
       });
     }
