@@ -5104,7 +5104,7 @@
     scene.shop = null; evScene([]); S.holPic = null; S.lifeDecl = S.sevDecl = S.evDecl = false; S.evDeclAlt = null;
     if (S.opNext && !S.shops.some(function (x) { return x.id === S.opNext; })) S.opNext = null;
     S.wk = { trial: 0, course: 0, prod: 0, opt: 0, fee: 0, refund: 0, sold: [], closed: false, stLife: [] };
-    S.news = []; S.cands = null;
+    S.news = []; S.cands = null; S.bakuCut = null; S.pendCuts = [];
     S.staff.forEach(function (st) { st.used = 0; });
     // 解約（強く押して売ったコースなど）
     S.refunds.forEach(function (r) {
@@ -5789,12 +5789,14 @@
     doneScreen(back !== null ? 'bad' : 'good', msg + 'このお客様の売上 ' + yen(C.revenue));
   }
 
+  function flushCuts(then) { var cs = S.pendCuts || []; S.pendCuts = []; if (cs.length) { burst('coin', 37, 34, 6); showCuts(cs, then); } else then(); }
   /* --- スタッフに任せる（自動） --- */
   function autoServe() {
     var r = autoCore();
     setScene('treat', { sat: C.sat });
     if (C.revenue > TRIAL || (!C.isNew && C.revenue > 0)) SFX.coin();
-    doneScreen(r.tone, r.lines.join('<br>') + (C.press ? '' : '<br>このお客様の売上 ' + yen(C.revenue)));
+    var msg = r.lines.join('<br>') + (C.press ? '' : '<br>このお客様の売上 ' + yen(C.revenue));
+    flushCuts(function () { doneScreen(r.tone, msg); });
   }
   function autoCore() {
     var st = C.st, tr = st.trait, lines = [];
@@ -5822,13 +5824,13 @@
       var it = 21 + C.int + (C.hostInt || 0) + C.sat * 0.5 + st.talk * 8 + sk(st, 'emp') * 3 + moodBonus(st) + (tr === 'talk' ? 10 : 0) + (tr === 'push' ? 12 : 0);
       var gd = C.grd - 6 - st.talk * 6 - sk(st, 'word') * 3 - (tr === 'heal' ? 18 : 0) + (tr === 'push' ? 12 : 0) - (S.hum - 30) * 0.2;
       var sc = it - gd * 0.7 + (C.sat - (C.vip ? 62 : 50)) * (C.vip ? 0.6 : 0.3), tier = C.budget + (roll(0.5) ? 1 : 0);
-      var cand = (C.vip ? [VIPITEMS[0]] : []).concat(C.bride ? [BRIDAL] : []).concat(COURSES).filter(function (c) { return c.tier <= tier && sc >= needOf(c) - 8 && !(c.royal && C.sat < 70); })[0];
+      var cand = (C.inbound ? [TRIPCARE] : (C.vip ? [VIPITEMS[0]] : []).concat(C.bride ? [BRIDAL] : []).concat(COURSES)).filter(function (c) { return c.tier <= tier && sc >= needOf(c) - 8 && !(c.royal && C.sat < 70); })[0];
       if (cand) {
         if (roll(clamp(0.5 + (sc - needOf(cand)) / 40 + (tr === 'push' ? 0.12 : 0) + (has(st, 'machine') ? 0.15 : 0), 0.04, 0.96))) {
           applySale(C, cand); lines.push(cand.n + 'が成約した。');
           if (cand.big && ((tr === 'push' && roll(0.3)) || (C.sat < 45 && !has(st, 'charm') && roll(Math.max(0.05, 0.31 - sk(st, 'care') * 0.04)))) && !compSave()) S.refunds.push({ c: C, n: cand.n, price: priceOf(cand) });
         } else lines.push(cand.n + 'をすすめたが、断られた。');
-      } else lines.push('コースはすすめられなかった。');
+      } else lines.push(C.inbound ? '旅行中のお客様なので、コースはすすめなかった。' : 'コースはすすめられなかった。');
       var pr = pickProd(C, inStock(), C.budget);
       if (pr && roll(clamp(0.15 + st.talk * 0.06 + (tr === 'shop' ? 0.3 : 0) + (S.gift ? 0.2 : 0) + (C.sat - 50) / 150 + (fits(pr, C) ? 0.12 : -0.05) + sk(st, 'know') * 0.03 + (S.snsProd === S.week ? 0.1 : 0) + (has(st, 'seller') ? 0.2 : 0), 0.03, 0.9))) {
         applySale(C, pr); lines.push(pr.n + 'も売れた。' + (C.bundleMsg || ''));
@@ -5844,6 +5846,8 @@
     }
     var back = endVisit(C);
     if (C.sp) lines.push(specialNote());
+    // おまかせで接客したお客様の爆買いの演出は、その接客の結果を見せるときに出す（次のお客様に持ちこさない）
+    if (S.bakuCut) { (S.pendCuts = S.pendCuts || []).push(S.bakuCut); S.bakuCut = null; }
     if (back !== null) lines.push('満足できず、残りのコースを解約された（' + yen(back) + '返金）。');
     if (tr === 'mood') lines.push('明るい接客で評判が上がった。');
     C.phase = 'done';
@@ -7847,7 +7851,7 @@
     var html = '<h1>' + nm(c) + 'のおもてなし</h1><div class="news good">' + notes.join('') + '</div><ul class="who-list auto"><li class="' + r.tone + '"><span>' + nm(c) + '<small>' + stName(st) + '・満足' + C.sat + '</small></span><span>' +
       (C.got.length ? C.got.join('、') : (C.press ? '取材' : '追加なし')) + '<small>' + yen(C.revenue) + '</small></span></li></ul>' + '<p class="lead">' + r.lines.join('') + '</p>';
     C = null; saveGame('batch'); bar(); setScene('idle'); SFX.good();
-    view(html, [{ main: true, label: S.idx < S.queue.length ? '営業をつづける' : '今月の営業を終える', go: S.idx < S.queue.length ? autoBatch : night }]);
+    flushCuts(function () { view(html, [{ main: true, label: S.idx < S.queue.length ? '営業をつづける' : '今月の営業を終える', go: S.idx < S.queue.length ? autoBatch : night }]); });
   }
   function autoBatch() {
     var rows = [], tot = 0;
@@ -7872,12 +7876,14 @@
     var more = S.idx < S.queue.length;
     var html = rows.length ? '<h1>' + (more ? 'ここまでの営業' : '今月の営業') + '</h1><p class="lead">おまかせで' + rows.length + '人を接客した。売上 ' + yen(tot) + '。</p><ul class="who-list auto">' + rows.join('') + '</ul>'
       : '<h1>営業中</h1>';
-    if (more) {
-      var sc = S.queue[S.idx];
-      return view(html + '<div class="news good">特別なお客様がお見えになった。</div>',
-        [{ main: true, label: nm(sc) + 'を迎える', sub: tagOf(sc), go: function () { showCut(spCut(sc), S.ownerMale ? function () { hostStaff(sc); } : manualCust); } }]);
-    }
-    view(html, [{ main: true, label: '今月の営業を終える', go: night }]);
+    flushCuts(function () {
+      if (more) {
+        var sc = S.queue[S.idx];
+        return view(html + '<div class="news good">特別なお客様がお見えになった。</div>',
+          [{ main: true, label: nm(sc) + 'を迎える', sub: tagOf(sc), go: function () { showCut(spCut(sc), S.ownerMale ? function () { hostStaff(sc); } : manualCust); } }]);
+      }
+      view(html, [{ main: true, label: '今月の営業を終える', go: night }]);
+    });
   }
 
   /* =========================================================
