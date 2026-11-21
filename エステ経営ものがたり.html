@@ -3032,7 +3032,7 @@
     if (bk) { var tb = $('topback'); tb.textContent = '‹ ' + eraText(bk.label); tb.addEventListener('click', function () { SFX.click(); bk.go(); }); }
     var box = $('opts'), gbox = {};
     var multi = {}; (opts || []).forEach(function (o) { if (o.grp) multi[o.grp] = (multi[o.grp] || 0) + 1; });
-    var useG = Object.keys(multi).length > 1, listy = !/two|replies/.test(cls || ''), olist = null, curSec = null;
+    var useG = Object.keys(multi).length > 1 || (opts || []).some(function (o) { return o.grp && o.fold; }), listy = !/two|replies/.test(cls || ''), olist = null, curSec = null;
     (opts || []).forEach(function (o) {
       var host = box;
       if (o.grp && useG) olist = null;
@@ -6989,10 +6989,10 @@
        { label: '本社で新しく採用する', sub: hs.length >= L.cap ? '満員' : 'あと' + Math.max(0, L.cap - hs.length) + '人', off: hs.length >= L.cap, go: function () { hqHireView(false); } },
        { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人の療養にも', off: hs.length >= L.cap, go: transferHqView },
        { label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? '' : '質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } }]
-      .concat(hs.map(function (st) { return { grp: '本社のスタッフ', label: st.name + '（' + DEPT[st.dept].n + '）', sub: hqSkText(st) + '　' + hqExpText(st) + '　月給' + yen(payOf(st)), go: function () { hqStaffView(st); } }; }))
       .concat(S.staff.filter(function (st) { return !st.owner; }).length ? [{ label: '本店の店長を決めなおす', sub: mgr ? 'いまは' + mgr.name : 'いまはいない', go: function () { mgrView(); } }] : [])
       .concat(nx ? [{ label: '本社を「' + nx.n + '」に移す　' + yen(nx.cost), sub: '家賃 月' + yen(nx.rent) + '、本社のスタッフ' + nx.cap + '人まで。社長室も豪華になる', off: S.cash < nx.cost,
         go: function () { pay(nx.cost); H.lv++; S.rep = clamp(S.rep + 3, 0, 100); mxpAdd(60); showCut({ kicker: '移転', title: nx.n, sub: '社長室も新しくなった', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, function () { hqView(); }); } }] : [])
+      .concat(hs.map(function (st) { return { grp: '本社のスタッフ', fold: true, label: st.name + '（' + DEPT[st.dept].n + '）', sub: hqSkText(st) + '　' + hqExpText(st) + '　月給' + yen(payOf(st)), go: function () { hqStaffView(st); } }; }))
       .concat([{ main: true, label: '月末の画面にもどる', go: investView }]));
   }
   // 本社の研修（月1回）と、資格取得の支援（1人ずつ）
@@ -8047,16 +8047,16 @@
     var team = allStaff().filter(function (st) { return !st.owner; });
     if (team.length) { team.forEach(moodFix); var low = team.filter(function (st) { return st.mot < 30; }).length;
       opts.splice(4, 0, { label: 'スタッフと過ごす', sub: low ? '⚠やる気が落ちている人が' + low + '人' : '', go: careView }); }
-    if (S.ekarte !== 2 && eraY() >= 2000) opts.push(S.ekarte ? { grp: '設備と機械', label: '電子カルテのセキュリティを強化する　' + yen(60000), sub: '情報漏洩をしっかり防ぐ', off: S.cash < 60000, go: function () { pay(60000); S.ekarte = 2; SFX.hire(); investView(); } }
-      : { grp: '設備と機械', label: '電子カルテを導入する　' + yen(80000), sub: '常連の好みや経過を全員で共有。常連の満足度とコースの決まりやすさが上がる', off: S.cash < 80000, go: function () { pay(80000); S.ekarte = 1; SFX.hire(); investView(); } });
+    if (S.ekarte !== 2 && eraY() >= 2000) opts.push(S.ekarte ? { grp: '設備と機械', fold: true, label: '電子カルテのセキュリティを強化する　' + yen(60000), sub: '情報漏洩をしっかり防ぐ', off: S.cash < 60000, go: function () { pay(60000); S.ekarte = 2; SFX.hire(); investView(); } }
+      : { grp: '設備と機械', fold: true, label: '電子カルテを導入する　' + yen(80000), sub: '常連の好みや経過を全員で共有。常連の満足度とコースの決まりやすさが上がる', off: S.cash < 80000, go: function () { pay(80000); S.ekarte = 1; SFX.hire(); investView(); } });
     INVEST.forEach(function (v) {
-      if (!invOn(v.k) && !S[v.k]) return opts.push({ grp: '設備と機械', label: v.n, sub: (INVYEAR[v.k]) + '年ごろに登場する', off: true, go: function () {} });
+      if (!invOn(v.k) && !S[v.k]) return opts.push({ grp: '設備と機械', fold: true, label: v.n, sub: (INVYEAR[v.k]) + '年ごろに登場する', off: true, go: function () {} });
       if (MACHGEN[v.k] && S[v.k]) {
         var mx = machFix()[v.k], yrs = Math.floor((S.week - mx.wk) / 12) + 1, old = curGen(v.k) > mx.gen || S.week - mx.wk >= 72;
-        return opts.push({ grp: '設備と機械', label: v.n + '（' + genName(v.k, mx.gen) + '・' + yrs + '年目）' + (old ? '　買い替え ' + yen(v.price) : ''), sub: old ? (curGen(v.k) > mx.gen ? '新しい型が出ている。買い替えると満足度が上がる' : '古くなってきた。8年をこえると壊れやすい') : '最新の状態で使えている', off: !old || S.cash < v.price,
+        return opts.push({ grp: '設備と機械', fold: true, label: v.n + '（' + genName(v.k, mx.gen) + '・' + yrs + '年目）' + (old ? '　買い替え ' + yen(v.price) : ''), sub: old ? (curGen(v.k) > mx.gen ? '新しい型が出ている。買い替えると満足度が上がる' : '古くなってきた。8年をこえると壊れやすい') : '最新の状態で使えている', off: !old || S.cash < v.price,
           go: function () { pay(v.price); buyMach(v.k); SFX.hire(); investView(); } });
       }
-      opts.push({ grp: '設備と機械', label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: S[v.k] || S.cash < v.price, go: function () {
+      opts.push({ grp: '設備と機械', fold: true, label: v.n + '　' + yen(v.price) + (S[v.k] ? '　導入済み' : ''), sub: v.d, off: S[v.k] || S.cash < v.price, go: function () {
         pay(v.price); if (MACHGEN[v.k]) buyMach(v.k); else S[v.k] = true; if (v.stock) S.stock[v.stock] = (S.stock[v.stock] || 0) + 3; SFX.hire(); investView();
       } });
     });
