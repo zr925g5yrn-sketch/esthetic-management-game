@@ -193,6 +193,7 @@
   .epbox b { display: block; margin-bottom: 6px; color: var(--accent); }
   .epbtns { display: grid; gap: 6px; }
   .epbtns button { margin: 0; padding: 8px 10px; text-align: left; }
+  .cdgrp { margin: 8px 0 0; font-size: .95rem; } .cdgrp small { display: block; font-weight: normal; font-size: .74rem; color: var(--sub); }
   .cdlist { display: grid; gap: 10px; margin: 10px 0; }
   .cdcard { display: grid; grid-template-columns: 64px 1fr; grid-template-rows: auto auto; gap: 6px 10px; padding: 10px; background: var(--panel); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); }
   .cdcard canvas { grid-row: 1 / 3; width: 64px; height: 68px; image-rendering: pixelated; background: var(--chip); border: 2px solid var(--line); }
@@ -7440,29 +7441,33 @@
   function hqHireView(dis, note) {
     dis = false;  // 障害者雇用は廃止
     bar();
-    var list = hqCandsOf(dis), L = HQLV[S.hq.lv - 1], room = L.cap - hqStaff().length;
+    var list = hqCandsOf(dis), L = HQLV[S.hq.lv - 1], room = L.cap - hqStaff().length, DK = deptKeys();
+    // 応募者は、部署ごとの求人に応募してきた人。部署の順に並べる
+    var dOf = function (cd) { return cd.fit && DEPT[cd.fit] ? cd.fit : bestDept(cd); };
+    list.sort(function (a, b) { return DK.indexOf(dOf(a)) - DK.indexOf(dOf(b)); });
     cardCands = list;
-    view('<h1>本社の採用' + '' + '</h1>' + deptGate('hr') + (deptN('hr') ? autoSeg('人事にまかせる', '必要な部署にだれもいなければ、毎月はじめに人事がその部署の人を1人採用する（家賃と給与の2か月分は残す）', 'autoHqHire', [[false, 'しない'], [true, '自動']]) : '') + deptNow() + '<p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。採用するときに部署を決める。' + '' + '</p>' +
+    view('<h1>本社の採用' + '' + '</h1>' + deptGate('hr') + (deptN('hr') ? autoSeg('人事にまかせる', '必要な部署にだれもいなければ、毎月はじめに人事がその部署の人を1人採用する（家賃と給与の2か月分は残す）', 'autoHqHire', [[false, 'しない'], [true, '自動']]) : '') + deptNow() + '<p class="lead">今月の応募者' + list.length + '人。何人でも続けて採用できる（あと' + Math.max(0, room) + '人まで）。応募者は、部署ごとの求人に応募してきた人。採用すると、その部署に入る。' + '' + '</p>' +
       (note ? '<div class="news good">' + note + '</div>' : '') + '<div class="cdlist">' + list.map(function (cd, i) {
-        return '<div class="cdcard"><canvas width="120" height="126" data-cid="' + i + '" aria-hidden="true"></canvas><div class="cdinfo">' +
+        var dk = dOf(cd), head = i === 0 || dOf(list[i - 1]) !== dk ? '<h3 class="cdgrp">' + DEPT[dk].n + 'の求人<small>いま' + deptN(dk) + '人' + (deptN(dk) ? '' : '・だれもいない') + '　必要な力：' + needSk(dk) + '</small></h3>' : '';
+        return head + '<div class="cdcard"><canvas width="120" height="126" data-cid="' + i + '" aria-hidden="true"></canvas><div class="cdinfo">' +
           '<b class="nm">' + cd.name + (cd.born ? '<small class="ag">' + (nowYear() - cd.born) + '歳</small>' : '') + (cd.male ? '<span class="mk">男性</span>' : '') + '</b><span class="tr">前職：' + cd.prev + '</span>' +
           '<span class="row"><span class="lb">資格</span>' + certText(cd) + '</span>' +
-          '<span class="row"><span class="lb">向く部署</span>' + DEPT[bestDept(cd)].n + '（いま' + deptN(bestDept(cd)) + '人）' + (deptN(bestDept(cd)) ? '' : '<span class="mk">空き</span>') + '</span>' +
-          '<span class="row"><span class="lb">必要な力</span><b class="needk">' + needSk(bestDept(cd)) + '</b>（色のついた力）</span>' +
-          '<span class="row sk">' + hqSkText(cd, DEPTSK[bestDept(cd)]) + '</span>' +
+          '<span class="row"><span class="lb">採用部署</span><b>' + DEPT[dk].n + '</b>' + (deptN(dk) ? '' : '<span class="mk">空き</span>') + '</span>' +
+          '<span class="row"><span class="lb">必要な力</span><b class="needk">' + needSk(dk) + '</b>（色のついた力）</span>' +
+          '<span class="row sk">' + hqSkText(cd, DEPTSK[dk]) + '</span>' +
           '<span class="row"><span class="lb">月給</span>' + yen(cd.wage) + '</span></div>' +
-          '<button type="button" class="cdhire" data-hire="' + i + '"' + (S.cash < HIRE || room <= 0 ? ' disabled' : '') + '>採用する<small>' + yen(HIRE) + '</small></button></div>';
+          '<button type="button" class="cdhire" data-hire="' + i + '"' + (S.cash < HIRE || room <= 0 ? ' disabled' : '') + '>' + DEPT[dk].n + 'に採用する<small>' + yen(HIRE) + '</small></button></div>';
       }).join('') + '</div>',
       [repostOpt(REPOST * 2, function () { delete S.hqCands[dis ? 'dis' : 'gen']; hqHireView(dis, '求人を出し直した。新しい応募者が来た。'); }), { main: true, label: '本社の画面にもどる', go: function () { hqView(); } }]);
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-hire]'), function (bt) {
       bt.addEventListener('click', function () {
         var cd = list[+bt.getAttribute('data-hire')]; if (!cd || S.cash < HIRE || room <= 0) return;
-        deptPick(function (k) {
+        (function (k) {
           pay(HIRE);
           var st = { id: 's' + (S.uid++), hired: S.week, owner: false, name: cd.name, born: cd.born, temper: cd.temper, gift: cd.gift, fav: cd.fav, weak: cd.weak, trait: cd.trait, sk: cd.sk, tech: cd.tech, talk: cd.talk, wage: cd.wage, cap: 3, used: 0, look: cd.look, mot: 70, trust: 45, dept: k, dis: false, hqsk: cd.hqsk, certs: cd.certs, prev: cd.prev, male: !!cd.male };
           S.hq.staff.push(st); list.splice(list.indexOf(cd), 1); if (dis) hum(2); S.hqHireWk = S.week; SFX.hire();
-          hqHireView(dis, st.name + 'を' + DEPT[k].n + 'に採用した。' + (bestDept(cd) === k ? '力を活かせる部署だ。' : '') + '');
-        });
+          hqHireView(dis, st.name + 'を' + DEPT[k].n + 'に採用した。');
+        })(dOf(cd));
       });
     });
     cardLoop();
