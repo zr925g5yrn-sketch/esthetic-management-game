@@ -5206,6 +5206,8 @@
     for (i = 0; i < refs; i++) fresh.push(makeCustomer(used, true));
     for (i = 0; i < frN; i++) { var fc = makeCustomer(used, true); fc.frVia = Object.keys(FRSNS).filter(frOn)[0] || 'blender'; fresh.push(fc); }
     for (i = 0; i < newN; i++) fresh.push(makeCustomer(used, false));
+    // 買収した会社のお客様が、エステにも来てくれる（1社ごとに毎月1人）
+    (S.biz || []).forEach(function (x, j) { var bc = makeCustomer(used, false); bc.walkin = false; bc.ref = true; bc.via = BIZK[bizKind(x)].via; bc.grd = clamp(bc.grd - 8, 5, 95); fresh.splice(refs + j, 0, bc); });
     // コールドシナモンを見て予約したお客様（クーポンがあると、値段にきびしい人が多い）
     fresh.filter(function (c) { return !c.ref; }).slice(0, S.cinK || 0).forEach(function (c) {
       c.cin = true; c.walkin = false; c.via = 'コールドシナモンで予約'; c.grd = clamp(c.grd - 6, 5, 95);
@@ -7563,6 +7565,7 @@
     }
     // 買収した事業の利益
     var biz = (S.biz || []).reduce(function (a, x) { return a + Math.round(x.profit * (0.8 + rnd() * 0.4)); }, 0);
+    gwMonth();
     S.wk.fcRoy = inc; S.wk.biz = biz; S.cash += inc + biz;
     // 上場の準備が終わったら、上場する
     if (S.ipoPrep && S.week >= S.ipoPrep && !S.ipo) {
@@ -7607,7 +7610,7 @@
        { grp: 'フランチャイズ', label: 'スーパーバイザーが加盟店を指導する　' + yen(200000 * Math.max(1, Math.ceil(fc.n / 5))), sub: '理念とサービスの質+12（月1回）', off: !fc.n || S.cash < 200000 * Math.ceil(fc.n / 5) || fc.svWk === S.week,
           go: function () { pay(200000 * Math.ceil(fc.n / 5)); S.fc.q = clamp(S.fc.q + 12, 0, 95); S.fc.svWk = S.week; SFX.good(); stratView('スーパーバイザーが全加盟店をまわって、理念とマニュアルを伝え直した。'); } }]
       .concat(S.shops.map(function (b) { var v = shopValue(b); return { grp: 'M&A：事業を売る', label: b.name + 'を売却する　' + yen(v), sub: '店とスタッフごと、ほかの会社に売る。先月の収支 ' + yen(b.last ? b.last.net : 0), go: function () { sellShop(b, v); } }; }))
-      .concat(maOffers().map(function (o) { return { grp: 'M&A：会社を買う', label: o.n + 'を買収する　' + yen(o.price), sub: o.d, off: S.cash < o.price, go: function () { buyCo(o); } }; }))
+      .concat(maOffers().map(function (o) { return { grp: 'M&A：会社を買う', label: o.n + 'を買収する　' + yen(o.price), sub: o.d + '。買った金額は5年かけて経費になり、税金が軽くなる', off: S.cash < o.price, go: function () { buyCo(o); } }; }))
       .concat([{ grp: '上場', label: S.ipo ? '上場ずみ' : S.ipoPrep ? '上場の準備中' : '上場の準備を始める　' + yen(5000000), sub: S.ipo ? '株主の期待に応え続けよう' : '監査や体制づくりに6か月かかる。上場すると、時価総額の2割の資金が入り、評判も上がる', off: !!S.ipo || !!S.ipoPrep || !ipoOk || S.cash < 5000000,
           go: function () { pay(5000000); S.ipoPrep = S.week + 6; SFX.good(); stratView('上場の準備を始めた。監査法人と証券会社がついた。'); } },
         { main: true, label: 'もどる', go: investView }]));
@@ -7619,24 +7622,34 @@
     showCut({ kicker: 'M&A', title: b.name + 'を売却', sub: yen(v) + 'が入った', icon: 'coin', c1: '#F2C230', c2: '#E8A93A', sound: function () { SFX.fanfare(false); } }, function () { stratView(b.name + 'を' + yen(v) + 'で売却した。スタッフも新しい会社で働き続ける。'); });
   }
   // 買収の候補（3か月ごとに入れかわる）
+  // 買収できる会社：それぞれ1回だけ。そこのお客様が、エステにも来てくれる
+  var BIZK = { nail: { n: 'ネイルサロンの会社', via: 'ネイルサロンから', d: 'ネイルのお客様が、毎月エステにも来てくれる（本店の新規+1人）' },
+    lash: { n: 'まつげサロンの会社', via: 'まつげサロンから', d: 'まつげのお客様が、毎月エステにも来てくれる（本店の新規+1人）' },
+    yoga: { n: 'ヨガスタジオの会社', via: 'ヨガスタジオから', d: 'ヨガの会員が、毎月エステにも来てくれる（本店の新規+1人）' } };
+  function bizKind(x) { return x.k || (/ネイル/.test(x.n) ? 'nail' : /まつげ/.test(x.n) ? 'lash' : 'yoga'); }
+  function bizHas(k) { return (S.biz || []).some(function (x) { return bizKind(x) === k; }); }
+  // 買収した金額は、5年（60か月）かけて経費にできる（のれん・営業権の償却）。税金が安くなる
+  function gwName() { return eraY() < 2006 ? '営業権' : 'のれん'; }
+  function gwAdd(price) { S.gw = (S.gw || []).concat([{ amt: price, left: 60 }]); }
+  function gwMonth() { var d = 0; (S.gw || []).forEach(function (g) { if (g.left > 0) { d += g.amt / 60; g.left--; } }); S.gw = (S.gw || []).filter(function (g) { return g.left > 0; }); S.yrDed = (S.yrDed || 0) + d; return Math.round(d); }
   function maOffers() {
     if (S.maOffers && S.week - (S.maWeek || 0) < 3) return S.maOffers;
     var L = mlv(), free = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L + 15; }), o = [];
     if (free.length >= 2) { var ks = shuffle(free.slice()).slice(0, Math.min(3, free.length)), n2 = ks.length;
       o.push({ t: 'chain', n: pick(['まちのリラクサロン', 'エステ・ド・ソレイユ', 'ビューティーハウス花園']) + '（' + n2 + '店舗）', areas: ks, price: Math.round(ks.reduce(function (a, k) { return a + AREAS[k].cost * 1.6; }, 0) / 1e5) * 1e5,
         d: ks.map(function (k) { return AREAS[k].n; }).join('・') + 'の店を、スタッフごと引き継ぐ' }); }
-    var p1 = 150000 + Math.round(rnd() * 250000 / 10000) * 10000;
-    o.push({ t: 'biz', n: pick(['ネイルサロンの会社', 'まつげサロンの会社', 'ヨガスタジオの会社']), profit: p1, price: p1 * 30, d: '毎月およそ' + yen(p1) + 'の利益が入る。サービスの幅が広がり、評判+3' });
+    var p1 = 150000 + Math.round(rnd() * 250000 / 10000) * 10000, kinds = Object.keys(BIZK).filter(function (k) { return !bizHas(k); });
+    if (kinds.length) { var bk = pick(kinds); o.push({ t: 'biz', k: bk, n: BIZK[bk].n, profit: p1, price: p1 * 30, d: '毎月およそ' + yen(p1) + 'の利益が入る。' + BIZK[bk].d + '。評判+3' }); }
     if (!S.cosme) o.push({ t: 'cosme', n: '化粧品メーカー', price: 15000000, d: '商品の仕入れ値が3割安くなる' });
     S.maOffers = o; S.maWeek = S.week; return o;
   }
   function buyCo(o) {
-    pay(o.price); mxpAdd(60);
+    pay(o.price); mxpAdd(60); gwAdd(o.price);
     if (o.t === 'chain') o.areas.forEach(function (k) { var b = openBranch(k, true, ((AREAFIT[k] || {}).g || ['relax'])[0]); b.sponsor = false; b.rep = 45; });
-    if (o.t === 'biz') { S.biz = (S.biz || []).concat([{ n: o.n, profit: o.profit }]); S.rep = clamp(S.rep + 3, 0, 100); }
+    if (o.t === 'biz') { S.biz = (S.biz || []).concat([{ n: o.n, profit: o.profit, k: o.k }]); S.rep = clamp(S.rep + 3, 0, 100); }
     if (o.t === 'cosme') S.cosme = true;
     S.maOffers = S.maOffers.filter(function (x) { return x !== o; });
-    showCut({ kicker: 'M&A', title: o.n + 'を買収', sub: o.t === 'chain' ? o.areas.length + '店舗が仲間に加わった' : o.t === 'biz' ? '新しいサービスが加わった' : '仕入れが安くなった', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, function () { stratView(o.n + 'を買収した。'); });
+    showCut({ kicker: 'M&A', title: o.n + 'を買収', sub: o.t === 'chain' ? o.areas.length + '店舗が仲間に加わった' : o.t === 'biz' ? 'そこのお客様が、エステにも来てくれる' : '仕入れが安くなった', icon: 'crown', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, function () { stratView(o.n + 'を買収した。'); });
   }
   function eshopMonth() {
     var P = snsFix(), k = deptPow('online'), n = Math.round((P.f * 0.0006 + S.rep * 0.03) * (0.7 + P.mix.ig) * (S.snsProd === S.week ? 1.5 : 1) * (1 + 0.5 * k) * (0.7 + rnd() * 0.6));
@@ -8339,9 +8352,11 @@
         S.wk.taxNote = { bad: true, t: '税金の分割払い ' + yen(tp) + 'を納めた。' + (S.taxPlan.left > 0 && S.taxPlan.rest > 0 ? 'あと' + S.taxPlan.left + '回。' : '分割払いが終わった。') };
         if (S.taxPlan.left <= 0 || S.taxPlan.rest <= 0) S.taxPlan = null; }
       if (monthOf() === 3) {
-        var tprof = Math.max(0, Math.round(S.yrNet));
-        S.lastProfit = tprof;
-        if (tprof > 0) S.taxDue = { y: yearOf(), profit: tprof };
+        var tprof = Math.max(0, Math.round(S.yrNet)), ded = Math.round(S.yrDed || 0), tbase = Math.max(0, tprof - ded);
+        S.lastProfit = tprof; S.yrDed = 0;
+        if (ded && tprof > 0) S.wk.gwNote = '買収した会社の' + gwName() + 'の償却 ' + yen(ded) + 'を経費にできたので、税金のかかる利益は ' + yen(tbase) + 'になった。';
+        if (tbase > 0) S.taxDue = { y: yearOf(), profit: tbase };
+        else if (tprof > 0) S.wk.taxNote = { t: yearOf() + '年目は、' + gwName() + 'の償却で利益がなくなったので、税金はかからなかった。' };
         else S.wk.taxNote = { t: yearOf() + '年目は赤字だったので、税金はかからなかった。' };
         S.yrNet = 0;
       }
@@ -8475,6 +8490,7 @@
     if ((S.wk.relNote || []).length) hn += '<div class="news good">' + S.wk.relNote.join('<br>') + '</div>';
     if ((S.wk.hqNote || []).length) hn += '<div class="news good">' + (eraY() < 2000 ? '本社からのFAX：' : '本社：') + S.wk.hqNote.join('<br>') + '</div>';
     if (S.wk.taxNote) hn += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
+    if (S.wk.gwNote) hn += '<div class="news good">' + S.wk.gwNote + '</div>';
     if (S.wk.lv) hn += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
       (S.wk.lv.areas.length ? '<br>新しく出店できる街：' + S.wk.lv.areas.map(function (k) { return AREAS[k].n; }).join('、') : '') + '</div>';
     else { var L1 = mlv(); hn += '<p class="lead">経営者レベル ' + L1 + '（' + lvTitle(L1) + '）' + (L1 < MAXLV ? '　次のレベルまで あと' + (xpTo(L1 + 1) - S.mxp) : '') + '</p>'; }
