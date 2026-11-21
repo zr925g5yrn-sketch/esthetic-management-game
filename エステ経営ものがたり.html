@@ -392,6 +392,9 @@
   .tasks .task .mk { flex: none; width: 1.4em; text-align: center; font-weight: bold; }
   .tasks .task.todo { border-color: var(--ink); }
   .tasks .task.todo .mk { color: var(--accent, #D9466F); }
+  .tasks .task.todo.pr2 .mk { color: var(--ink); }
+  .tasks .task.todo.pr3 .mk { color: var(--sub); }
+  .tasks .tlegend { margin: 0 0 4px; font-size: .74rem; color: var(--sub); }
   .tasks .task.done { opacity: .55; cursor: default; }
   .tasks .task small { display: block; opacity: .75; }
   .tasks .taskmore > .task { width: 100%; max-width: 100%; box-sizing: border-box; margin-left: 0; margin-right: 0; }
@@ -8572,12 +8575,13 @@
     var lowStock = prods().filter(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); });
     if (lowStock.length) T.push({ t: '商品を仕入れる', s: '在庫が少ない：' + lowStock.map(function (p) { return p.n; }).join('・'), go: function () { stockView(); } });
     var wait = S.lastOpen ? Math.max(0, OPENGAP - (S.week - S.lastOpen)) : 0, L = mlv();
-    var canOpen = freeAreas().filter(function (k) { return (AREALV[k] || 1) <= L && S.cash >= AREAS[k].cost; });
+    var canOpen = freeAreas().filter(function (k) { return !AREAS[k].hotel && (AREALV[k] || 1) <= L && S.cash >= openCost(AREAS[k]); });
     if (!wait && canOpen.length) T.push({ t: '新しい店舗をオープンする', s: '出せる街：' + canOpen.slice(0, 4).map(function (k) { return AREAS[k].n; }).join('・') + (canOpen.length > 4 ? 'ほか' : ''), go: function () { branchView(); } });
     if (!S.adLv) T.push({ t: '広告を出す', s: '広告がないと、新しいお客様はなかなか来ない', go: adView });
     if (!S.hq && S.shops.length >= 2) T.push({ t: '社長に就任する', s: '本店の店長を決めて、本社に移る', go: presidentView });
     if (roomAny() && S.cash >= HIRE * 4 && !(S.autoHire && deptN('hr'))) T.push({ t: 'スタッフを採用する', s: '受け入れの空きがある', go: function () { hireView(); } });
     if (!S.dev && S.myProds.length < MAXMINE && S.week >= 3 && S.cash >= 300000 && S.kobo && Object.keys(DEVCAT).some(function (k) { return !DEVCAT[k].gone && catOpen(k) && !S.myProds.some(function (p) { return pcat(p) === k; }); })) T.push({ t: 'オリジナル商品を開発する', s: '開発中の商品はない', go: devView });
+    taskPri(T);
     return T;
   }
   // 月末の画面で、上の店内の絵をほかの店舗に切りかえる
@@ -8608,15 +8612,33 @@
     else if (S.cash < homeRent() * 2) t = 'お金が心細いときは、「お店づくり」→「資金調達と返済」で銀行から借りられる。';
     return t ? '<div class="news good"><b>経営のヒント</b>　' + t + '</div>' : '';
   }
+  // タスクの優先度（1＝◎急ぎ、2＝○やっておきたい、3＝△どちらでも）と、やる順番。
+  // 出店や内装でスタッフの枠が増える → 採用 → 研修、の順にすると、研修が1回ですむ
+  var TASKPRI = [[/^資金繰り/, 1, 10], [/^面談の申し出/, 1, 20], [/やる気が落ちている/, 1, 25], [/^本店の店長/, 1, 30], [/^社長のスタイル/, 2, 35], [/^社長に就任/, 2, 40],
+    [/^新しい店舗/, 2, 50], [/^内装/, 2, 55], [/^スタッフを採用/, 2, 60], [/^本社で採用|^本社の採用/, 2, 62], [/^スタッフの研修/, 2, 70], [/^本社の研修/, 2, 72],
+    [/^商品を仕入れる/, 2, 80], [/^広告/, 2, 85], [/dot/, 2, 88], [/^スタッフの話/, 3, 90], [/SNS/, 3, 92], [/^ライブ配信/, 3, 94], [/^年賀状/, 3, 95], [/^オリジナル/, 3, 96]];
+  function taskPri(T) {
+    T.forEach(function (x) {
+      var r = TASKPRI.filter(function (q) { return q[0].test(x.t); })[0];
+      x.pr = r ? r[1] : 2; x.o = r ? r[2] : 99;
+      if (/^商品を仕入れる/.test(x.t) && prods().some(function (p) { return !S.stock[p.k] && !autoOf(p); })) x.pr = 1;
+    });
+    // 研修の前に、出店・内装・採用が残っていたら、先にすませるよう添える
+    var tr = T.filter(function (x) { return !x.done && /^スタッフの研修/.test(x.t); })[0];
+    if (tr && T.some(function (x) { return !x.done && /^(新しい店舗|内装|スタッフを採用)/.test(x.t); })) tr.s += '。先に出店・内装・採用をすませると、新しい人もいっしょに1回で研修できる';
+  }
   function taskBox(T) {
-    var n = T.filter(function (x) { return !x.done; }).length, SHOW = 5;
-    var order = T.map(function (x, i) { return i; }).sort(function (a, b) { return (T[a].done ? 1 : 0) - (T[b].done ? 1 : 0) || a - b; });
+    var n = T.filter(function (x) { return !x.done; }).length;
+    var order = T.map(function (x, i) { return i; }).sort(function (a, b) { return (T[a].done ? 1 : 0) - (T[b].done ? 1 : 0) || (T[a].pr || 2) - (T[b].pr || 2) || (T[a].o || 99) - (T[b].o || 99) || a - b; });
+    var MK = { 1: '◎', 2: '○', 3: '△' };
     var row = function (i) { var x = T[i];
-      return '<button type="button" class="task ' + (x.done ? 'done' : 'todo') + '" data-task="' + i + '"' + (x.done ? ' disabled' : '') + '><span class="mk">' + (x.done ? '✓' : '○') + '</span><span>' + x.t + '<small>' + x.s + '</small></span></button>';
+      return '<button type="button" class="task ' + (x.done ? 'done' : 'todo') + ' pr' + (x.pr || 2) + '" data-task="' + i + '"' + (x.done ? ' disabled' : '') + '><span class="mk">' + (x.done ? '✓' : MK[x.pr || 2]) + '</span><span>' + x.t + '<small>' + x.s + '</small></span></button>';
     };
-    var head = order.slice(0, SHOW), rest = order.slice(SHOW);
-    return '<div class="tasks box"><h2>今月のタスク' + (n ? '（あと' + n + '）' : '（ぜんぶ終わった）') + '</h2>' + head.map(row).join('') +
-      (rest.length ? '<details class="fold taskmore"><summary>ほかのタスク（' + rest.length + '）</summary>' + rest.map(row).join('') + '</details>' : '') + '</div>';
+    // ◎と○は見せて、△（どちらでもいいもの）とすんだものは折りたたむ
+    var head = order.filter(function (i) { return !T[i].done && (T[i].pr || 2) < 3; }), rest = order.filter(function (i) { return head.indexOf(i) < 0; });
+    var nOpt = rest.filter(function (i) { return !T[i].done; }).length, nDone = rest.length - nOpt;
+    return '<div class="tasks box"><h2>今月のタスク' + (n ? '（あと' + n + '）' : '（ぜんぶ終わった）') + '</h2>' + (head.length ? '<p class="tlegend">上から順に。◎急ぎ　○やっておきたい　△どちらでも</p>' : '') + head.map(row).join('') +
+      (rest.length ? '<details class="fold taskmore"><summary>' + (nOpt ? '△どちらでもいいタスク（' + nOpt + '）' : 'すんだタスク') + (nOpt && nDone ? '・すんだタスク（' + nDone + '）' : nDone ? '（' + nDone + '）' : '') + '</summary>' + rest.map(row).join('') + '</details>' : '') + '</div>';
   }
   function taskBind(T) {
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-task]'), function (b) {
