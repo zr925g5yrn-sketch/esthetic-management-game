@@ -5017,7 +5017,7 @@
     S.turnedWk = turned;
     if (turned) {
       S.rep = clamp(S.rep - Math.min(turned, 3), 0, 100);
-      S.news.push({ bad: true, t: '予約がいっぱいで' + turned + '人をお断りした。スタッフを増やせば受けられる。' });
+      S.news.push({ bad: true, t: '予約がいっぱいで' + turned + '人をお断りした。' + (S.staff.length >= maxOf(null) ? ((S.interiorLv || 0) < MAXINT ? 'スタッフの枠もいっぱい。内装をアップデートすると枠が増える（' + (S.interiorLv || 0) + '／' + MAXINT + '）。' : 'スタッフの枠も最大。ほかの店舗で受けられるよう、出店を考えよう。') : 'スタッフを増やせば受けられる。') });
     }
     S.queue = shuffle(q); S.idx = 0;
     if (S.ev === 'bridal') markBrides();
@@ -9152,16 +9152,19 @@
       if (out.length) out = ['広報：' + out.join('、')];
     }
     if (S.autoHire && deptN('hr')) {
-      var hired = [];
+      var hired = [], blocked = [];
       [null].concat(S.shops).forEach(function (sh) {
         var full = (sh ? sh.staff : S.staff).length >= maxOf(sh), turned = sh ? (sh.last && sh.last.turned) : S.turnedWk;
-        if (full || !turned || S.cash - HIRE - 300000 < trainReserve()) return;
+        if (!turned) return;
+        if (full) { var ilv = sh ? (sh.interiorLv || 0) : (S.interiorLv || 0); blocked.push((sh ? shortShop(sh.name) : '本店') + 'はスタッフの枠がいっぱい' + (ilv < MAXINT ? '。内装をアップデートすると枠が増える' : '（これ以上は増やせない）')); return; }
+        if (S.cash - HIRE - 300000 < trainReserve()) { blocked.push('資金をとっておくため見送り'); return; }
         var taken = {}; allStaff().forEach(function (st) { taken[st.name] = true; });
         var pool = sh && AREAS[sh.area].names ? AREAS[sh.area].names : null, cs = [0, 1, 2, 3, 4, 5].map(function () { return genCand(taken, pool, sh ? sh.area : null); });
         var best = cs.sort(function (a, b) { return (b.tech + b.talk + (b.gift || 3) * 0.5) - (a.tech + a.talk + (a.gift || 3) * 0.5); })[0];
         pay(HIRE); hireTo(sh, best); hired.push((sh ? shortShop(sh.name) : '本店') + 'に' + best.name);
       });
       if (hired.length) out.push('人事：予約をお断りしていた店に採用（' + hired.join('、') + '）');
+      if (blocked.length) out.push('人事：採用できなかった（' + blocked.join('、') + '）');
     }
     var hh = autoHqHireMonth(); if (hh) out.push(hh);
     if (out.length) S.news.push({ good: true, t: '本社の部署の仕事：' + out.join('。') + '。' });
