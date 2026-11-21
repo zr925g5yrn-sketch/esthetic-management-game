@@ -185,7 +185,8 @@
   .frbox { margin: 10px 0; padding: 8px 10px; background: var(--chip); border-left: 4px solid var(--gold); }
   .frbox b { display: block; margin-bottom: 4px; font-size: .9rem; }
   .epbox .optbtn, .frbox .optbtn { background: var(--accent); color: var(--accent-ink); text-align: center; margin: 4px 0 8px; }
-  .frbox .optbtn small { color: inherit; opacity: .9; }
+  .frbox .optbtn small, .epbox .optbtn small { display: block; color: inherit; opacity: .9; white-space: normal; overflow: visible; }
+  .epbox .optbtn { width: 100%; }
   .frbox button { display: block; width: 100%; margin: 4px 0 0; padding: 6px 8px; text-align: left; font-size: .88rem; }
   .stcard .frtag { display: block; margin: -2px 0 4px; font-size: .72rem; color: var(--gold); }
   .epbox { margin: 10px 0; padding: 10px 12px; background: var(--panel); border: 3px solid var(--accent); box-shadow: 3px 3px 0 var(--accent); }
@@ -353,6 +354,7 @@
   .who-list { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 5px; font-size: .88rem; }
   .who-list li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; background: var(--panel); border: 2px solid var(--line); }
   .who-list li span:last-child { color: var(--sub); font-size: .8rem; text-align: right; }
+  .who-list.depts li { display: block; } .who-list.depts li span { display: block; } .who-list.depts li span:first-child { font-weight: bold; } .who-list.depts li span:last-child { text-align: left; }
   .sec { margin: 18px 0 6px; font-size: 1rem; }
   .staffsec { margin: 0 0 6px; border: 2px solid var(--line); background: var(--panel); }
   .staffsec summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; list-style: none; font-size: .9rem; font-weight: 700; }
@@ -392,6 +394,7 @@
   .tasks .task.todo .mk { color: var(--accent, #D9466F); }
   .tasks .task.done { opacity: .55; cursor: default; }
   .tasks .task small { display: block; opacity: .75; }
+  .tasks .taskmore > .task { width: 100%; max-width: 100%; box-sizing: border-box; margin-left: 0; margin-right: 0; }
   .notes { margin: 18px 0 10px; background: var(--panel); border: 2px solid var(--line); }
   .notes h2 { margin: 0; padding: 8px 12px; font-size: .95rem; border-bottom: 1px solid var(--line); }
   .notes > .news, .notes > .lead, .notes > details.fold { margin: 0; border-left-width: 4px; border-bottom: 1px solid var(--line); }
@@ -2368,7 +2371,7 @@
     list.push({ k: 'course', t: r10k(Math.max(100000, (L.course || 0) * 1.2)), d: function (t) { return 'コース・会員を' + yen(t) + '分成約する'; }, v: function () { return S.wk.course; } });
     if (S.queue.length >= 2) list.push({ k: 'happy', t: Math.max(1, Math.round(S.queue.length * 0.6)), d: function (t) { return '満足度80以上のお客様を' + t + '人つくる'; }, v: function () { return S.wk.happy || 0; } });
     if (L.all !== undefined) list.push({ k: 'net', t: r10k(Math.max(50000, L.all * 1.1)), d: function (t) { return '全店の収支で' + yen(t) + '以上を出す'; }, v: function () { return S.wk.all || 0; } });
-    if (snsFix().f >= 300) list.push({ k: 'sns', t: Math.max(100, Math.round(S.sns.f * 0.08 / 10) * 10), f0: S.sns.f, d: function (t) { return 'SNSのフォロワーを' + fmtN(t) + '人増やす'; }, v: function (m) { return S.sns.f - m.f0; } });
+    if (snsOn() && snsFix().f >= 300) list.push({ k: 'sns', t: Math.max(100, Math.round(S.sns.f * 0.08 / 10) * 10), f0: S.sns.f, d: function (t) { return 'SNSのフォロワーを' + fmtN(t) + '人増やす'; }, v: function (m) { return S.sns.f - m.f0; } });
     if (crewAll().length >= 2) list.push({ k: 'mood', t: 60, d: function () { return '月末に、全スタッフのやる気を60以上にする'; }, v: function () { return crewAll().reduce(function (m, x) { return Math.min(m, x.mot || 0); }, 100); } });
     var m = pick(list.filter(function (x) { return !S.mission || x.k !== S.mission.k; }));
     S.mission = { k: m.k, t: m.t, f0: m.f0, reward: Math.min(200000, 20000 + S.week * 2000), done: null };
@@ -5177,7 +5180,7 @@
     var belowH = (S.holNote && !S.holShown ? holBox() : '') + (S.lotNote ? '<div class="news good"><b>お年玉付き年賀はがきの当選発表</b><br>' + S.lotNote + '</div>' : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') +
       missionBox() + news + (recap ? '<details class="fold"><summary>今月のできごと（' + recap + '）</summary>' + life + sev + ev + '</details>' : '');
     view(topH + list, opts);
-    $('app').insertAdjacentHTML('beforeend', '<div class="below">' + belowH + '</div>');
+    $('app').insertAdjacentHTML('beforeend', eraText('<div class="below">' + belowH + '</div>'));
   }
 
   /* --- 来店と担当決め --- */
@@ -5396,7 +5399,7 @@
     if (good.length) out += '　◎' + good.join('・');
     if (bad.length) out += '　×' + bad.join('・');
     var known = Object.keys(PERS).filter(function (pk) { return (L[t.k + '|' + pk] || 0) >= LEARNPERS; }).length;
-    if (known < Object.keys(PERS).length) out += '　（性格ごとの効き目：' + known + '／' + Object.keys(PERS).length + 'が分かった）';
+    if (known < Object.keys(PERS).length) out += '　（効き目 ' + known + '／' + Object.keys(PERS).length + '）';
     return out;
   }
   function learnTalk(t) {
@@ -5413,7 +5416,7 @@
     bar();
     var left = 3 - C.turns;
     if (left === 0) return offer();
-    view(karte() + talkHtml() + stepHtml('クロージング', 'あと' + left + '回話せる。' + tip('close', '興味を上げ、警戒心を下げてから提案する。')),
+    view(karte() + talkHtml() + stepHtml('クロージング', 'あと' + left + '回話せる。' + tip('close', '興味を上げ、警戒心を下げてから提案する。「効き目 2／5」は、5つの性格のうち2つで効き目が分かったという意味。')),
       TALKS.map(function (t) {
         return { label: t.n, sub: talkSub(t), off: !!C.used[t.k], picked: !!C.used[t.k], go: function () { doTalk(t); } };
       }).concat([{ main: true, label: 'もう提案に進む', go: offer }]));
@@ -5441,7 +5444,8 @@
     view(karte() + talkHtml() +
       stepHtml(second === true ? '別の提案をする' : '提案するものを選ぶ', second === true ? 'これが最後の提案になる。' : tip('offer', '高いものほど、強い気持ちと予算が要る。') + '断られても、もう一度だけ別の提案ができる。'),
       items.map(function (it) {
-        return { label: it.n + '　' + yen(priceOf(it)) + (priceOf(it) < it.price ? '（2割引き）' : ''), sub: it.cost ? '物販　在庫' + S.stock[it.k] + '個' : (it.note || ''),
+        var over = C.known && C.known.budget && priceOf(it) > [10000, 100000, 300000, Infinity][C.budget];
+        return { label: it.n + '　' + yen(priceOf(it)) + (priceOf(it) < it.price ? '（2割引き）' : ''), sub: (over ? '⚠予算（' + BUDGET[C.budget] + '）をこえる　' : '') + (it.cost ? '物販　在庫' + S.stock[it.k] + '個' : (it.note || '')),
           off: C.tried === it.k, go: function () { propose(it, second === true); } };
       }).concat([{ label: '今日は何もすすめず、お見送りする', sub: '', go: function () { farewell('none'); } }]));
   }
@@ -7146,8 +7150,8 @@
     view('<h1>' + (S.company ? S.company + ' ' : '') + '本社</h1><p class="lead">' + L.n + '</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<p class="lead">家賃 月' + yen(L.rent) + '　本社のスタッフ ' + hs.length + '／' + L.cap + '人　本店の店長：' + (mgr ? mgr.name : 'なし') +
       '<br>社員 ' + employees() + '人</p>' +
-      '<details class="fold"><summary>部署の一覧と役割</summary><ul class="who-list">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name; }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul></details>',
-      [{ label: '本社の研修と資格取得', sub: S.autoHqTrain && deptN('train') ? '自動' : S.hqTrainWk === S.week ? '今月はすんだ' : '今月まだ', off: !hs.length, go: function () { hqTrainView(); }, rec: S.hqTrainWk !== S.week && hs.length ? '本社のスタッフの力が伸びる' : '' },
+      '<details class="fold"><summary>部署の一覧と役割</summary><ul class="who-list depts">' + Object.keys(DEPT).map(function (k) { var m = hs.filter(function (st) { return st.dept === k; }); return '<li><span>' + DEPT[k].n + '：' + (m.length ? m.map(function (st) { return st.name; }).join('・') : 'なし') + '</span><span>' + DEPT[k].d + '</span></li>'; }).join('') + '</ul></details>',
+      [{ label: '本社の研修と資格取得', sub: !hs.length ? '本社のスタッフがまだいない' : S.autoHqTrain && deptN('train') ? '自動' : S.hqTrainWk === S.week ? '今月はすんだ' : '今月まだ', off: !hs.length, go: function () { hqTrainView(); }, rec: S.hqTrainWk !== S.week && hs.length ? '本社のスタッフの力が伸びる' : '' },
        { label: '本社で新しく採用する', sub: hs.length >= L.cap ? '満員' : 'あと' + Math.max(0, L.cap - hs.length) + '人', off: hs.length >= L.cap, go: function () { hqHireView(false); } },
        { label: '店舗のスタッフを本社に異動させる', sub: '手を痛めた人の療養にも', off: hs.length >= L.cap, go: transferHqView },
        { label: '社長のスタイル：' + (S.boss ? BOSS[S.boss].n : 'まだ決めていない'), sub: S.boss ? '' : '質問に答えると決まる', go: function () { bossView(function (n) { hqView(n); }); } }]
@@ -7166,8 +7170,8 @@
     view('<h1>本社の研修</h1>' + deptGate('train') + (deptN('train') ? autoSeg('本社の研修を毎月、自動でする', '毎月はじめに研修する。セミナーは家賃と給与の2か月分が残るときだけ（足りないときは勉強会）', 'autoHqTrain', [[false, 'しない'], ['study', '勉強会'], ['semi', 'セミナー']]) +
       autoSeg('資格の勉強を自動で支援する', '部署の資格を、1人ずつ毎月受けさせる（家賃と給与の2か月分は残す）', 'autoCert', [[false, 'しない'], [true, '自動']]) : '') + '<p class="lead">本社のスタッフは、部署の仕事で経験を積んで育つ。研修は月1回。資格の勉強は1人ずつ支援できる。力が5になると、その部署の部長になる。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<ul class="who-list hqlist">' + hs.map(function (st) { return '<li><span>' + st.name + (isBucho(st) ? '（部長）' : '') + '<br><small>' + DEPT[st.dept].n + '　資格：' + certText(st) + '</small></span><span>' + (DEPTSK[st.dept] ? hqKeyName(DEPTSK[st.dept]) + ' <b>' + hqSkFix(st)[DEPTSK[st.dept]] + '</b>／5' : '') + '<br><small>' + hqExpText(st) + '</small></span></li>'; }).join('') + '</ul>',
-      [{ sec: '研修（月1回）', label: '社内勉強会を開く', sub: done ? '今月はもう研修した' : '無料。部長や先輩が教える', off: done || !hs.length, go: function () { run(12, 2, '社内勉強会を開いた。'); } },
-       { sec: '研修（月1回）', label: '外部セミナーに参加させる　' + yen(semi), sub: done ? '今月はもう研修した' : '全員が参加する', off: done || !hs.length || S.cash < semi, go: function () { pay(semi); run(30, 4, '外部のセミナーに参加させた。'); } }]
+      [{ sec: '研修（月1回）', label: '社内勉強会を開く', sub: !hs.length ? '本社のスタッフがまだいない' : done ? '今月はもう研修した' : '無料。部長や先輩が教える', off: done || !hs.length, go: function () { run(12, 2, '社内勉強会を開いた。'); } },
+       { sec: '研修（月1回）', label: '外部セミナーに参加させる' + (hs.length ? '　' + yen(semi) : ''), sub: !hs.length ? '本社のスタッフがまだいない' : done ? '今月はもう研修した' : '全員が参加する', off: done || !hs.length || S.cash < semi, go: function () { pay(semi); run(30, 4, '外部のセミナーに参加させた。'); } }]
       .concat(hs.map(function (st) {
         var c = hqCert(st), cost = c ? 40000 * c.v + 20000 : 0, tried = st.certWk === S.week;
         return { sec: '資格取得の支援', label: c ? st.name + '：' + c.n + '　' + yen(cost) : st.name + '：部署の資格はすべて持っている', sub: c ? (tried ? '今月はもう受けた' : DEPT[st.dept].n + 'の資格。受験料と教材費を会社が出す') : '', off: !c || tried || S.cash < cost, go: function () {
@@ -7295,7 +7299,7 @@
   }
   function mgrView() {
     bar();
-    view('<h1>本店の店長を決める</h1>', S.staff.filter(function (st) { return !st.owner; }).map(function (st) {
+    view('<h1>本店の店長を決める</h1>' + (S.staff.some(function (st) { return !st.owner; }) ? '' : '<p class="lead">本店に、店長をまかせられるスタッフがいない。採用してから決めよう。</p>'), S.staff.filter(function (st) { return !st.owner; }).map(function (st) {
       return { label: st.name, sub: TRAITS[st.trait].n + '　' + statText(st), picked: st.id === S.mainMgr, go: function () { S.mainMgr = st.id; moodUp(st, 10, 5); hqView(st.name + 'を本店の店長にした。'); } };
     }).concat([{ main: true, label: 'もどる', go: function () { hqView(); } }]));
   }
@@ -7339,7 +7343,7 @@
       // 質が高い加盟店がそろうと、ブランドの評判も上がる
       if (S.fc.q >= 70 && S.fc.n >= 3) S.rep = clamp(S.rep + 0.3, 0, 100);
       S.fc.q = clamp(S.fc.q - 1 - Math.floor(S.fc.n / 10), 10, 100);
-      if (S.fc.q < 50 && roll(0.15 + (50 - S.fc.q) / 200)) { S.rep = clamp(S.rep - 5, 0, 100); notes.push({ bad: true, t: pick(['加盟店で、マニュアルにない強引な勧誘があったと口コミが広がった', '加盟店の衛生管理が不十分だと、ニュースで取り上げられた', '加盟店の接客がひどいと、SNSで炎上した']) + '。評判−5' }); }
+      if (S.fc.q < 50 && roll(0.15 + (50 - S.fc.q) / 200)) { S.rep = clamp(S.rep - 5, 0, 100); notes.push({ bad: true, t: pick([eraY() < 2000 ? '加盟店で、マニュアルにない強引な勧誘があったと、うわさが広がった' : '加盟店で、マニュアルにない強引な勧誘があったと口コミが広がった', '加盟店の衛生管理が不十分だと、ニュースで取り上げられた', snsOn() && pfOn('yt') ? '加盟店の接客がひどいと、SNSで炎上した' : '加盟店の接客がひどいと、新聞の投書欄に載った']) + '。評判−5' }); }
       if (S.fc.q < 60 && S.fc.n >= 5) S.rep = clamp(S.rep - 0.5, 0, 100);
     }
     // 買収した事業の利益
@@ -8331,7 +8335,7 @@
       view('<h1>' + TITLES[key] + '</h1>', CAT[key].concat([{ main: true, label: '月末の画面にもどる', go: function () { curCat = null; investView(); } }]));
     };
     if (curCat && CAT[curCat]) return catView(curCat);
-    var catRec = function (k) { var r = CAT[k].filter(function (o) { return o.rec && !o.off; })[0]; return r ? '「' + r.label.split('　')[0].replace(/[：（].*$/, '') + '」がおすすめ' : ''; };
+    var catRec = function (k) { var r = CAT[k].filter(function (o) { return o.rec && !o.off; })[0]; return r ? 'おすすめ：「' + r.label.split('　')[0].replace(/[：（].*$/, '') + '」' : ''; };
     var lowN = team.filter(function (st) { return st.mot < 30; }).length;
     var nx = S.opNext ? S.shops.filter(function (x) { return x.id === S.opNext; })[0] : null;
     view(h, [{ main: true, label: calOf(S.week + 1) + 'へ進む', sub: S.shops.length ? '営業する店舗：' + shortShop(nx ? nx.name : homeName()) : '', go: function () { curCat = null; S.week++; startWeek(); } }].concat(hotelOpts()).concat(ownerAge() >= 60 ? [{ label: '引退して、会社を譲る', sub: 'あなたは' + ownerAge() + '歳。子どもや信頼できるスタッフに、会社を継いでもらう', go: function () { succView(false); } }] : []).concat(
@@ -8340,7 +8344,7 @@
       { label: 'スタッフ', sub: [lowN ? '⚠やる気が落ちている人が' + lowN + '人' : '', roomAny() ? '採用の空きあり' : ''].filter(Boolean).join('・'), go: function () { catView('staff'); }, rec: catRec('staff') },
       { label: 'お店づくり', sub: prods().some(function (p) { return S.stock[p.k] <= 1 && !autoOf(p); }) ? '⚠在庫が少ない商品あり' : '', go: function () { catView('shop'); }, rec: catRec('shop') },
       { label: '発信・記録・そのほか', sub: S.autoSns && deptN('sns') ? '' : (snsOn() ? 'SNS' : 'お店の宣伝') + 'あと' + snsLeft() + '回', go: function () { catView('other'); }, rec: catRec('other') }]));
-    $('app').insertAdjacentHTML('beforeend', below);
+    $('app').insertAdjacentHTML('beforeend', eraText(below));
     taskBind(TK); shopSwBind();
   }
   var curCat = null;
@@ -9399,7 +9403,7 @@
           go: function () { pay(pl.cost); var lines = tRun(g2, 'fit'); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
             if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), fin); fin(); } }; })(),
         { main: true, label: 'もどる', go: function () { trainView(); } }]));
-    $('app').insertAdjacentHTML('beforeend', list);
+    $('app').insertAdjacentHTML('beforeend', eraText(list));
   }
   // 神技・神対応への自主練習は自動。条件を満たした人は毎月こつこつ練習する
   function godAuto() {
@@ -9476,6 +9480,9 @@
     }
     var tmp = { sk: sk2 }; skFix(tmp); var tech = tmp.tech, talk = tmp.talk;
     pool = pool || STAFFNAMES;
+    // いるスタッフと、下の名前もかぶらないようにする（佐藤 久子と林 久子、のようにならない）
+    if (S) try { allStaff().forEach(function (x) { var gv = (x.name || '').split(' ')[1]; if (gv) taken[gv] = true; }); } catch (e) {}
+    Object.keys(taken).forEach(function (k) { var gv = k.split(' ')[1]; if (gv) taken[gv] = true; });
     if (!WORLDNAMES.length) Object.keys(AREAS).forEach(function (k) { (AREAS[k].names || []).forEach(function (n) { WORLDNAMES.push(n); }); });
     var age = tr === 'rookie' ? 19 + Math.floor(rnd() * 5) : tr === 'vet' ? 34 + Math.floor(rnd() * 16) : 21 + Math.floor(rnd() * 20), born = nowYear() - age;
     var eraP = pool === STAFFNAMES ? eraNames(born, false) : null;
