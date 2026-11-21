@@ -5398,7 +5398,7 @@
         return { label: p.n + '　' + yen(p.price), sub: '在庫' + S.stock[p.k] + '個', go: function () {
           say('me', 'ご自宅用に、' + p.n + 'もいかがですか。');
           if (C.budget + (C.split ? 1 : 0) >= p.tier && roll(clamp(0.5 + (score() + 10 - needOf(p)) / 40, 0.05, 0.95))) {
-            say('you', 'じゃあ、それもください。', 'good'); applySale(C, p); setScene('sold');
+            say('you', 'じゃあ、それもください。', 'good'); applySale(C, p); if (C.bundleMsg) say('you', 'あ、これも合いそう！ いっしょにください。', 'good'); setScene('sold');
           } else say('you', '今日はこれで十分です。');
           farewell('sold');
         } };
@@ -5409,6 +5409,22 @@
     if (second) return farewell('lost');
     C.tried = it.k;
     offer(true);
+  }
+  // セット売り：商品が1つ売れたら、悩みに合うほかの商品もいっしょに買ってくれることがある（まとめ買いも）。セット割（1割引き）にすると買ってもらいやすい
+  function bundleSale(c, it) {
+    if (!it.cost || c.bundling) return '';
+    var st = c.st, set = !!S.setSale, got = [];
+    var pr = clamp(0.08 + (set ? 0.15 : 0) + 0.06 * (c.budget || 0) + ((c.sat || 60) - 60) / 200 + (st && st.trait === 'shop' ? 0.15 : 0) + (st ? sk(st, 'know') * 0.02 : 0), 0.05, 0.75);
+    var pool = inStock().filter(function (p) { return p.k !== it.k && p.cost && fits(p, c); });
+    c.bundling = true;
+    for (var i = 0; i < 2 && pool.length && roll(i ? pr * 0.5 : pr); i++) {
+      var p2 = pool.splice(Math.floor(rnd() * pool.length), 1)[0], price = Math.round(priceOf(p2) * (set ? 0.9 : 1) / 100) * 100;
+      S.cash += price; c.revenue += price; S.total.sold++; S.stock[p2.k]--; S.wk.prod += price; if (c.got) c.got.push(p2.n); stSale(st, price); got.push(p2.n);
+    }
+    // まとめ買い：常連さんは、同じ商品を2つ買うことも
+    if (!got.length && !c.isNew && c.budget >= 1 && S.stock[it.k] > 0 && roll(0.1 + (set ? 0.08 : 0))) { var px = Math.round(priceOf(it) * (set ? 0.9 : 1) / 100) * 100; S.cash += px; c.revenue += px; S.total.sold++; S.stock[it.k]--; S.wk.prod += px; stSale(st, px); got.push(it.n + 'をもう1つ'); }
+    c.bundling = false;
+    return got.length ? (got.length === 1 && /もう1つ/.test(got[0]) ? 'まとめ買いで、' + got[0] + '（' + (set ? 'セット割' : '定価') + '）。' : 'セットで' + got.join('・') + 'も（' + (set ? 'セット割' : '定価') + '）。') : '';
   }
   function applySale(c, it) {
     var p = priceOf(it);
@@ -5426,6 +5442,7 @@
     if ((it.sessions || it.member || it.booking || it.royal) && S.clients.indexOf(c) < 0) S.clients.push(c);
     stSale(c.st, p);
     S.wk.sold.push(c.name + (c.vip ? 'さま ' : 'さん ') + it.n + (c.st && !c.st.owner ? '（' + c.st.name + '）' : ''));
+    c.bundleMsg = bundleSale(c, it);
   }
   // 来店のあと始末。解約が出たら返金額を返す
   function endVisit(c) {
@@ -5504,7 +5521,7 @@
     say('me', it.n + '（' + yen(priceOf(it)) + '）はいかがですか。');
     var tier = C.budget + (C.loy >= 60 ? 1 : 0);
     var ok = (tier >= it.tier || (C.royal && it.cost)) && roll(clamp(0.5 + (regScore(C.st) - regNeed(it)) / 40 + (C.royal && it.cost ? 0.2 : 0), 0.05, 0.95));
-    if (ok) { say('you', pick(['じゃあ、お願いします。', 'それもいいですね。', '続けます。']), 'good'); applySale(C, it); setScene('sold'); }
+    if (ok) { say('you', pick(['じゃあ、お願いします。', 'それもいいですね。', '続けます。']), 'good'); applySale(C, it); if (C.bundleMsg) say('you', 'あ、これも合いそう！ いっしょにください。', 'good'); setScene('sold'); }
     else { say('you', pick(['今日は大丈夫です。', 'また今度にします。']), 'bad'); C.loy = clamp(C.loy - 3, 0, 100); }
     regDone(ok);
   }
@@ -5558,7 +5575,7 @@
       } else lines.push('コースはすすめられなかった。');
       var pr = pickProd(C, inStock(), C.budget);
       if (pr && roll(clamp(0.15 + st.talk * 0.06 + (tr === 'shop' ? 0.3 : 0) + (S.gift ? 0.2 : 0) + (C.sat - 50) / 150 + (fits(pr, C) ? 0.12 : -0.05) + sk(st, 'know') * 0.03 + (S.snsProd === S.week ? 0.1 : 0) + (has(st, 'seller') ? 0.2 : 0), 0.03, 0.9))) {
-        applySale(C, pr); lines.push(pr.n + 'も売れた。');
+        applySale(C, pr); lines.push(pr.n + 'も売れた。' + (C.bundleMsg || ''));
       }
     } else {
       var items = regItems().filter(function (x) { return x.tier <= C.budget + (C.loy >= 60 ? 1 : 0); });
@@ -8436,6 +8453,7 @@
     var html = '', std = [], mine = [];
     list.forEach(function (p, i) { (p.mine ? mine : std).push(card(p, i)); });
     var allT = S.autoAll || 0, BULK = [0, 6, 10, 20, 30];
+    html += autoSeg('セット割', '2つ目からの商品を1割引きにする。セットやまとめ買いで、いっしょに買ってもらいやすくなる', 'setSale', [[false, 'しない'], [true, 'する']]);
     html += '<div class="stkall box"><b>まとめて自動補充</b><small>すべての商品を同じ数に保つ。あとから増えた商品も、この数で自動補充する（商品ごとに変えることもできる）</small><div class="seg" role="group" aria-label="まとめて自動補充">' +
       BULK.map(function (v) { return '<button type="button" data-all="' + v + '" aria-pressed="' + (allT === v) + '"' + (allT === v ? ' class="on"' : '') + '>' + (v ? v + '個' : 'しない') + '</button>'; }).join('') + '</div></div>';
     html += '<h2 class="stkgrp">定番の商品</h2>' + std.join('');
@@ -8453,6 +8471,7 @@
       bt.addEventListener('click', function () { var a = bt.getAttribute('data-auto').split(':'), p = list[+a[0]], d = +a[1], t = S.autoStock[p.k] !== undefined ? S.autoStock[p.k] : (S.autoAll || 0), i = AUTOSTEP.indexOf(t);
         if (i < 0) i = 0; S.autoStock[p.k] = AUTOSTEP[clamp(i + d, 0, AUTOSTEP.length - 1)]; SFX.click(); stockView(true); });
     });
+    autoSegBind(function () { stockView(true); });
     if (keep) window.scrollTo(0, y);
   }
   /* --- 研修と、6つの力。神技・神対応 --- */
