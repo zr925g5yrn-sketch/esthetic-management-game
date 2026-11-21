@@ -394,6 +394,7 @@
   .tasks .task.todo .mk { color: var(--accent, #D9466F); }
   .tasks .task.todo.pr2 .mk { color: var(--ink); }
   .tasks .task.todo.pr3 .mk { color: var(--sub); }
+  .pgnum { font-family: ui-monospace, monospace; font-weight: bold; letter-spacing: .08em; }
   .tasks .tlegend { margin: 0 0 4px; font-size: .74rem; color: var(--sub); }
   .tasks .task.done { opacity: .55; cursor: default; }
   .tasks .task small { display: block; opacity: .75; }
@@ -8549,6 +8550,29 @@
   function isMemo(off) { var c = commMode(off); return c === 'tel' || c === 'pager'; }
   // 伝言メモの時代：書類のような連絡はFAX、それ以外は電話（ポケベルの時代は、家族や友だちからはポケベル）
   function viaOf(m) { if (!isMemo(m.off)) return ''; if (/本社|経理|取引|業者|メーカー|商事|組合|協会|支店|事務所|編集部|銀行|会社|工房|農園|生産者/.test(m.from) || /biz|hq|supp|trade|press|maker|farm/.test(m.kind || '')) return 'FAX'; return commMode(m.off) === 'pager' && !m.off && hashOf(m.from) % 2 ? 'ポケベル' : '電話'; }
+  // ポケベルの数字：ごろ合わせ（5963＝ごくろうさん など）か、かな2桁の「ポケベル打ち」（あ＝11、か＝21…）
+  var PGKANA = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもや_ゆ_よらりるれろわをん';
+  var PGDAKU = { 'が': 'か', 'ぎ': 'き', 'ぐ': 'く', 'げ': 'け', 'ご': 'こ', 'ざ': 'さ', 'じ': 'し', 'ず': 'す', 'ぜ': 'せ', 'ぞ': 'そ', 'だ': 'た', 'ぢ': 'ち', 'づ': 'つ', 'で': 'て', 'ど': 'と', 'ば': 'は', 'び': 'ひ', 'ぶ': 'ふ', 'べ': 'へ', 'ぼ': 'ほ' };
+  var PGHANDA = { 'ぱ': 'は', 'ぴ': 'ひ', 'ぷ': 'ふ', 'ぺ': 'へ', 'ぽ': 'ほ' };
+  var PGSMALL = { 'っ': 'つ', 'ゃ': 'や', 'ゅ': 'ゆ', 'ょ': 'よ', 'ぁ': 'あ', 'ぃ': 'い', 'ぅ': 'う', 'ぇ': 'え', 'ぉ': 'お' };
+  function pgKana(w) {
+    return w.split('').map(function (ch) {
+      var mark = '';
+      if (PGDAKU[ch]) { ch = PGDAKU[ch]; mark = '04'; } else if (PGHANDA[ch]) { ch = PGHANDA[ch]; mark = '05'; } else if (PGSMALL[ch]) ch = PGSMALL[ch];
+      var i = PGKANA.indexOf(ch); if (i < 0) return '';
+      var code = i >= 45 ? '0' + (i - 44) : String(Math.floor(i / 5) + 1) + (i % 5 + 1);
+      return code + mark;
+    }).join('');
+  }
+  var PGWORD = [[/おつかれ|お疲れ|ご苦労|ごくろう/, '5963'], [/ありがと|感謝|サンキュー/, '39'], [/よろしく/, '4649'], [/おはよう/, '0840'], [/さみし|寂し/, '3341'], [/なにしてる|何してる/, '724106'], [/おくれ|遅れ/, '0906'],
+    [/早く|はやく|急ぎ|至急/, '889'], [/打ち上げ|行きたい|行こう|楽しみ|やった/, 'k:たのしみ'], [/ごめん|すみません|申し訳/, 'k:ごめん'], [/会いたい|あいたい/, 'k:あいたい'], [/がんば|頑張/, 'k:がんばる'],
+    [/相談|話を聞|話があ|聞いて/, 'k:はなしある'], [/休み|やすみ/, 'k:やすみ'], [/おめでと|誕生日/, 'k:おめてとう'], [/大丈夫|だいじょうぶ/, 'k:たいしようぶ'], [/電話|でんわ/, 'k:でんわして']];
+  function pagerLine(t) {
+    var codes = [];
+    PGWORD.forEach(function (w) { if (codes.length < 2 && w[0].test(t)) codes.push(w[1].indexOf('k:') === 0 ? pgKana(w[1].slice(2)) : w[1]); });
+    if (!codes.length) codes.push(pgKana('でんわして'));
+    return '<span class="pgnum">' + codes.join(' ') + '</span>（' + t + '）';
+  }
   function dotHead(off, sub, cnt) { var md = commMode(off); return '<div class="dh"><b>' + (md === 'dot' ? (off ? '公式dot.' : 'dot.') : dotNm(off)) + '</b><span>' + sub + '</span>' + (cnt ? '<span class="cnt">' + (isMemo(off) ? '折り返しまだ ' : '未返信 ') + cnt + '</span>' : '') + '</div>'; }
   function dotView(off) {
     bar();
@@ -8558,6 +8582,7 @@
       (list.length ? list.map(function (m, i) {
         var last = m.done >= 0 ? m.reps[m.done].res : m.lines[m.lines.length - 1].t;
         var via = viaOf(m);
+        if (via === 'ポケベル' && m.done < 0) last = pagerLine(last).replace(/（[\s\S]*$/, '');
         return '<button type="button" class="dotrow" data-dot="' + i + '">' + (memo ? '<span class="via">' + via + '</span>' : dav(m.from)) + '<span><span class="nm">' + m.from + '</span><span class="pv">' + last + '</span></span>' +
           '<span class="st' + (m.done < 0 ? ' new' : '') + '">' + (m.done < 0 ? (memo ? '折り返しまだ' : '未返信') : (memo ? '折り返しずみ' : '返信ずみ')) + '</span></button>';
       }).join('') : '<p class="lead" style="padding:12px">' + (memo ? '新しい伝言はない。' : '新しいメッセージはない。') + '</p>') + '</div>',
@@ -8578,8 +8603,8 @@
     var h = '<h1>' + (memo ? (via === 'FAX' ? 'FAX' : via === 'ポケベル' ? 'ポケベルの呼び出し' : '電話の伝言') : mailM ? 'メール' : (m.off ? 'お店の公式アカウント' : 'メッセージ')) + '</h1><div class="dotapp m-' + md + (m.off ? ' off' : '') + '">' + dotHead(m.off, '‹ ' + m.from) + '<div class="dchat">';
     if (memo || mailM) {
       var cls = via === 'FAX' ? 'fax' : mailM ? 'mail' : 'memo';
-      var top = via === 'FAX' ? 'FAX　送信元：' + m.from + '　' + nowYear() + '年' + monthOf() + '月' : via === 'ポケベル' ? 'ポケベルに呼び出し：' + m.from + '（電話をかけて話した）' : mailM ? '差出人：' + m.from : '電話の伝言メモ：' + m.from + 'から';
-      h += '<div class="paper ' + cls + '"><div class="ph">' + top + '</div>' + m.lines.map(function (l) { return '<p>' + (l.who ? '<b>' + l.who + '</b>　' : '') + l.t + '</p>'; }).join('') + '</div>';
+      var top = via === 'FAX' ? 'FAX　送信元：' + m.from + '　' + nowYear() + '年' + monthOf() + '月' : via === 'ポケベル' ? 'ポケベルに呼び出し：' + m.from + '（数字のメッセージ）' : mailM ? '差出人：' + m.from : '電話の伝言メモ：' + m.from + 'から';
+      h += '<div class="paper ' + cls + '"><div class="ph">' + top + '</div>' + m.lines.map(function (l) { return '<p>' + (l.who ? '<b>' + l.who + '</b>　' : '') + (via === 'ポケベル' ? pagerLine(l.t) : l.t) + '</p>'; }).join('') + '</div>';
     } else h += m.lines.map(function (l) { var w = l.who || m.from; return '<div class="dmsg">' + dav(w) + '<div class="bb">' + (l.who || m.from.indexOf('・') >= 0 ? '<span class="who">' + w + '</span>' : '') + l.t + '</div></div>'; }).join('');
     if (m.done >= 0 && (memo || mailM)) { var rq = m.reps[m.done]; h += '<div class="paper me ' + (mailM ? 'mail' : via === 'FAX' ? 'fax' : 'memo') + '"><div class="ph">' + (mailM ? 'あなたの返信' : via === 'FAX' ? 'FAXで返事を送った' : 'あなたが電話をかけた') + '</div><p>' + rq.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</p></div><div class="paper ' + (mailM ? 'mail' : 'memo') + '"><div class="ph">' + m.from + (mailM ? 'からの返信' : 'の返事') + '</div><p>' + rq.res + '</p></div>' + (note ? '<p class="dnote">' + note + '</p>' : ''); }
     else if (m.done >= 0) { var rp = m.reps[m.done]; h += '<div class="dmsg me"><div class="bb">' + rp.t.replace(/　¥[\d,]+$/, '').replace(/^「|」$/g, '') + '</div></div><div class="dmsg">' + dav(m.from) + '<div class="bb">' + rp.res + '</div></div>' + (note || m.note ? '<div class="dnote">' + (note || m.note) + '</div>' : ''); }
