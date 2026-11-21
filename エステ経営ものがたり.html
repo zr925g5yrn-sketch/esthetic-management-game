@@ -8018,7 +8018,8 @@
   function taxView() {
     var D = S.taxDue, p = D.profit, tax = taxOf(p), crew = allStaff().filter(function (st) { return !st.owner; });
     var bonus = crew.length ? Math.min(Math.round(p * 0.2 / 1000) * 1000, 100000 * crew.length) : 0, taxB = taxOf(p - bonus);
-    var fee = Math.max(50000, Math.round(tax * 0.08 / 1000) * 1000), taxP = Math.round(taxOf(p - fee) * 0.85 / 1000) * 1000;
+    // 税理士の相談料：決算の申告と節税の相談で、10万円＋税額の1.5%（上限100万円）。1994年までは報酬規定の時代で、少し安め
+    var fee = Math.round(Math.min(1000000, 100000 + tax * 0.015) * (eraY() < 1995 ? 0.8 : 1) / 1000) * 1000, taxP = Math.round(taxOf(p - fee) * 0.85 / 1000) * 1000;
     var finish = function (paid, note) {
       S.taxDue = null; S.taxPaid = (S.taxPaid || 0) + paid;
       if (S.ipo) { var prevP = S.ipo.lastP || 0; S.ipo.val = Math.round(Math.max(p, 1e7) * 15 * (0.6 + S.rep / 250) / 1e6) * 1e6; S.ipo.lastP = p;
