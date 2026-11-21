@@ -2380,7 +2380,6 @@
     ['f10k', 'フォロワー1万人', function () { return snsFix().f >= 10000; }],
     ['f100k', 'フォロワー10万人', function () { return snsFix().f >= 100000; }],
     ['interior', '最上級の内装', function () { return (S.interiorLv || 0) >= 3; }],
-    ['ph', 'ペントハウスの主', function () { return !!S.ph; }],
     ['rank1', 'サロンランキング1位', function () { return S.bestRank === 1; }],
     ['mis10', 'ミッション10回達成', function () { return (S.missionsDone || 0) >= 10; }],
     ['mis50', 'ミッション50回達成', function () { return (S.missionsDone || 0) >= 50; }],
@@ -4996,7 +4995,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); homeMonth(); frMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
+    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); homeMonth(); frMonth(); phClose(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -6415,6 +6414,12 @@
 
   /* --- ペントハウス --- */
   var PHCOST = 3000000, PHRENT = 120000, PHFEE = 60000;
+  // 前の版のセーブ：ペントハウスは閉じて、開いたときの費用を戻す。会員さんは本店のロイヤル会員の候補に
+  function phClose() {
+    if (!S.ph) return;
+    S.cash += PHCOST; S.vipCount = Math.max(0, (S.vipCount || 0) - 2); S.ph = null;
+    S.news.push({ good: true, t: 'ペントハウスサロンを閉じた。開いたときの費用' + yen(PHCOST) + 'が戻った。会員だったお客様は、これからは本店でおもてなしする。' });
+  }
   function phCap() { return 3 + 2 * allStaff().reduce(function (m, st) { return Math.max(m, st.tech); }, 1); }
   function phOpen() {
     pay(PHCOST); S.ph = { members: Math.min(phCap(), 3 + Math.min(S.vipCount || 0, 3)), party: -9, opened: S.week };
@@ -6512,7 +6517,9 @@
           off: !!has || farmN() >= farmCap() || S.cash < c, go: function () { pay(c); S.farms[x.k] = { since: S.week }; hum(loc ? 3 : 2); SFX.good(); koboView(x.area + 'の生産者さんを訪ね、' + x.n + 'を分けてもらえることになった。' + (x.cat ? '「' + DEVCAT[x.cat].n + '」のオリジナル商品を作れるようになった。' : '')); } };
       })).concat([{ main: true, label: 'もどる', go: investView }]));
   }
+  // ペントハウスサロンは廃止（富裕層のお客様は、ロイヤル会員・セレブ・ホテルのスパが担う）。新しくは開けない
   function phOpts() {
+    return [];
     if (!S.ph) {
       if (!hasTier('city')) return [];
       return [{ label: 'ペントハウスサロンを開く　' + yen(PHCOST), sub: '都心のタワー最上階。富裕層だけの完全会員制で、毎月の会費が入る（月' + yen(PHRENT) + '）', off: S.cash < PHCOST, go: phOpen }];
