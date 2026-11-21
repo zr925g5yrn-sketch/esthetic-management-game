@@ -3197,6 +3197,13 @@
   }
   function stepHtml(title, sub) { return '<p class="step">' + title + (sub ? '<small>' + sub + '</small>' : '') + '</p>'; }
   function courseOf(k) { return COURSES.concat([BRIDAL]).filter(function (c) { return c.k === k; })[0]; }
+  // 回数券のペースと期限：大きいコースを買った人ほど熱心に通う。期限は5回券8か月・10回12か月・20回24か月
+  function planTotal(pl) { var co = courseOf(pl.k); return pl.total || (co && co.sessions) || 5; }
+  function planExpM(n) { return n >= 20 ? 24 : n >= 10 ? 12 : 8; }
+  function planFix(pl) { if (pl && !pl.exp) pl.exp = S.week + planExpM(planTotal(pl)); return pl; }
+  function planRate(pl) { planFix(pl); var n = planTotal(pl), r = n >= 20 ? 0.95 : n >= 10 ? 0.8 : 0.65; if (pl.exp - S.week <= 2) r = Math.min(1, r + 0.3); return r; }
+  // 1回の来店で2回分まとめて受ける確率（大きいコースや、熱心な常連ほど）
+  function planDouble(pl, loy) { var n = planTotal(pl); return pl.left >= 2 && roll((n >= 20 ? 0.35 : n >= 10 ? 0.2 : 0.08) + (loy >= 70 ? 0.1 : 0) + (pl.exp - S.week <= 2 ? 0.25 : 0)); }
   function inStock() { return prods().filter(function (p) { return S.stock[p.k] > 0; }); }
   // 商品とお悩みの相性
   var F3 = ['pore', 'bright', 'aging'], H3 = ['dry', 'scalp'];
@@ -5069,10 +5076,14 @@
     S.holPending = S.week > 1; S.holInv = S.holPending && S.week >= 3 && roll(0.3) ? pick(['oldfriend', 'oldfriend', 'invest', 'seminar']) : null;
     if (S.staff[0].sick) S.news.push({ t: '今月、あなたは店に立たない。お客様はスタッフに任せる。' });
     // 来店する常連
+    // 回数券の期限切れ（残りの回数分は、もういただいている）
+    var expd = [];
+    S.clients.forEach(function (c) { if (c.plan && c.plan.left > 0) { planFix(c.plan); if (S.week > c.plan.exp) { expd.push(c.name + 'さん（残り' + c.plan.left + '回）'); c.loy = clamp(c.loy - 15, 0, 100); c.plan = null; } } });
+    if (expd.length) S.news.push({ bad: true, t: '回数券の期限が切れたお客様がいる：' + expd.slice(0, 4).join('・') + (expd.length > 4 ? 'ほか' : '') + '。信頼が少し下がった。期限が近いと来店しやすいので、早めに通ってもらおう。' });
     var ret = shuffle(S.clients.filter(function (c) {
       if (!c.active) return false;
       if (c.booked === S.week) return true;
-      if (c.plan && c.plan.left > 0) return roll(0.6);
+      if (c.plan && c.plan.left > 0) return roll(planRate(c.plan));
       if (c.member) return S.week - c.last >= 2;
       if (c.royal) return S.week - c.last >= 2;
       if (c.celebReg) return S.week - c.last >= 2;
@@ -5155,7 +5166,7 @@
     if (c.isNew && c.cin) return 'コールドシナモン・新規' + (c.cpn ? '（クーポン）' : '');
     if (c.isNew) return c.ref ? '紹介・新規' : '新規';
     if (c.friend && !c.visits) return '地元の知り合い・開店祝いに5回券';
-    if (c.plan) return courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回';
+    if (c.plan) { planFix(c.plan); var em = c.plan.exp - S.week; return courseOf(c.plan.k).n + ' 残り' + c.plan.left + '回' + (em <= 2 ? '（期限まで' + Math.max(0, em) + 'か月）' : ''); }
     if (c.member) return '会員';
     return '予約の来店';
   }
@@ -5243,7 +5254,8 @@
     if (has(st, 'machine') && C.isNew) C.int += 14;
     C.sat = 0; C.used = {}; C.turns = 0; C.revenue = 0; C.pushed = false; C.sub = null; C.blend = null; C.oilLiked = null; C.vipN = 0; C.vipSubs = []; C.vipTried = false; C.vipDone = false; C.subAsked = {}; C.split = false; C.tried = null; C.log = []; C.got = [];
     if (!C.isNew) {
-      if (C.plan) C.plan.left--;
+      C.double = false;
+      if (C.plan) { C.double = planDouble(C.plan, C.loy); C.plan.left -= C.double ? 2 : 1; }
       C.today = roll(0.7) ? C.concern : newConcern();
     }
     C.phase = 'meet';
@@ -5504,7 +5516,15 @@
   function upsell() {
     bar();
     view(karte() + talkHtml() + stepHtml('ついでに物販をすすめる', '1回だけ。' + tip('upsell', '気分が良いときは買ってもらいやすい。')),
-      inStock().map(function (p) {
+      setOffers(C).map(function (so) {
+        return setOpt(so, function (so) {
+          say('me', 'ご自宅用に、' + so.n + 'のセット（' + yen(so.price) + '）もいかがですか。');
+          var hi = so.items[0].need > so.items[1].need ? so.items[0] : so.items[1];
+          if (C.budget + (C.split ? 1 : 0) >= so.tier && roll(clamp(0.5 + (score() + 10 - needOf(hi) + setBonus(so)) / 40, 0.05, 0.95))) { say('you', 'セットなら、両方ください。', 'good'); sellSet(C, so); setScene('sold'); }
+          else say('you', '今日はこれで十分です。');
+          farewell('sold');
+        });
+      }).concat(inStock().map(function (p) {
         return { label: p.n + '　' + yen(p.price), sub: '在庫' + S.stock[p.k] + '個', go: function () {
           say('me', 'ご自宅用に、' + p.n + 'もいかがですか。');
           if (C.budget + (C.split ? 1 : 0) >= p.tier && roll(clamp(0.5 + (score() + 10 - needOf(p)) / 40, 0.05, 0.95))) {
@@ -5512,7 +5532,7 @@
           } else say('you', '今日はこれで十分です。');
           farewell('sold');
         } };
-      }).concat([{ label: 'すすめない', go: function () { farewell('sold'); } }]));
+      })).concat([{ label: 'すすめない', go: function () { farewell('sold'); } }]));
   }
   function fail(it, second) {
     if (C.pushed) S.rep = clamp(S.rep - 4, 0, 100);
@@ -5520,6 +5540,26 @@
     C.tried = it.k;
     offer(true);
   }
+  // 選んですすめるセット：悩みに合う商品を2つ組み合わせる。セット割にしていれば1割引き
+  function setOffers(c) {
+    var st = inStock().filter(function (p) { return p.cost; });
+    var pool = st.slice().sort(function (a, b) { return (fits(b, c) ? 1 : 0) - (fits(a, c) ? 1 : 0) || priceOf(b) - priceOf(a); }), out = [];
+    if (pool.length >= 2) out.push([pool[0], pool[1]]);
+    if (pool.length >= 3) out.push([pool[0], pool[2]]);
+    return out.map(function (pr) {
+      var each = pr.map(function (p) { return Math.round(priceOf(p) * (S.setSale ? 0.9 : 1) / 100) * 100; });
+      return { items: pr, each: each, price: each[0] + each[1], full: priceOf(pr[0]) + priceOf(pr[1]), tier: Math.max(pr[0].tier || 0, pr[1].tier || 0), fit: pr.filter(function (p) { return fits(p, c); }).length,
+        n: pr[0].n + '＋' + pr[1].n };
+    });
+  }
+  function setOpt(so, tryIt) {
+    return { label: 'セット：' + so.n + '　' + yen(so.price), sub: (S.setSale ? 'セット割で' + yen(so.full - so.price) + 'お得' : '2つ合わせて定価') + (so.fit >= 2 ? '。今日の悩みにぴったりの組み合わせ' : '') + '　在庫' + so.items.map(function (p) { return S.stock[p.k]; }).join('・') + '個', go: function () { tryIt(so); } };
+  }
+  function sellSet(c, so) {
+    so.items.forEach(function (p, i) { var pr = so.each[i]; S.cash += pr; c.revenue += pr; S.total.sold++; S.stock[p.k]--; S.wk.prod += pr; if (c.got) c.got.push(p.n); stSale(c.st, pr); });
+  }
+  // セットの受け入れやすさ：1つより少し高いが、悩みに合うほど、セット割にしているほど受け入れられやすい
+  function setBonus(so) { return (S.setSale ? 8 : 0) + so.fit * 3 - 6; }
   // セット売り：商品が1つ売れたら、悩みに合うほかの商品もいっしょに買ってくれることがある（まとめ買いも）。セット割（1割引き）にすると買ってもらいやすい
   function bundleSale(c, it) {
     if (!it.cost || c.bundling) return '';
@@ -5544,7 +5584,7 @@
     if (it.cost || it.prod) S.wk.prod += p;
     else if (it.k === 'opt') S.wk.opt += p;
     else S.wk.course += p;
-    if (it.sessions) c.plan = { k: it.k, left: (c.plan ? c.plan.left : 0) + it.sessions, price: p, total: it.sessions };
+    if (it.sessions) c.plan = { k: it.k, left: (c.plan ? c.plan.left : 0) + it.sessions, price: p, total: it.sessions, exp: S.week + planExpM(it.sessions) };
     if (it.member) c.member = true;
     if (it.royal) { c.royal = true; c.royalSince = S.week; }
     if (it.booking) c.booked = S.week + 1;
@@ -5602,7 +5642,7 @@
   /* --- 常連 --- */
   function meetReg() {
     C.known.concern = true; C.known.pref = true;
-    var line = C.royal ? 'いつものをお願いね。VIPルームって、やっぱり落ち着くわ。' : C.plan ? 'いつものコースでお願いします。' : (C.member ? '今月もよろしくお願いします。' : '予約していた' + C.name + 'です。');
+    var line = C.royal ? 'いつものをお願いね。VIPルームって、やっぱり落ち着くわ。' : C.plan ? (C.double ? 'いつものコース、今日は2回分まとめてしっかりお願いします。' : 'いつものコースでお願いします。') : (C.member ? '今月もよろしくお願いします。' : '予約していた' + C.name + 'です。');
     if (C.today !== C.concern) line += cLine(C.today, 'today');
     say('you', line);
     if (C.missSt) say('you', C.missSt + 'さん、ほかのお店に移っちゃったんですね…。ちょっとさみしいな。', 'bad');
@@ -5623,7 +5663,16 @@
       regItems().map(function (it) {
         return { label: it.n + '　' + yen(priceOf(it)), sub: it.cost ? '物販　在庫' + S.stock[it.k] + '個' : (it.sessions ? '継続の提案' : (it.note || '')),
           go: function () { regTry(it); } };
-      }).concat([{ label: '何もすすめない', sub: '', go: function () {
+      }).concat(C.royal ? [] : setOffers(C).map(function (so) {
+        return setOpt(so, function (so) {
+          say('me', so.n + 'のセット（' + yen(so.price) + '）はいかがですか。');
+          var hi = so.items[0].need > so.items[1].need ? so.items[0] : so.items[1];
+          var ok = C.budget + (C.loy >= 60 ? 1 : 0) >= so.tier && roll(clamp(0.5 + (regScore(C.st) - regNeed(hi) + setBonus(so)) / 40, 0.05, 0.95));
+          if (ok) { say('you', 'セットなら、両方ください。', 'good'); sellSet(C, so); }
+          else { say('you', pick(['今日は大丈夫です。', 'また今度にします。']), 'bad'); C.loy = clamp(C.loy - 3, 0, 100); }
+          regDone(ok);
+        });
+      })).concat([{ label: '何もすすめない', sub: '', go: function () {
         say('me', 'またお待ちしていますね。'); say('you', 'ありがとう、また来ます。', 'good'); C.loy = clamp(C.loy + 5, 0, 100); regDone(false);
       } }]));
   }
@@ -6292,7 +6341,7 @@
   // 本店を、支店と同じように自動で計算するための仮の店
   function homeSim() {
     var H = S.opHome;
-    var regs = H.clients.filter(function (c) { return c.active && (c.member || (c.plan && c.plan.left > 0)); }).map(function (c) { return { mem: !!c.member, left: c.plan ? c.plan.left : 0, last: c.last, c: c }; });
+    var regs = H.clients.filter(function (c) { return c.active && (c.member || (c.plan && c.plan.left > 0)); }).map(function (c) { return { mem: !!c.member, left: c.plan ? c.plan.left : 0, n: c.plan ? planTotal(c.plan) : 0, exp: c.plan ? planFix(c.plan).exp : 0, last: c.last, c: c }; });
     return { id: 'home', home: true, area: null, name: (S.brand ? S.brand + ' ' : '') + '本店（スタッフにおまかせ）', staff: H.staff, rep: H.rep, regs: regs, concept: H.concept, interiorLv: H.interiorLv, interior: H.interior, last: null };
   }
   // 月末：支店の結果をしまい、本店にもどる
@@ -6300,7 +6349,7 @@
     var b = opBranch(); if (!b) { S.opShop = null; S.opHome = null; return; }
     var owner = S.staff[0], H = S.opHome;
     b.staff = S.staff.slice(1); b.clients = S.clients; b.rep = S.rep; b.concept = S.concept; b.interiorLv = S.interiorLv; b.interior = S.interior;
-    b.regs = b.regs.concat(b.clients.filter(function (c) { return c.active && (c.member || (c.plan && c.plan.left > 0)); }).map(function (c) { return { mem: !!c.member, left: c.plan ? c.plan.left : 0, last: c.last, cid: c.id }; }));
+    b.regs = b.regs.concat(b.clients.filter(function (c) { return c.active && (c.member || (c.plan && c.plan.left > 0)); }).map(function (c) { return { mem: !!c.member, left: c.plan ? c.plan.left : 0, n: c.plan ? planTotal(c.plan) : 0, exp: c.plan ? planFix(c.plan).exp : 0, last: c.last, cid: c.id }; }));
     b.last = { name: b.name, sales: S.wk.sales, refund: S.wk.refund, cost: S.wk.cost, net: S.wk.sales - S.wk.refund - S.wk.cost, served: S.wk.served || S.queue.length, sold: 0, turned: 0, op: true };
     S.staff = [owner].concat(H.staff); S.clients = H.clients; S.concept = H.concept; S.interiorLv = H.interiorLv; S.interior = H.interior;
     S.rep = hb ? hb.rep : H.rep;
@@ -6390,12 +6439,13 @@
     }
     b.regs.forEach(function (g) {
       if (slots <= 0) return;
-      if (g.mem ? S.week - g.last < 2 : !roll(0.6)) return;
-      slots--; r.served++; g.last = S.week; if (!g.mem) g.left--;
+      if (!g.mem) { if (!g.exp) g.exp = S.week + planExpM(g.n || 5); if (S.week > g.exp) { g.left = 0; return; } }
+      if (g.mem ? S.week - g.last < 2 : !roll(Math.min(1, ((g.n || 5) >= 20 ? 0.95 : (g.n || 5) >= 10 ? 0.8 : 0.65) + (g.exp - S.week <= 2 ? 0.3 : 0)))) return;
+      slots--; r.served++; g.last = S.week; if (!g.mem) g.left -= g.left >= 2 && roll((g.n || 5) >= 20 ? 0.35 : (g.n || 5) >= 10 ? 0.2 : 0.08) ? 2 : 1;
       var st = next(); expAdd(st, 1);
       if (A.tier !== 'local') r.sales += Math.round(8000 * A.mult);
       if (roll(clamp(0.2 + st.talk * 0.05 + (st.trait === 'shop' ? 0.2 : 0) + (has(st, 'seller') ? 0.15 : 0) + keep(st), 0.05, 0.8))) brSell(st);
-      if (!g.mem && g.left === 0 && roll(0.25 + st.talk * 0.05 + keep(st))) { g.left = 5; r.sales += stSale(st, Math.round(courseOf('c5').price * A.mult)); r.sold++; }
+      if (!g.mem && g.left <= 0 && roll(0.25 + st.talk * 0.05 + keep(st))) { g.left = 5; g.n = 5; g.exp = S.week + planExpM(5); r.sales += stSale(st, Math.round(courseOf('c5').price * A.mult)); r.sold++; }
     });
     // 新規
     var fit = fitOf(b.area, b.concept);
