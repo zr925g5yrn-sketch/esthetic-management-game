@@ -6420,31 +6420,34 @@
     showCut({ kicker: 'ペントハウス', title: '夜景のサロンパーティー', sub: n > 0 ? '新しい会員が' + n + '人' : '会員はもう満員', icon: 'star', c1: '#3E2F5B', c2: '#2A1F40', sound: function () { SFX.fanfare(true); } }, investView);
   }
   /* --- 地元の工房カフェ：自社商品をつくる工房を見学でき、精油づくり体験と、地元の食材のカフェもある --- */
-  var KOBOCOST = 30000000, FARMCOST = 300000, FARMMON = 50000, FARMMAX = 4;
+  var KOBOCOST = 30000000, FARMCOST = 300000, FARMMON = 50000, FARMMAX = 12;
   // 産地の素材（生産者さんとつながると、商品開発で使える）
   var SANCHI = [
-    { k: 'birch', n: '白樺の樹液', pref: ['北海道'], area: '北海道の白樺林', cats: ['skin', 'mask', 'inner'], d: '春だけ採れる、みずみずしい樹液で、肌にうるおいを' },
-    { k: 'funori', n: 'ふのり', pref: ['新潟県', '千葉県', '長崎県'], area: '磯の岩場', cats: ['hair', 'skin', 'mask'], d: '昔から髪を洗うのに使われてきた海藻。とろりとやさしい' },
-    { k: 'lav', n: 'ラベンダー', pref: ['北海道'], area: '北海道の丘', cats: ['aroma', 'oil', 'scent'], d: '心を落ち着かせる、やさしい香り' },
-    { k: 'apple', n: 'りんご', pref: ['青森県', '長野県'], area: '東北と信州の果樹園', cats: ['skin', 'inner', 'body'], d: '果実のエキスで、すこやかな肌に' },
-    { k: 'nuka', n: '米ぬか', pref: ['秋田県', '山形県', '新潟県', '宮城県'], area: '米どころの田んぼ', cats: ['skin', 'body', 'mask'], d: '昔ながらの、しっとりやわらかな肌へ' },
-    { k: 'sakekasu', n: '酒かす', pref: ['新潟県', '兵庫県', '広島県'], area: '酒蔵', cats: ['skin', 'mask'], d: '透明感のある肌に' },
-    { k: 'tea', n: '緑茶', pref: ['静岡県', '京都府'], area: '茶畑', cats: ['skin', 'inner', 'uv'], d: 'さっぱりと、肌を引きしめる' },
-    { k: 'tsubaki', n: '椿油', pref: ['東京都', '長崎県', '静岡県'], area: '椿の島', cats: ['hair', 'body', 'oil'], d: 'つややかな髪と肌に' },
-    { k: 'hinoki', n: 'ひのき', pref: ['岐阜県', '奈良県', '長野県'], area: '山の森', cats: ['aroma', 'oil', 'scent'], d: '森林浴のような、すがすがしい香り' },
-    { k: 'yuzu', n: 'ゆず', pref: ['高知県', '徳島県'], area: '四国の山あい', cats: ['aroma', 'oil', 'body'], d: 'さわやかで、元気が出る香り' },
-    { k: 'mikan', n: 'みかん', pref: ['愛媛県', '和歌山県', '静岡県'], area: '海の見えるみかん畑', cats: ['inner', 'aroma', 'scent'], d: 'あまずっぱい、明るい香り' },
-    { k: 'getto', n: '月桃', pref: ['沖縄県'], area: '南の島', cats: ['skin', 'aroma', 'oil'], d: '南の島のハーブ。すこやかな肌に' },
-    { k: 'salt', n: '海塩', pref: ['沖縄県', '石川県', '高知県'], area: '塩田', cats: ['body', 'scent'], d: 'ミネラルたっぷりで、体をすっきり' }
+    { k: 'birch', n: '白樺の樹液', pref: ['北海道'], area: '北海道の白樺林', cat: 'aging', cats: ['aging'], d: '春だけ採れる、みずみずしい樹液で、肌にうるおいを' },
+    { k: 'funori', n: 'ふのり', pref: ['新潟県', '千葉県', '長崎県'], area: '磯の岩場', cat: 'hair', cats: ['hair'], d: '昔から髪を洗うのに使われてきた海藻。とろりとやさしい' },
+    { k: 'lav', n: 'ラベンダー', pref: ['北海道'], area: '北海道の丘', cat: 'aroma', cats: ['aroma'], d: '心を落ち着かせる、やさしい香り' },
+    { k: 'apple', n: 'りんご', pref: ['青森県', '長野県'], area: '東北と信州の果樹園', cat: 'inner', cats: ['inner'], d: '果実のエキスで、すこやかな肌に' },
+    { k: 'nuka', n: '米ぬか', pref: ['秋田県', '山形県', '新潟県', '宮城県'], area: '米どころの田んぼ', cat: 'skin', cats: ['skin'], d: '昔ながらの、しっとりやわらかな肌へ' },
+    { k: 'sakekasu', n: '酒かす', pref: ['新潟県', '兵庫県', '広島県'], area: '酒蔵', cat: 'mask', cats: ['mask'], d: '透明感のある肌に' },
+    { k: 'tea', n: '緑茶', pref: ['静岡県', '京都府'], area: '茶畑', cat: 'uv', cats: ['uv'], d: 'さっぱりと、肌を引きしめる' },
+    { k: 'tsubaki', n: '椿油', pref: ['東京都', '長崎県', '静岡県'], area: '椿の島', cat: 'body', cats: ['body'], d: 'つややかな髪と肌に' },
+    { k: 'hinoki', n: 'ひのき', pref: ['岐阜県', '奈良県', '長野県'], area: '山の森', cat: 'oil', cats: ['oil'], d: '森林浴のような、すがすがしい香り' },
+    { k: 'yuzu', n: 'ゆず', pref: ['高知県', '徳島県'], area: '四国の山あい', cat: 'hand', cats: ['hand'], d: 'さわやかで、元気が出る香り' },
+    { k: 'mikan', n: 'みかん', pref: ['愛媛県', '和歌山県', '静岡県'], area: '海の見えるみかん畑', cat: null, cats: [], d: 'あまずっぱい、明るい香り' },
+    { k: 'getto', n: '月桃', pref: ['沖縄県'], area: '南の島', cat: 'eye', cats: ['eye'], d: '南の島のハーブ。すこやかな肌に' },
+    { k: 'salt', n: '海塩', pref: ['沖縄県', '石川県', '高知県'], area: '塩田', cat: 'cleanse', cats: ['cleanse'], d: 'ミネラルたっぷりで、体をすっきり' }
   ];
   function homePref() { return (S.home && S.home.pref) || S.homePref || ''; }
-  function koboOn() { return S.shops.length >= 2 && S.myProds.length >= 1; }
+  function koboOn() { return S.shops.length >= 2; }
+  // 商品の種類ごとの生産者さん。契約すると、その種類のオリジナル商品を作れる
+  function farmOf(cat) { return SANCHI.filter(function (x) { return x.cat === cat; })[0]; }
+  function catOpen(cat) { var f = farmOf(cat); return !!(S.kobo && f && S.farms && S.farms[f.k]); }
   function farmN() { return Object.keys(S.farms || {}).length; }
   function sanchiLocal(x) { return x.pref.indexOf(homePref()) >= 0; }
   function koboOpts() {
     if (S.kobo) return [{ label: '地元の工房カフェ', sub: '見学・精油づくり体験・地元の食材のカフェ　産地の生産者さん ' + farmN() + '／' + FARMMAX, go: function () { koboView(); } }];
     if (!S.shops.length) return [];
-    return [{ label: '地元に工房カフェをつくる　' + yen(KOBOCOST), sub: koboOn() ? '自社商品をつくる工房を、一般の人も見学できる。精油づくり体験と、地元の食材のカフェも' : '支店2つと、オリジナル商品1つ以上でつくれる', off: !koboOn() || S.cash < KOBOCOST, go: function () {
+    return [{ label: '地元に工房カフェをつくる　' + yen(KOBOCOST), sub: koboOn() ? 'オリジナル商品をつくる工房。一般の人も見学でき、精油づくり体験と地元の食材のカフェも' : '支店を2つ出すとつくれる', off: !koboOn() || S.cash < KOBOCOST, go: function () {
       pay(KOBOCOST); S.kobo = { since: S.week, visitors: 0 }; S.farms = S.farms || {}; mxpAdd(80); hum(5); S.rep = clamp(S.rep + 5, 0, 100);
       evScene(['v_kobo']);
       showCut({ kicker: 'グランドオープン', title: (S.brand ? S.brand + 'の' : '') + '工房カフェ', sub: '地元の人が、のんびり集まれる場所', icon: 'shop', c1: '#7FA36E', c2: '#5E8A52', sound: function () { SFX.fanfare(true); } }, function () { koboView('工房カフェが完成した。ガラス越しに、商品ができるまでを見学できる。'); }); } }];
@@ -6472,11 +6475,11 @@
     var K = S.kobo, r = S.wk && S.wk.kobo, hp = homePref();
     view('<h1>' + (S.brand ? S.brand + 'の' : '') + '工房カフェ</h1><p class="lead">' + (hp || '地元') + 'の、みんなが安らげる場所。ガラス越しに商品づくりを見学でき、精油づくりの体験と、地元の野菜を使ったカフェがある。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       (r ? '<div class="box" style="padding:10px 12px"><dl class="hcond"><dt>先月の来場</dt><dd>' + fmtN(r.visitors) + '人</dd><dt>カフェ</dt><dd>' + yen(r.cafe) + '</dd><dt>精油づくり体験</dt><dd>' + yen(r.work) + '</dd><dt>商品の販売</dt><dd>' + yen(r.shop) + '</dd><dt>収支</dt><dd>' + yen(r.net) + '</dd></dl></div>' : '') +
-      '<p class="lead">自社の工房でつくるので、オリジナル商品の仕入れ値が15%安く、品質も上がりやすい。地域の生産者さんとつながると、その土地の素材で商品を開発できる。</p>',
-      SANCHI.map(function (x) {
+      '<p class="lead">産地の生産者さんと契約すると、その素材で、オリジナル商品を1種類ずつ作れるようになる。自社の工房でつくるので、仕入れ値が15%安く、品質も上がりやすい。</p>',
+      SANCHI.filter(function (x) { return x.cat || (S.farms && S.farms[x.k]); }).map(function (x) {
         var has = S.farms && S.farms[x.k], loc = sanchiLocal(x), c = loc ? FARMCOST / 2 : FARMCOST;
-        return { sec: '産地の生産者さん（' + farmN() + '／' + FARMMAX + '）', label: (has ? '✓ ' : '') + x.area + 'の' + x.n + (loc ? '（地元）' : '') + (has ? '' : '　' + yen(c)), sub: x.d + (has ? '　つながって' + Math.max(1, Math.floor((S.week - has.since) / 12) + 1) + '年目' : '　毎月の仕入れ ' + yen(FARMMON)),
-          off: !!has || farmN() >= FARMMAX || S.cash < c, go: function () { pay(c); S.farms[x.k] = { since: S.week }; hum(loc ? 3 : 2); SFX.good(); koboView(x.area + 'の生産者さんを訪ね、' + x.n + 'を分けてもらえることになった。商品開発で使える。'); } };
+        return { sec: '産地の生産者さん（' + farmN() + '／' + FARMMAX + '）', label: x.n + (loc ? '（地元）' : '') + (x.cat ? ' → ' + DEVCAT[x.cat].n : '') + (has ? '' : '　' + yen(c)), picked: !!has, sub: x.area + '。' + x.d + (has ? '　つながって' + Math.max(1, Math.floor((S.week - has.since) / 12) + 1) + '年目' : '　毎月の仕入れ ' + yen(FARMMON)),
+          off: !!has || farmN() >= FARMMAX || S.cash < c, go: function () { pay(c); S.farms[x.k] = { since: S.week }; hum(loc ? 3 : 2); SFX.good(); koboView(x.area + 'の生産者さんを訪ね、' + x.n + 'を分けてもらえることになった。' + (x.cat ? '「' + DEVCAT[x.cat].n + '」のオリジナル商品を作れるようになった。' : '')); } };
       }).concat([{ main: true, label: 'もどる', go: investView }]));
   }
   function phOpts() {
@@ -7366,12 +7369,14 @@
     if (S.dev) return view('<h1>商品開発</h1><p class="lead">「' + S.dev.name + '」（' + DEVCAT[S.dev.cat].n + '）を開発中。あと' + S.dev.left + 'か月で完成する。</p>',
       [{ main: true, label: 'もどる', go: investView }]);
     var have = {}; S.myProds.forEach(function (p) { have[pcat(p)] = true; });
-    var free = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone && !have[k]; });
+    if (!S.kobo) return view('<h1>商品開発</h1><p class="lead">オリジナル商品は、自社の工房で作る。まずは地元に工房カフェをつくろう（支店を2つ出すとつくれる）。</p>', [{ main: true, label: 'もどる', go: investView }]);
+    var free = Object.keys(DEVCAT).filter(function (k) { return !DEVCAT[k].gone && !have[k] && catOpen(k); });
+    if (!free.length && S.myProds.length < MAXMINE) return view('<h1>商品開発</h1><p class="lead">いま作れる種類がない。工房カフェで産地の生産者さんと契約すると、その素材の商品を1種類ずつ作れるようになる。</p>', [{ label: '工房カフェへ（生産者さんと契約する）', go: function () { koboView(); } }, { main: true, label: 'もどる', go: investView }]);
     if (!free.length) return view('<h1>商品開発</h1><p class="lead">すべての種類のオリジナル商品がそろっている。同じ種類は作れないので、新しく作るなら、どれかを廃番にする。</p>', S.myProds.map(function (p) { return { label: '「' + p.n + '」を廃番にする', sub: DEVCAT[p.cat] ? DEVCAT[p.cat].n + '　品質' + p.q : '', go: function () { S.cash += (S.stock[p.k] || 0) * p.cost; S.myProds.splice(S.myProds.indexOf(p), 1); delete S.stock[p.k]; if (S.autoStock) delete S.autoStock[p.k]; devView(); } }; }).concat([{ main: true, label: 'もどる', go: investView }]));
-    var opts = free.map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '</option>'; }).join('');
+    var opts = free.map(function (k) { return '<option value="' + k + '">' + DEVCAT[k].n + '（' + farmOf(k).n + '）</option>'; }).join('');
     view('<h1>商品開発</h1><p class="lead">店のオリジナル商品を作る。完成まで2か月。品質はスタッフの施術の腕と、あなたの人間力で決まる。良い品はよく売れ、話題にもなる。最大' + MAXMINE + '品。同じ種類は1品ずつで、まだ作っていない種類はあと' + free.length + '種類。</p>' +
       '<div class="form"><label>商品名<input id="dvName" type="text" maxlength="12" autocomplete="off"></label>' +
-      '<label>種類<select id="dvCat">' + opts + '</select></label>' + (S.farms && farmN() ? '<label>産地の素材<select id="dvMat"><option value="">使わない</option>' + SANCHI.filter(function (x) { return S.farms[x.k]; }).map(function (x) { return '<option value="' + x.k + '">' + x.area + 'の' + x.n + '</option>'; }).join('') + '</select></label>' : '') + '<p class="dvinfo" id="dvInfo"></p></div>' + brandHtml() + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
+      '<label>種類<select id="dvCat">' + opts + '</select></label>' + '' + '<p class="dvinfo" id="dvInfo"></p></div>' + brandHtml() + (S.myProds.length ? '<p class="lead">いまのオリジナル商品 ' + S.myProds.length + '／' + MAXMINE + '品。売れ行きの悪いものは下から廃番にできる（在庫は仕入れ値で引き取る）。</p>' : ''),
       [{ label: '標準で開発する　' + yen(150000), sub: '2か月で完成', off: S.cash < 150000, go: function () { startDev(0, 150000); } },
        { label: 'こだわって開発する　' + yen(300000), sub: '2か月で完成。品質が上がりやすい', off: S.cash < 300000, go: function () { startDev(1, 300000); } },
       ].concat(S.myProds.map(function (p) {
@@ -7404,7 +7409,7 @@
     el.innerHTML = '<span class="stk-fit">合うお悩み：' + fitText2(sel.value) + '</span><br>売値の目安 ' + yen(D.price) + (D.d ? '<br>' + D.d : '');
   }
   function startDev(plus, cost) {
-    var cat = $('dvCat').value, mat = $('dvMat') ? $('dvMat').value : '', M = SANCHI.filter(function (x) { return x.k === mat; })[0];
+    var cat = $('dvCat').value, M = farmOf(cat), mat = M ? M.k : '';
     var name = clean($('dvName').value) || (M ? M.n + 'の' + DEVCAT[cat].n : 'オリジナル' + DEVCAT[cat].n);
     pay(cost); S.dev = { name: name, cat: cat, mat: mat, left: 2, plus: plus + (S.devHelp ? 1 : 0) }; S.devHelp = 0; SFX.hire(); investView();
   }
@@ -8120,8 +8125,8 @@
     if (cinOn()) opts.push({ label: 'コールドシナモン：' + CINPLAN[cinFix().plan].n.replace('プラン', '') + (cinFix().cpn ? '・クーポン' : ''), sub: '★' + cinStar().toFixed(1) + (cinCost() ? '　月' + yen(cinCost()) : ''), go: function () { cinView(); },
       rec: !cinFix().plan && S.cash >= burnR * 3 ? 'ネットで予約する人が増えている。新規が安定する' : '' });
     opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: adCost() ? '月' + yen(adCost()) : '', go: adView, rec: !(S.adLv || 0) && !S.turnedWk && S.week >= 2 && S.cash >= burnR * 4 ? '新規が増えると、常連とコースも育つ' : '' });
-    opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : ('オリジナル ' + S.myProds.length + '／' + MAXMINE + '品'),
-      go: devView });
+    opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : !S.kobo ? '工房カフェをつくると作れる' : ('オリジナル ' + S.myProds.length + '／' + MAXMINE + '品'),
+      off: !S.kobo && !S.dev, go: devView });
     opts.push({ label: 'サロンランキングと実績', sub: '実績 ' + Object.keys(S.ach || {}).length + '／' + ACH.length, go: function () { view('<h1>ランキングと実績</h1>', [{ label: 'サロンランキング（途中経過）', go: rankView }, { label: '実績', go: achView }, { main: true, label: 'もどる', go: investView }]); } });
     opts.push({ label: 'SNSで発信する', sub: S.autoSns && deptN('sns') ? '広報にまかせている' : '今月あと' + snsLeft() + '回', go: function () { snsView(); } });
     if (S.shops.length || S.ph) opts.push({ label: '各店舗を見に行く', go: function () { visitView(S.shops[0] || 'ph'); } });
@@ -8387,7 +8392,7 @@
     if (!S.adLv) T.push({ t: '広告を出す', s: '広告がないと、新しいお客様はなかなか来ない', go: adView });
     if (!S.hq && S.shops.length >= 2) T.push({ t: '社長に就任する', s: '本店の店長を決めて、本社に移る', go: presidentView });
     if (roomAny() && S.cash >= HIRE * 4 && !(S.autoHire && deptN('hr'))) T.push({ t: 'スタッフを採用する', s: '受け入れの空きがある', go: function () { hireView(); } });
-    if (!S.dev && S.myProds.length < MAXMINE && S.week >= 3 && S.cash >= 300000) T.push({ t: 'オリジナル商品を開発する', s: '開発中の商品はない', go: devView });
+    if (!S.dev && S.myProds.length < MAXMINE && S.week >= 3 && S.cash >= 300000 && S.kobo && Object.keys(DEVCAT).some(function (k) { return !DEVCAT[k].gone && catOpen(k) && !S.myProds.some(function (p) { return pcat(p) === k; }); })) T.push({ t: 'オリジナル商品を開発する', s: '開発中の商品はない', go: devView });
     return T;
   }
   // 月末の画面で、上の店内の絵をほかの店舗に切りかえる
