@@ -2073,7 +2073,7 @@
     view(box, [{ main: true, label: 'つづける', go: function () { done(''); } }]);
   }
   function eraY() { return S && S.startYear ? nowYear() : 2026; }
-  function dotNm(off) { var y = eraY(); return off ? (y < 1997 ? 'お店の電話' : y < 2012 ? 'お店のメール' : '公式dot.') : (y < 1995 ? '電話とFAX' : y < 2000 ? 'ポケベルとFAX' : y < 2012 ? '携帯メール' : 'dot.'); }
+  function dotNm(off) { var y = eraY(); if (off) return y < 1997 ? 'お店の電話' : y < 2012 ? 'お店のメール' : '公式dot.'; return { tel: '電話とFAX', pager: 'ポケベルとFAX', mail: '携帯メール', dot: 'dot.' }[commMode(false)]; }
   function aiNm() { return eraY() >= 2023 ? 'AI' : '受付スタッフ'; }
   var PFYEAR = { blog: 2004, yt: 2006, ig: 2012, tt: 2017 };
   function pfOn(k) { return eraY() >= PFYEAR[k]; }
@@ -2142,7 +2142,7 @@
     if (y < 2005) t = t.replace(/ドライヘッドスパ/g, '頭と目のほぐし').replace(/ヘッドスパ/g, 'ヘッドマッサージ');
     else if (y < 2015) t = t.replace(/ドライヘッドスパ/g, 'ほぐしのヘッドスパ');
     if (y < 1995) t = t.replace(/メールで/g, '手紙で').replace(/メール/g, '手紙');
-    if (y < 2012) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
+    if (y < 2012 || (S && commMode(false) !== 'dot')) t = t.replace(/公式dot\./g, dotNm(true)).replace(/dot\./g, dotNm(false)).replace(/お店の公式アカウント/g, 'お店への連絡');
     if (y < 2023) t = t.replace(/AI(?=[がにのへ])/g, '受付スタッフ');
     // ブログしかない時代（2004〜2005年）は、SNSではなくブログ、フォロワーではなく読者
     if (snsOn() && !pfOn('yt')) t = t.replace(/SNSで発信する/g, 'ブログで発信する').replace(/SNSに投稿する/g, 'ブログに書く').replace(/SNS/g, 'ブログ').replace(/フォロワー/g, '読者');
@@ -4663,6 +4663,57 @@
       else { for (i = 0; i < 5; i++) { var a2 = reduce ? i : i + now / 400; bigIco('star', Math.round(cx - 3 + Math.cos(a2) * 14), Math.round(cy - 4 + Math.sin(a2) * 9), 1, ['#FFE08A', '#FF7FA0', '#9FD8F0', '#FFFFFF', '#B48CFF'][i]); } }
       R(32, 38, 64, 6, dark ? '#4A4458' : '#E0567A'); var off = reduce ? 0 : Math.floor(now / 50) % 64;
       for (i = 0; i < 5; i++) { var tx = 32 + ((i * 15 + 64 - off) % 64); R(tx, 40, Math.min(9, 96 - tx), 2, '#FFFFFF'); }
+    } else if (k === 'v_keitai' || k === 'v_smart') {
+      // 携帯電話・スマホを買った：箱を開ける → ガラケーがぱかっと開いて着メロとメール ／ スマホの画面がつき、アプリが並んでメッセージが届く
+      var sm = k === 'v_smart', ph = reduce ? 9 : t % 7, bxX = 72, bxY = 44;
+      bands(sm ? ['#E8F4FB', '#DCEEF8', '#D0E8F5', '#C4E2F2'] : ['#FFF0E0', '#FFE8D6', '#FFE0CC', '#FFD8C2']);
+      R(0, 62, SW, 22, sm ? '#B8C8D8' : '#D8B890'); R(0, 62, SW, 1, '#FFFFFF');
+      R(6, 58, 116, 5, '#A8774D'); R(6, 58, 116, 1, '#C49065'); R(10, 63, 3, 12, '#8E6440'); R(115, 63, 3, 12, '#8E6440');
+      big(casual(meU, sm ? '#7FC8E8' : '#F7B5C8', '#5C78B0'), 12, 18, 2, { face: ph > 2.6 ? 'bliss' : 'smile', arms: ph > 2.6 && (reduce || Math.floor(t * 3) % 2 === 0) });
+      if (ph < 1.4) {
+        // プレゼントの箱。ふたが少しずつ持ち上がる
+        var lift = Math.round(ph / 1.4 * 12);
+        R(bxX, bxY, 30, 14, '#E0567A'); R(bxX + 13, bxY, 4, 14, '#F2C230'); R(bxX, bxY, 30, 1, 'rgba(255,255,255,.35)');
+        R(bxX - 2, bxY - 5 - lift, 34, 5, '#E8607F'); R(bxX + 13, bxY - 5 - lift, 4, 5, '#F2C230'); R(bxX + 10, bxY - 8 - lift, 4, 3, '#F2C230'); R(bxX + 16, bxY - 8 - lift, 4, 3, '#F2C230');
+        if (lift > 5) for (i = 0; i < 4; i++) R(bxX + 4 + i * 7, bxY - 3 - ((now / 80 + i * 3) % 6), 1, 2, '#FFF4C0');
+      } else {
+        R(bxX, bxY + 6, 30, 8, '#E0567A'); R(bxX + 13, bxY + 6, 4, 8, '#F2C230');
+        g.globalAlpha = 0.25 + (reduce ? 0 : Math.sin(now / 250) * 0.08); disc(88, 28, 22, '#FFF4C0'); g.globalAlpha = 1;
+        if (!sm) {
+          if (ph < 2) {
+            // 閉じたガラケーが箱から出てくる
+            var up = Math.round((ph - 1.4) / 0.6 * 14);
+            g.save(); g.beginPath(); g.rect(0, 0, SW, bxY + 6); g.clip();
+            R(80, 44 - up, 16, 22, '#9AA8C0'); R(81, 45 - up, 14, 1, '#C8D2E2'); R(93, 38 - up, 2, 6, '#3A4654'); R(84, 48 - up, 8, 5, '#2B3440'); g.restore();
+          } else {
+            // ぱかっと開いたガラケー：上は画面、下はボタン。アンテナの先が光る
+            R(80, 10, 16, 22, '#9AA8C0'); R(81, 11, 14, 1, '#C8D2E2'); R(82, 13, 12, 15, '#2B3440'); R(83, 14, 10, 13, ph < 2.4 ? '#3A4A5A' : '#9FE0F5');
+            R(93, 4, 2, 6, '#3A4654'); R(93, 3, 2, 2, (reduce || Math.floor(now / 300) % 2) ? '#FF5FA2' : '#7A2E52');
+            R(80, 32, 16, 2, '#6A7890'); R(80, 34, 16, 24, '#B4C0D4'); R(84, 36, 8, 3, '#E8ECF4');
+            for (i = 0; i < 3; i++) for (y = 0; y < 4; y++) R(82 + i * 4, 41 + y * 4, 3, 2, '#E8ECF4');
+            if (ph > 3) { var bl = reduce || Math.floor(now / 400) % 2; R(84, 17, 8, 6, bl ? '#FFFFFF' : '#E8F4FB'); R(84, 17, 8, 1, '#7A8EA8'); R(85, 18, 1, 1, '#7A8EA8'); R(90, 18, 1, 1, '#7A8EA8'); R(86, 19, 1, 1, '#7A8EA8'); R(89, 19, 1, 1, '#7A8EA8'); R(87, 20, 2, 1, '#7A8EA8'); }
+            if (ph > 2.4) { floaty('note', 100, 16, now, 0, 1); floaty('note', 106, 22, now, 0.6, 1); }
+            if (ph > 3.4) floaty('heart', 64, 20, now, 0.3, 1);
+          }
+        } else {
+          if (ph < 2) {
+            var up2 = Math.round((ph - 1.4) / 0.6 * 30);
+            g.save(); g.beginPath(); g.rect(0, 0, SW, bxY + 6); g.clip();
+            R(78, 50 - up2, 22, 42, '#2B2238'); R(80, 54 - up2, 18, 33, '#14121E'); g.restore();
+          } else {
+            // スマホ：画面がつき、アプリのアイコンが1つずつ並び、メッセージが届く
+            R(78, 8, 22, 42, '#2B2238'); R(79, 9, 20, 1, '#4A4470'); R(87, 10, 4, 1, '#4A4470');
+            var lit = Math.min(1, (ph - 2) / 0.4);
+            R(80, 12, 18, 33, lit < 1 ? '#14121E' : '#BFE6F5'); if (lit < 1) { g.globalAlpha = lit; R(80, 12, 18, 33, '#BFE6F5'); g.globalAlpha = 1; }
+            R(80, 12, 18, 2, '#8FC8E0');
+            var nIc = reduce ? 12 : Math.max(0, Math.min(12, Math.floor((ph - 2.4) * 8))), IC = ['#E0567A', '#5AA9E6', '#7FC49A', '#F2C230', '#B48CFF', '#F08A5D', '#3AC0C8', '#E0304A', '#5C6E9E', '#7FE07A', '#FF8FAB', '#A8774D'];
+            for (i = 0; i < nIc; i++) { var ix = 82 + (i % 3) * 5, iy = 16 + Math.floor(i / 3) * 6; R(ix, iy, 4, 4, IC[i]); R(ix, iy, 4, 1, 'rgba(255,255,255,.45)'); }
+            if (ph > 4.2) { R(81, 39, 16, 5, '#7FE07A'); R(83, 41, 10, 1, '#FFFFFF'); R(81, 44, 2, 1, '#7FE07A'); floaty('heart', 104, 22, now, 0, 1); }
+            R(88, 46, 2, 2, '#4A4470');
+          }
+        }
+        if (ph > 2.2) { floaty('spark', 66, 14, now, 0.2, 1); floaty('spark', 110, 34, now, 0.8, 1); }
+      }
     } else if (k === 'v_phone' || k === 'v_home') {
       R(0, 0, SW, SH, '#2E2A48'); R(8, 8, 30, 22, '#4A4470'); R(10, 10, 26, 18, '#1A1830'); disc(28, 16, 3, '#FFF4C0');
       R(0, 60, SW, 24, '#5A4A40'); R(60, 46, 56, 14, '#8E6A9A'); R(60, 42, 56, 6, '#A87AB8'); R(112, 40, 6, 20, '#8E6A9A');
@@ -5101,7 +5152,7 @@
     if (brandOn(3)) newN += 1;
     if (!opArea()) newN += (homeLoc().demand || 0) + homeSeason();
     if (boss() === 'charisma') newN += 1;
-    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); homeMonth(); frMonth(); phClose(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
+    ageMonth(); uniSync(); machMonth(); healthMonth(); lotMonth(); homeMonth(); frMonth(); phClose(); phoneMonth(); S.holNote = null; S.holFx = ''; S.holShown = false; S.holJust = false;
     var nw = newsNow(); S.newsItem = null; S.newsPending = false; S.newsNote = '';
     if (nw) { S.newsItem = nw; S.newsPending = true;
       if (nw[5] === 'tax') S.taxDipUntil = S.week + 2;
@@ -5192,6 +5243,7 @@
     var sev = S.sevKey ? '<div class="event season box"><span class="badge">季節のイベント</span><h2>' + EV[S.sevKey].n + '</h2><p>' + EV[S.sevKey].d + '</p>' + (S.sevNote ? '<p class="evnote">' + S.sevNote + '</p>' : '') + '</div>' : '';
     var head = '<h1>' + calOf(S.week) + '</h1>' + (S.holNote && !S.holShown ? holBox() : '') + (S.lotNote ? '<div class="news good"><b>お年玉付き年賀はがきの当選発表</b><br>' + S.lotNote + '</div>' : '') + (S.newsNote ? '<div class="news">' + S.newsNote + '</div>' : '') + (opBranch() ? '<div class="news good">今月は<b>' + opBranch().name + '</b>で営業する。本店はスタッフにおまかせ。</div>' : '') + missionBox() + '<p class="lead">今月のご来店は約' + (S.queue.length + baseOps(S.staff, S.rep, 1).n) + '名。そのうち、あなたが見届けるお客様は' + S.queue.length + '名（ほかはスタッフが通常メニューで対応する）。新規の方は体験コース（' + yen(TRIAL) + '）。</p>' + news + life + sev + ev;
     if (S.newsPending && S.newsItem) return newsView();
+    if (S.phonePending) return phoneView(false);
     if (S.holPending && S.holAuto) holAuto();
     if (S.holPending) { evScene([]); return holidayView(); }
     var only = '<h1>' + calOf(S.week) + '</h1>';
@@ -8546,7 +8598,39 @@
   var DAVC = ['#E0567A', '#5AA9E6', '#7FC49A', '#E8A93A', '#B48CFF', '#3AC0C8', '#C8604A', '#5C6E9E'];
   function dav(name, me) { var n = String(name || '？').replace(/^(本社の|サロンのみんな.*)/, ''); return '<span class="dav" style="background:' + (me ? '#2B2238' : DAVC[hashOf(name) % DAVC.length]) + '">' + (me ? '私' : n.charAt(0) || '？') + '</span>'; }
   // 時代ごとの連絡手段：tel（電話とFAX）、pager（ポケベルとFAX）、mail（メール）、dot（メッセージアプリ）
-  function commMode(off) { var y = eraY(); return off ? (y < 1997 ? 'tel' : y < 2012 ? 'mail' : 'dot') : (y < 1995 ? 'tel' : y < 2000 ? 'pager' : y < 2012 ? 'mail' : 'dot'); }
+  function commMode(off) {
+    var y = eraY(); if (off) return y < 1997 ? 'tel' : y < 2012 ? 'mail' : 'dot';
+    if (y < 1995) return 'tel'; if (y < 2000) return 'pager';
+    var ph = phoneLv();
+    if (ph >= 3 && y >= 2012) return 'dot';
+    if (ph >= 2) return 'mail';
+    return y < 2007 ? 'pager' : 'tel';
+  }
+  /* --- 携帯電話（2000年〜）とスマホ（2010年〜）は、自分で買うと連絡のしかたが変わる --- */
+  var PHONES = { 2: { n: '携帯電話', y: 2000, cost: 30000, d: '折りたためる携帯電話。スタッフや友だちとメールでやりとりできるようになる', pic: 'v_keitai' },
+    3: { n: 'スマートフォン', y: 2010, cost: 70000, d: '画面にさわって使う電話。2012年ごろからは、メッセージアプリでスタッフとやりとりできる', pic: 'v_smart' } };
+  function phoneDef(y) { return y >= 2010 ? 3 : y >= 2000 ? 2 : y >= 1995 ? 1 : 0; }
+  function phoneLv() { if (!S) return 3; if (S.phone == null) S.phone = phoneDef(eraY()); return S.phone; }
+  function phoneNext() { var y = eraY(), lv = phoneLv(); return lv < 2 && y >= 2000 ? 2 : lv < 3 && y >= 2010 ? 3 : 0; }
+  function phoneMonth() {
+    phoneLv(); S.phoneAsk = S.phoneAsk || {};
+    var nx = phoneNext(); if (nx && !S.phoneAsk[nx]) { S.phoneAsk[nx] = true; S.phonePending = nx; }
+  }
+  function buyPhone(lv, then) {
+    var P = PHONES[lv]; pay(P.cost); S.phone = lv; S.phonePending = 0; SFX.fanfare(true);
+    evScene([P.pic]); if (scene.story) scene.story.t0 = performance.now();
+    showCut({ kicker: lv === 2 ? 'ケータイデビュー' : 'スマホデビュー', title: P.n + 'を買った', sub: lv === 2 ? 'これからは、スタッフや友だちと携帯メールでやりとりできる' : (eraY() >= 2012 ? 'これからは、メッセージアプリでスタッフとやりとりできる' : '2012年ごろから、メッセージアプリでやりとりできるようになる'), icon: 'star', c1: '#7FC8E8', c2: '#62B2D6' }, then);
+  }
+  function phoneView(fromTask) {
+    bar(); var lv = fromTask ? phoneNext() : S.phonePending, P = PHONES[lv];
+    if (!P) { S.phonePending = 0; return fromTask ? investView() : weekIntro(); }
+    evScene([P.pic]);
+    var back = function () { S.phonePending = 0; if (fromTask) investView(); else weekIntro(); };
+    view('<h1>' + (fromTask ? P.n + 'を買う' : calOf(S.week)) + '</h1><div class="event life box"><span class="badge">時代のできごと　' + nowYear() + '年</span><h2>' + (lv === 2 ? 'まわりのみんなが、携帯電話を持ちはじめた' : 'スマートフォンが広まってきた') + '</h2><p>' +
+      (lv === 2 ? 'ポケベルの数字で呼び出して、公衆電話から折り返す……そんなやりとりも、そろそろ終わり。スタッフも友だちも、折りたたみの携帯電話でメールを送り合っている。' : '画面をさわって使う電話を持つ人が増えてきた。スタッフの間でも「店長もスマホにしましょうよ」と話題になっている。') + '</p><p class="evnote">' + P.d + '。</p></div>',
+      [{ label: P.n + 'を買う　' + yen(P.cost), sub: lv === 2 ? '連絡がポケベルと電話から、携帯メールになる' : '連絡が携帯メールから、メッセージアプリになる（2012年ごろから）', off: S.cash < P.cost, rec: S.cash >= P.cost * 3 ? '連絡が楽になる' : '', go: function () { buyPhone(lv, function () { if (fromTask) investView(); else weekIntro(); }); } },
+       { label: 'まだいい', sub: '月末の「今月のタスク」から、いつでも買える', go: back }]);
+  }
   function isMemo(off) { var c = commMode(off); return c === 'tel' || c === 'pager'; }
   // 伝言メモの時代：書類のような連絡はFAX、それ以外は電話（ポケベルの時代は、家族や友だちからはポケベル）
   function viaOf(m) { if (!isMemo(m.off)) return ''; if (/本社|経理|取引|業者|メーカー|商事|組合|協会|支店|事務所|編集部|銀行|会社|工房|農園|生産者/.test(m.from) || /biz|hq|supp|trade|press|maker|farm/.test(m.kind || '')) return 'FAX'; return commMode(m.off) === 'pager' && !m.off && hashOf(m.from) % 2 ? 'ポケベル' : '電話'; }
@@ -8633,6 +8717,7 @@
     if (rl.length) { var cheap = rl.reduce(function (m, sh) { return Math.min(m, renoCost(sh)); }, 1e12);
       T.push({ t: '内装をアップデートする', s: (rl.length > 1 ? rl.length + '店舗で上げられる・' : '') + yen(cheap) + 'から', go: function () { renoView(); } }); }
     else if (S.renoWeek === S.week) T.push({ t: '内装のアップデート', s: '今月はアップデートした', done: true });
+    if (phoneNext()) T.push({ t: PHONES[phoneNext()].n + 'を買う', s: (phoneNext() === 2 ? 'スタッフや友だちと、携帯メールでやりとりできるようになる　' : 'メッセージアプリでやりとりできるようになる　') + yen(PHONES[phoneNext()].cost), go: function () { phoneView(true); } });
     if (postOn() && monthOf() === 12) T.push(S.nengaY === nowYear() ? { t: '年賀状', s: '今年はもう出した', done: true } : { t: '年賀状を出す', s: '常連さんとスタッフに、新年のあいさつ（1枚' + postFee() + '円）', go: function () { var r = postSend('nenga'); SFX.good(); S.trainNote = r.n + '人の常連さんとスタッフに年賀状を書いた（' + yen(r.cost) + '）。常連の信頼+4、スタッフのやる気+3'; investView(); } });
     // 本社のタスク
     if (S.hq) {
@@ -8701,7 +8786,7 @@
   // 出店や内装でスタッフの枠が増える → 採用 → 研修、の順にすると、研修が1回ですむ
   var TASKPRI = [[/^資金繰り/, 1, 10], [/^面談の申し出/, 1, 20], [/やる気が落ちている/, 1, 25], [/^本店の店長/, 1, 30], [/^社長のスタイル/, 2, 35], [/^社長に就任/, 2, 40],
     [/^新しい店舗/, 2, 50], [/^内装/, 2, 55], [/^スタッフを採用/, 2, 60], [/^本社で採用|^本社の採用/, 2, 62], [/^スタッフの研修/, 2, 70], [/^本社の研修/, 2, 72],
-    [/^商品を仕入れる/, 2, 80], [/^広告/, 2, 85], [/dot/, 2, 88], [/^スタッフの話/, 3, 90], [/SNS/, 3, 92], [/^ライブ配信/, 3, 94], [/^年賀状/, 3, 95], [/^オリジナル/, 3, 96]];
+    [/^商品を仕入れる/, 2, 80], [/^広告/, 2, 85], [/dot/, 2, 88], [/^(携帯電話|スマートフォン)/, 2, 89], [/^スタッフの話/, 3, 90], [/SNS/, 3, 92], [/^ライブ配信/, 3, 94], [/^年賀状/, 3, 95], [/^オリジナル/, 3, 96]];
   function taskPri(T) {
     T.forEach(function (x) {
       var r = TASKPRI.filter(function (q) { return q[0].test(x.t); })[0];
