@@ -7038,12 +7038,17 @@
     S.hqCands = S.hqCands && S.hqCands.week === S.week ? S.hqCands : { week: S.week };
     if (!S.hqCands[key] || (S.hqCands[key][0] && !(S.hqCands[key][0].hqsk && S.hqCands[key][0].hqsk.coach && S.hqCands[key][0].fit))) {
       var taken = {}; everyone().forEach(function (x) { taken[x.name] = true; });
+      var fitQ = [], pool2 = Object.keys(DEPT);
+      while (fitQ.length < 6 && pool2.length) {
+        var wts = pool2.map(function (d) { return deptN(d) ? 1 : 2; }), tot = wts.reduce(function (a, b) { return a + b; }, 0), r0 = rnd() * tot, di = 0;
+        for (; di < pool2.length - 1; di++) { r0 -= wts[di]; if (r0 < 0) break; }
+        fitQ.push(pool2.splice(di, 1)[0]);
+      }
       S.hqCands[key] = [0, 1, 2, 3, 4, 5].map(function () {
         var cd = genCand(taken, null, null);
         if (roll(0.45)) { var mpool = eraNames(cd.born || nowYear() - 30, true), mn = mpool.filter(function (n) { return !taken[cd.name.split(' ')[0] + ' ' + n]; }); cd.name = cd.name.split(' ')[0] + ' ' + pick(mn.length ? mn : mpool); cd.look.style = 'short'; cd.look.hair = pick(['#2B2238', '#3A2A26', '#5A3A28', '#4A3A30']); cd.male = true; }
-        // 目指す部署：だれもいない部署の人ほど来やすい
-        var dks = Object.keys(DEPT), wts = dks.map(function (d) { return deptN(d) ? 1 : 3; }), tot = wts.reduce(function (a, b) { return a + b; }, 0), r0 = rnd() * tot, fit = dks[0];
-        for (var di = 0; di < dks.length; di++) { r0 -= wts[di]; if (r0 < 0) { fit = dks[di]; break; } }
+        // 目指す部署：6人がそれぞれ別の部署（7部署のうち、だれもいない部署ほど選ばれやすい）
+        var fit = fitQ.shift() || pick(Object.keys(DEPT));
         var main = DEPTSK[fit], k = { plan: 1 + Math.floor(rnd() * 2), pr: 1 + Math.floor(rnd() * 2), num: 1 + Math.floor(rnd() * 2), it: 1 + Math.floor(rnd() * 2), coach: 1 + Math.floor(rnd() * 2) };
         k[main] = Math.min(5, k[main] + 1 + Math.floor(rnd() * 2));
         var cs = CERTS.filter(function (c) { return (CERTD[fit] || []).indexOf(c.n) >= 0; }), certs = [];
