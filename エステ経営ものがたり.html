@@ -399,6 +399,12 @@
   .hsk { display: inline-block; padding: 0 4px; border-radius: 3px; }
   .hsk.need { background: var(--accent, #D9466F); color: #fff; font-weight: bold; }
   .needk { color: var(--accent, #D9466F); }
+  .achgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+  .achc { display: grid; justify-items: center; gap: 2px; padding: 10px 6px; text-align: center; background: var(--panel); border: 2px solid var(--line); color: var(--sub); }
+  .achc b { font-size: .86rem; } .achc small { font-size: .7rem; }
+  .achc .medal { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--line); color: var(--sub); font-weight: bold; }
+  .achc.got { color: var(--ink); border-color: #E8C15A; box-shadow: 2px 2px 0 #E8C15A; }
+  .achc.got .medal { background: #F2C230; color: #FFFFFF; }
   .pgnum { font-family: ui-monospace, monospace; font-weight: bold; letter-spacing: .08em; }
   .tasks .tlegend { margin: 0 0 4px; font-size: .74rem; color: var(--sub); }
   .tasks .task.done { opacity: .55; cursor: default; }
@@ -2268,7 +2274,7 @@
     // スタッフがいない4月（とくに開業した月）は、ひとりのお花見と開店の文面にする。効果と費用は従来と同じ
     var n = crewAll().length, c = 3000 * Math.max(1, n), solo = n === 0, open = S.week === 1;
     return [{ label: solo ? (open ? '桜の下で、開業の決意を新たにする　' : 'ひとりで桜を見に行く　') + yen(c) : 'スタッフみんなでお花見をする　' + yen(c), sub: solo ? '人間力+2' : '全員のやる気+12、信頼+6', off: S.cash < c,
-        go: function () { pay(c); crewAll().forEach(function (x) { moodUp(x, 12, 6); }); hum(2);
+        go: function () { if (solo) pay(c); else payExp(c, 'koz'); crewAll().forEach(function (x) { moodUp(x, 12, 6); }); hum(2);
           done(solo ? (open ? '満開の桜を見上げて、「ここから、いいお店をつくろう」と心に決めた。' : '公園のベンチで、ひとりで桜をながめた。気持ちが少し軽くなった。') : '桜の下でお弁当を広げた。新しい1年もがんばろう、とみんなで乾杯した。'); } },
       { label: snsOn() ? (open ? '開店のお知らせに、桜と店内の写真をSNSに投稿する' : '桜と店内の写真をSNSに投稿する') : (open ? '桜と店内の写真をのせた、開店のお知らせのチラシを配る' : '桜と店内の写真をのせたチラシを配る'), sub: open ? '' : (snsOn() ? 'フォロワーが増える' : 'お店のファンが増える'), go: function () { var P = snsFix(), g = Math.round(200 + P.f * 0.04); P.f += g;
           done(snsOn() ? (open ? '「桜の季節に新しいお店！」と、開店の投稿に声が集まった。' : '桜の投稿に「きれい！」の声が集まった。') + 'フォロワー +' + fmtN(g) + '人。' : (open ? '「桜の季節に新しいお店ができたのね」と、チラシを手にした人が足を止めてくれた。' : '桜のチラシに「きれいね」の声。') + 'お店のファン +' + fmtN(g) + '人。'); } },
@@ -2293,7 +2299,7 @@
     var n = crewAll().length, c = 6000 * Math.max(1, n);
     return [{ label: 'クリスマス限定コフレを売り出す', sub: '今月は商品がよく売れる', go: function () { S.gift = true; done('リボンをかけた限定コフレを店頭に並べた。'); } },
       { label: 'スタッフにプレゼントを贈る　' + yen(c), sub: '全員のやる気+15、信頼+8', off: S.cash < c, go: function () { pay(c); crewAll().forEach(function (x) { moodUp(x, 15, 8); }); godPt(own(), 'talk', 1); done('一人ひとりに選んだプレゼントに、みんな大喜び。'); } },
-      { label: 'クリスマスパーティーを開く　' + yen(c + 20000), sub: '全員のやる気+20、人間力+3', off: S.cash < c + 20000, go: function () { pay(c + 20000); crewAll().forEach(function (x) { moodUp(x, 20, 6); }); hum(3); done('ケーキを囲んで、1年の思い出話で盛り上がった。'); } }];
+      { label: 'クリスマスパーティーを開く　' + yen(c + 20000), sub: '全員のやる気+20、人間力+3', off: S.cash < c + 20000, go: function () { payExp(c + 20000, 'koz'); crewAll().forEach(function (x) { moodUp(x, 20, 6); }); hum(3); done('ケーキを囲んで、1年の思い出話で盛り上がった。'); } }];
   };
   SEASONCH.s_newyear = function (st, done) {
     var n = 10 + Math.floor(S.rep / 5) + Math.floor(snsQ() * 20), price = 10000, cost = 4000;
@@ -2377,7 +2383,7 @@
 
 
   /* =========================================================
-     毎月のミッション・実績・サロンランキング・スタッフの人生
+     毎月のミッション・称号・サロンランキング・スタッフの人生
      ========================================================= */
   function r10k(v) { return Math.max(10000, Math.round(v / 10000) * 10000); }
   function newMission() {
@@ -2442,7 +2448,14 @@
     ['year5', '創業5周年', function () { return S.week >= 61; }],
     ['year10', '創業10周年', function () { return S.week >= 121; }],
     ['cat', '看板猫のいる店', function () { return !!S.cat; }],
-    ['baby', '子育てを応援する店', function () { return !!S.babyBack; }]
+    ['baby', '子育てを応援する店', function () { return !!S.babyBack; }],
+    ['hq', '本社をかまえる', function () { return !!S.hq; }],
+    ['fc', 'フランチャイズ本部', function () { return !!(S.fc && S.fc.n); }],
+    ['ipo', '上場企業', function () { return !!S.ipo; }],
+    ['ma3', 'M&Aの達人', function () { return (S.biz || []).length >= 3; }],
+    ['comp', 'ハラスメントのない職場', function () { return deptN('comp') > 0; }],
+    ['phone', 'ケータイデビュー', function () { return !!S.phoneBought; }],
+    ['hotel', 'ホテルのスパを任された', function () { return S.shops.some(function (b) { return AREAS[b.area] && AREAS[b.area].hotel; }); }]
   ];
   function achCheck() {
     S.ach = S.ach || {}; var got = [];
@@ -2452,9 +2465,9 @@
   function achView() {
     bar(); S.ach = S.ach || {};
     var n = Object.keys(S.ach).length;
-    view('<h1>実績</h1><p class="lead">' + n + '／' + ACH.length + 'を達成。</p><ul class="who-list">' + ACH.map(function (a) {
-      return '<li><span>' + (S.ach[a[0]] ? '🏆 ' + a[1] : '？？？') + '</span><span>' + (S.ach[a[0]] ? calOf(S.ach[a[0]]) : '') + '</span></li>';
-    }).join('') + '</ul>', [{ main: true, label: 'もどる', go: investView }]);
+    view('<h1>称号コレクション</h1><p class="lead">' + n + '／' + ACH.length + 'を手に入れた。まだの称号は「？」で表示される。</p><div class="achgrid">' + ACH.map(function (a) {
+      return S.ach[a[0]] ? '<div class="achc got"><span class="medal">★</span><b>' + a[1] + '</b><small>' + calOf(S.ach[a[0]]) + '</small></div>' : '<div class="achc"><span class="medal">？</span><b>？？？</b><small>まだ</small></div>';
+    }).join('') + '</div>', [{ main: true, label: 'もどる', go: investView }]);
   }
 
   // サロンランキング（年間売上。4月〜3月）
@@ -2508,7 +2521,7 @@
         { label: 'まだ早いと伝える', sub: 'やる気-8', go: function () { moodUp(st, -8, -3); done(st.name + 'は「もっとがんばります」とうなずいた。'); } }];
     },
     st_retire: function (st, done) {
-      return [{ label: '送別会を開いて送り出す　' + yen(20000), sub: st.name + 'は店を離れる。みんなのやる気+5、人間力+2', off: S.cash < 20000, go: function () { pay(20000); removeStaff(st); crewAll().forEach(function (x) { moodUp(x, 5, 3); }); hum(2); var n = trimQueue(); done('みんなで寄せ書きを渡した。「このお店で働けて幸せでした」' + (n ? '　人手が減り、' + n + '人の予約をお断りした。' : '')); } },
+      return [{ label: '送別会を開いて送り出す　' + yen(20000), sub: st.name + 'は店を離れる。みんなのやる気+5、人間力+2', off: S.cash < 20000, go: function () { payExp(20000, 'koz'); removeStaff(st); crewAll().forEach(function (x) { moodUp(x, 5, 3); }); hum(2); var n = trimQueue(); done('みんなで寄せ書きを渡した。「このお店で働けて幸せでした」' + (n ? '　人手が減り、' + n + '人の予約をお断りした。' : '')); } },
         { label: '何とか引き止める', sub: '残ってくれることもある', go: function () { if (roll(0.4)) { moodUp(st, -5, -10); done(st.name + 'は「…もう少しだけ、がんばってみます」と残ってくれた。'); } else { removeStaff(st); var n = trimQueue(); done('気持ちは変わらなかった。' + st.name + 'は店を去った。' + (n ? '　' + n + '人の予約をお断りした。' : '')); } } }];
     },
     review: function (st, done) {
@@ -3246,7 +3259,7 @@
     { k: 'royal', n: 'ロイヤル年間パス', price: 1200000, need: 72, tier: 3, royal: true, big: true, note: '1年ごとの更新。施術はすべてパスに込み。商品は2割引、VIPルームでおもてなし' },
     { k: 'plat',  n: 'プラチナ美容液セット', price: 88000, need: 50, tier: 3, prod: true, note: '特別な取り寄せ品' }
   ];
-  var VIPNAMES = ['白金院', '綾小路', '九重院', '鳳'];
+  var VIPNAMES = ['白金院', '綾小路', '九重院', '鳳', '西園寺', '一条院', '花小路', '東雲', '久我山', '冷泉院', '梅小路', '月城', '桐生院', '錦小路', '白鳥', '宝生院', '藤ノ宮', '香月院', '麗泉', '天王寺', '桜庭院', '銀河院', '水無瀬', '紫苑寺'];
   var EV = {
     vip:        { n: 'セレブの予約', w: 3, d: '資産家のお客様が、評判を聞いて予約を入れた。目が肥えていて施術の出来にとても厳しい。満足度70以上で施術できれば、桁違いの契約も夢ではない。' },
     reporter:   { n: '雑誌の取材', w: 2, d: '美容雑誌の記者が、お客として来店する。何も買わないが、満足させれば記事になり、しばらく新規が増える。' },
@@ -3603,7 +3616,7 @@
       if (!a || !b) return [{ label: 'つづける', go: function () { done('いつの間にか落ち着いたようだ。'); } }];
       var both = function (m, t) { moodUp(a, m, t); moodUp(b, m, t); };
       return [
-        { label: '3人でご飯に行って仲直りさせる　' + yen(16000), sub: '2人のやる気と信頼が上がる', off: S.cash < 16000, go: function () { pay(16000); both(10, 6); godPt(own(), 'talk', 1); done('焼き肉をつつくうちに、2人とも笑い出した。'); } },
+        { label: '3人でご飯に行って仲直りさせる　' + yen(16000), sub: '2人のやる気と信頼が上がる', off: S.cash < 16000, go: function () { payExp(16000, 'koz'); both(10, 6); godPt(own(), 'talk', 1); done('焼き肉をつつくうちに、2人とも笑い出した。'); } },
         { label: '放っておく', sub: '2人のやる気が下がる', go: function () { both(-15, -3); done('ぎすぎすした空気のまま、1か月が過ぎていく。'); } }];
     },
     harass: function (st, done) {
@@ -3611,7 +3624,7 @@
       if (!a || !b) return [{ label: 'つづける', go: function () { done('いつの間にか落ち着いたようだ。'); } }];
       return [
         { label: '2人と別々に話して、やめるようにはっきり伝える', sub: b.name + 'の信頼とやる気が上がる。' + a.name + 'は少しへこむ', go: function () { moodUp(b, 12, 12); moodUp(a, -6, -3); done(a.name + 'は「そんなつもりじゃなかった…」と頭を下げた。' + b.name + 'は「話を聞いてもらえて、ほっとしました」と涙ぐんだ。'); } },
-        { label: cp ? DEPT.comp.n + 'が、全員にハラスメント研修をする' : '外部の講師を呼んで、全員でハラスメント研修を受ける　' + yen(50000), sub: '全員の信頼が上がる。' + b.name + 'のやる気が戻る', off: !cp && S.cash < 50000, go: function () { if (!cp) pay(50000); crewAll().forEach(function (x) { moodUp(x, 2, 4); }); moodUp(b, 10, 8); done('研修のあと、' + a.name + 'の言い方がやわらかくなった。お店の空気が少し明るくなった。'); } },
+        { label: cp ? DEPT.comp.n + 'が、全員にハラスメント研修をする' : '外部の講師を呼んで、全員でハラスメント研修を受ける　' + yen(50000), sub: '全員の信頼が上がる。' + b.name + 'のやる気が戻る', off: !cp && S.cash < 50000, go: function () { if (!cp) payExp(50000, 'edu'); crewAll().forEach(function (x) { moodUp(x, 2, 4); }); moodUp(b, 10, 8); done('研修のあと、' + a.name + 'の言い方がやわらかくなった。お店の空気が少し明るくなった。'); } },
         { label: '様子を見る', sub: b.name + 'のやる気と信頼が大きく下がる。辞めてしまうかもしれない', go: function () { moodUp(b, -20, -15); b.wantTalk = true; b.wantWhy = 'rival'; done(b.name + 'の笑顔が、日に日に減っていく。'); } }];
     },
     ekarte: function (st, done) {
@@ -3826,7 +3839,7 @@
       var n = r[0] + Math.floor(rnd() * (r[1] - r[0] + 1)); if (p.unlock) n = 1;
       var have = Math.min(S.stock[p.k], n), short = n - have;
       S.stock[p.k] -= have;
-      if (short) pay(short * p.cost);
+      if (short) payExp(short * p.cost, 'buy');
       S.cash += n * p.price; S.wk.prod += n * p.price; C.revenue += n * p.price; S.total.sold += n;
       tot += n * p.price; cnt += n; lack += short; parts.push(p.n + '×' + n);
     });
@@ -7035,7 +7048,7 @@
   function postFee() { var y = eraY(); return y < 1989 ? 40 : y < 1994 ? 41 : 50; }
   function postSend(kind) {
     var act = S.clients.filter(function (c) { return c.active; }), n = act.length, cost = 5000 + n * postFee();
-    pay(cost); act.forEach(function (c) { c.loy = clamp(c.loy + (kind === 'nenga' ? 4 : 3), 0, 100); });
+    payExp(cost, 'ad'); act.forEach(function (c) { c.loy = clamp(c.loy + (kind === 'nenga' ? 4 : 3), 0, 100); });
     if (kind === 'nenga') { crewAll().forEach(function (st) { moodUp(st, 3, 2); }); S.nengaY = nowYear(); S.nengaN = n + crewAll().length; }
     return { n: n, cost: cost };
   }
@@ -7058,7 +7071,7 @@
     bar(); var P = snsFix(), left = snsLeft();
     var use = function () { P.n = (P.n || 0) + 1; };
     view('<h1>お店の宣伝</h1>' + deptGate('sns') + (deptN('sns') ? autoSeg('広報にまかせる', '毎月はじめに、広報が駅前でのチラシ配りとハガキで宣伝する（家賃と給与の2か月分は残す）', 'autoSns', [[false, 'しない'], [true, '自動']]) : '') + '<p class="lead">まだSNSがない時代。スタッフと駅前でチラシを手配りしたり、常連さんにハガキを送ったりして、お店を知ってもらう。月2回まで。お金を払って出す「広告」（折り込みや雑誌）とは別に、自分たちの足でできる宣伝。</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
-      [{ label: '駅前でチラシを手配りする　' + yen(10000), sub: left > 0 ? '印刷代だけ。道ゆく人に、直接お店を知ってもらう' : '今月はもう2回宣伝した', off: left <= 0 || S.cash < 10000, go: function () { pay(10000); use(); S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; SFX.good(); adPrView('駅前で、手書きのチラシを配った。「こんなところにエステがあったのね」と、足を止めてくれる人も。（評判+2、来月の新規+1人）'); } },
+      [{ label: '駅前でチラシを手配りする　' + yen(10000), sub: left > 0 ? '印刷代だけ。道ゆく人に、直接お店を知ってもらう' : '今月はもう2回宣伝した', off: left <= 0 || S.cash < 10000, go: function () { payExp(10000, 'ad'); use(); S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; SFX.good(); adPrView('駅前で、手書きのチラシを配った。「こんなところにエステがあったのね」と、足を止めてくれる人も。（評判+2、来月の新規+1人）'); } },
        { label: 'お知らせのハガキを送る', sub: left > 0 ? '常連さんに、季節のおすすめとお礼をハガキで届ける（1枚' + postFee() + '円＋印刷代）' : '今月はもう2回宣伝した', off: left <= 0 || !postOn(), go: function () { use(); var r = postSend('dm'); SFX.good(); adPrView(r.n + '人の常連さんにハガキを送った（' + yen(r.cost) + '）。（常連の信頼+3）'); } },
        { main: true, label: 'もどる', go: investView }]);
     autoSegBind(function () { adPrView(); });
@@ -7403,7 +7416,7 @@
       autoSeg('資格の勉強を自動で支援する', '部署の資格を、1人ずつ毎月受けさせる（家賃と給与の2か月分は残す）', 'autoCert', [[false, 'しない'], [true, '自動']]) : '') + '<p class="lead">本社のスタッフは、部署の仕事で経験を積んで育つ。研修は月1回。資格の勉強は1人ずつ支援できる。力が5になると、その部署の部長になる。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       '<ul class="who-list hqlist">' + hs.map(function (st) { return '<li><span>' + st.name + (isBucho(st) ? '（部長）' : '') + '<br><small>' + DEPT[st.dept].n + '　資格：' + certText(st) + '</small></span><span>' + (DEPTSK[st.dept] ? hqKeyName(DEPTSK[st.dept]) + ' <b>' + hqSkFix(st)[DEPTSK[st.dept]] + '</b>／5' : '') + '<br><small>' + hqExpText(st) + '</small></span></li>'; }).join('') + '</ul>',
       [{ sec: '研修（月1回）', label: '社内勉強会を開く', sub: !hs.length ? '本社のスタッフがまだいない' : done ? '今月はもう研修した' : '無料。部長や先輩が教える', off: done || !hs.length, go: function () { run(12, 2, '社内勉強会を開いた。'); } },
-       { sec: '研修（月1回）', label: '外部セミナーに参加させる' + (hs.length ? '　' + yen(semi) : ''), sub: !hs.length ? '本社のスタッフがまだいない' : done ? '今月はもう研修した' : '全員が参加する', off: done || !hs.length || S.cash < semi, go: function () { pay(semi); run(30, 4, '外部のセミナーに参加させた。'); } }]
+       { sec: '研修（月1回）', label: '外部セミナーに参加させる' + (hs.length ? '　' + yen(semi) : ''), sub: !hs.length ? '本社のスタッフがまだいない' : done ? '今月はもう研修した' : '全員が参加する', off: done || !hs.length || S.cash < semi, go: function () { payExp(semi, 'edu'); run(30, 4, '外部のセミナーに参加させた。'); } }]
       .concat(hs.map(function (st) {
         var c = hqCert(st), cost = c ? 40000 * c.v + 20000 : 0, tried = st.certWk === S.week;
         return { sec: '資格取得の支援', label: c ? st.name + '：' + c.n + '　' + yen(cost) : st.name + '：部署の資格はすべて持っている', sub: c ? (tried ? '今月はもう受けた' : DEPT[st.dept].n + 'の資格。受験料と教材費を会社が出す') : '', off: !c || tried || S.cash < cost, go: function () {
@@ -7784,6 +7797,7 @@
       if (n > 0 && S.cash < n * pc) n = Math.max(0, Math.floor(S.cash / pc));
       if (n > 0) { S.cash -= n * pc; S.total.cost += n * pc; S.stock[p.k] += n; cost += n * pc; got.push(p.n + '×' + n); }
     });
+    if (cost) expAddTo(cost, 'buy');
     if (got.length) S.news.push({ t: '自動補充：' + got.join('、') + '（' + yen(cost) + '）' });
   }
   function devView() {
@@ -8194,7 +8208,7 @@
       var cost = 6000 * mem.length, used = keys.some(function (k) { return done[k] || done.all; });
       return { label: label + '　' + yen(cost), sub: mem.map(function (st) { return st.name; }).join('・') + (used ? '　今月はもう開いた' : ''),
         off: used || S.cash < cost,
-        go: function () { pay(cost); mem.forEach(function (st) { moodUp(st, 10, 0); }); keys.forEach(function (k) { done[k] = true; }); SFX.good(); S.careNote = note + '（参加した' + mem.length + '人のやる気+10）'; dinnerScene(mem); careView(); } };
+        go: function () { payExp(cost, 'koz'); mem.forEach(function (st) { moodUp(st, 10, 0); }); keys.forEach(function (k) { done[k] = true; }); SFX.good(); S.careNote = note + '（参加した' + mem.length + '人のやる気+10）'; dinnerScene(mem); careView(); } };
     };
     var out = groups.map(function (g2) { var o2 = opt(g2.name + 'で食事会を開く', g2.mem, [g2.key], g2.name + 'の食事会で大いに盛り上がった。チームの距離が縮まった。'); o2.grp = g2.rg + ' の食事会'; return o2; });
     if (groups.length > 1) out.unshift(opt('全店合同の食事会を開く', list, groups.map(function (g2) { return g2.key; }).concat(['all']), '全店合同の食事会で、お店をこえて仲よくなった。みんなの笑顔が増えた。'));
@@ -8383,6 +8397,7 @@
       S.lastWk = { prod: S.wk.prod + (S.wk.brProd || 0), course: S.wk.course, all: allNet };
       S.wk.achGot = achCheck();
       S.yrNet = (S.yrNet || 0) + allNet;
+      ctaxMonth();
       if (S.taxPlan) { var tp = Math.min(S.taxPlan.amt, S.taxPlan.rest); S.cash -= tp; S.total.cost += tp; S.taxPlan.rest -= tp; S.taxPlan.left--;
         S.wk.taxNote = { bad: true, t: '税金の分割払い ' + yen(tp) + 'を納めた。' + (S.taxPlan.left > 0 && S.taxPlan.rest > 0 ? 'あと' + S.taxPlan.left + '回。' : '分割払いが終わった。') };
         if (S.taxPlan.left <= 0 || S.taxPlan.rest <= 0) S.taxPlan = null; }
@@ -8394,6 +8409,7 @@
         else if (tprof > 0) S.wk.taxNote = { t: yearOf() + '年目は、' + gwName() + 'の償却で利益がなくなったので、税金はかからなかった。' };
         else S.wk.taxNote = { t: yearOf() + '年目は赤字だったので、税金はかからなかった。' };
         S.yrNet = 0;
+        ctaxYear();
       }
       S.wk.yearCut = monthOf() === 3 ? yearEnd() : null;
       if (S.wk.yearCut) S.wk.achGot = S.wk.achGot.concat(achCheck());
@@ -8417,6 +8433,7 @@
       (w.fee ? '<dt>会費（4か月ごと）</dt><dd>' + yen(w.fee) + '</dd>' : '') +
       (w.roy ? '<dt>のれん分けの売上の一部</dt><dd>' + yen(w.roy) + '</dd>' : '') +
       (w.fcRoy ? '<dt>フランチャイズ（加盟金・ロイヤリティ）</dt><dd>' + yen(w.fcRoy) + '</dd>' : '') +
+      (w.exp && Object.keys(w.exp).length ? '<dt><b>経費として計上したもの</b>（税金の計算で、利益から引く）</dt><dd></dd>' + Object.keys(EXPN).filter(function (k) { return w.exp[k]; }).map(function (k) { return '<dt>　' + EXPN[k] + '</dt><dd>' + yen(-w.exp[k]) + '</dd>'; }).join('') : '') +
       (w.biz ? '<dt>買収した事業の利益</dt><dd>' + yen(w.biz) + '</dd>' : '') +
       (w.whole ? '<dt>自社商品の卸売り</dt><dd>' + yen(w.whole) + '</dd>' : '') +
       (w.extra ? '<dt>賞金など</dt><dd>' + yen(w.extra) + '</dd>' : '') +
@@ -8498,7 +8515,7 @@
     if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), investView);
     if (S.wk && (S.wk.yearCut || (S.wk.achGot && S.wk.achGot.length))) {
       var cs = []; if (S.wk.yearCut) cs.push(S.wk.yearCut);
-      (S.wk.achGot || []).forEach(function (a) { cs.push({ kicker: '実績達成', title: a, icon: 'crown', c1: '#F2C230', c2: '#E8A93A', sound: function () { SFX.fanfare(true); } }); });
+      (S.wk.achGot || []).forEach(function (a) { cs.push({ kicker: '称号を手に入れた', title: a, icon: 'crown', c1: '#F2C230', c2: '#E8A93A', sound: function () { SFX.fanfare(true); } }); });
       S.wk.yearCut = null; S.wk.achGot = [];
       return showCuts(cs, investView);
     }
@@ -8525,6 +8542,7 @@
     if ((S.wk.relNote || []).length) hn += '<div class="news good">' + S.wk.relNote.join('<br>') + '</div>';
     if ((S.wk.hqNote || []).length) hn += '<div class="news good">' + (eraY() < 2000 ? '本社からのFAX：' : '本社：') + S.wk.hqNote.join('<br>') + '</div>';
     if (S.wk.taxNote) hn += '<div class="news' + (S.wk.taxNote.bad ? ' bad' : '') + '">' + S.wk.taxNote.t + '</div>';
+    if (S.wk.ctaxNote) hn += '<div class="news' + (S.wk.ctaxNote.bad ? ' bad' : ' good') + '">' + S.wk.ctaxNote.t + '</div>';
     if (S.wk.gwNote) hn += '<div class="news good">' + S.wk.gwNote + '</div>';
     if (S.wk.lv) hn += '<div class="news good">経営者レベルが <b>' + S.wk.lv.to + '</b> に上がった！（' + lvTitle(S.wk.lv.to) + '）' +
       (S.wk.lv.areas.length ? '<br>新しく出店できる街：' + S.wk.lv.areas.map(function (k) { return AREAS[k].n; }).join('、') : '') + '</div>';
@@ -8557,7 +8575,8 @@
     opts.push({ label: '広告：' + adNm(S.adLv || 0), sub: adCost() ? '月' + yen(adCost()) : '', go: adView, rec: !(S.adLv || 0) && !S.turnedWk && S.week >= 2 && S.cash >= burnR * 4 ? '新規が増えると、常連とコースも育つ' : '' });
     opts.push({ label: '商品開発' + (S.dev ? '（開発中・あと' + S.dev.left + 'か月）' : ''), sub: S.dev ? '「' + S.dev.name + '」' : !S.kobo ? '工房カフェをつくると作れる' : ('オリジナル ' + S.myProds.length + '／' + MAXMINE + '品'),
       off: !S.kobo && !S.dev, go: devView });
-    opts.push({ label: 'サロンランキングと実績', sub: '実績 ' + Object.keys(S.ach || {}).length + '／' + ACH.length, go: function () { view('<h1>ランキングと実績</h1>', [{ label: 'サロンランキング（途中経過）', go: rankView }, { label: '実績', go: achView }, { main: true, label: 'もどる', go: investView }]); } });
+    opts.push({ label: '称号コレクション', sub: Object.keys(S.ach || {}).length + '／' + ACH.length + 'を手に入れた', go: achView });
+    opts.push({ label: 'サロンランキング（途中経過）', go: rankView });
     opts.push({ label: 'SNSで発信する', sub: S.autoSns && deptN('sns') ? '広報にまかせている' : '今月あと' + snsLeft() + '回', go: function () { snsView(); } });
     if (S.shops.length || S.ph) opts.push({ label: '各店舗を見に行く', go: function () { visitView(S.shops[0] || 'ph'); } });
     if (freeAreas().length) opts.push({ label: '新しい店舗を出す', sub: 'いま' + (1 + S.shops.length) + '店舗', go: function () { branchView(); }, rec: minBr && S.cash >= minBr + burnR * 3 ? '資金は十分。お店が増えると売上が大きく伸びる' : '' });
@@ -8696,7 +8715,7 @@
   }
   function dotFx(m, rp) {
     var st = m.sid ? dotStaff(m.sid) : null, c = m.cid ? dotClient(m.cid) : null;
-    if (rp.cost) pay(rp.cost);
+    if (rp.cost) payExp(rp.cost, 'koz');
     switch (rp.fx) {
       case 'book': if (c) { c.booked = S.week + 1; c.active = true; c.loy = clamp(c.loy + 5, 0, 100); } return '来月のご予約が入った（信頼+5）';
       case 'loy': if (c) c.loy = clamp(c.loy + 2, 0, 100); return '信頼+2';
@@ -8747,7 +8766,7 @@
     var nx = phoneNext(); if (nx && !S.phoneAsk[nx]) { S.phoneAsk[nx] = true; S.phonePending = nx; }
   }
   function buyPhone(lv, then) {
-    var P = PHONES[lv]; pay(P.cost); S.phone = lv; S.phonePending = 0; SFX.fanfare(true);
+    var P = PHONES[lv]; pay(P.cost); S.phone = lv; S.phoneBought = true; S.phonePending = 0; SFX.fanfare(true);
     evScene([P.pic]); if (scene.story) scene.story.t0 = performance.now();
     showCut({ kicker: lv === 2 ? 'ケータイデビュー' : 'スマホデビュー', title: P.n + 'を買った', sub: lv === 2 ? 'これからは、スタッフや友だちと携帯メールでやりとりできる' : (eraY() >= 2012 ? 'これからは、メッセージアプリでスタッフとやりとりできる' : '2012年ごろから、メッセージアプリでやりとりできるようになる'), icon: 'star', c1: '#7FC8E8', c2: '#62B2D6' }, then);
   }
@@ -8948,6 +8967,28 @@
     });
   }
   function pay(n) { S.cash -= n; S.total.cost += n; }
+  // 経費として払う：税金のかかる利益から引く。koz＝交際費・福利厚生、ad＝広告宣伝、edu＝研修費、buy＝仕入れ
+  var EXPN = { koz: '交際費・福利厚生（食事会・打ち上げ・誕生日など）', ad: '広告宣伝費（チラシ・ハガキなど）', edu: '研修費', buy: '商品の仕入れ' };
+  function expAddTo(n, cat) { if (!S.wk) return; S.wk.exp = S.wk.exp || {}; S.wk.exp[cat] = (S.wk.exp[cat] || 0) + n; S.yrNet = (S.yrNet || 0) - n; S.ctaxIn = (S.ctaxIn || 0) + n * ctaxRate() / (1 + ctaxRate()); }
+  function payExp(n, cat) { if (!n) return; pay(n); expAddTo(n, cat); }
+  // 消費税：1989年4月3%、1997年4月5%、2014年4月8%、2019年10月10%
+  // 消費税：売上で預かった分から、仕入れ・家賃・広告などで払った分を引いて、決算の月に納める
+  function ctaxMonth() {
+    var r = ctaxRate(), sales = S.wk.sales + S.wk.branch.reduce(function (a, x) { return a + x.sales; }, 0);
+    var purch = S.wk.rent + (S.wk.adCost || 0) + (S.wk.cinCost || 0) + (S.wk.base ? S.wk.base.cost : 0) + S.shops.reduce(function (a, b) { return a + ((AREAS[b.area] || {}).rent || 0); }, 0);
+    S.ctaxOut = (S.ctaxOut || 0) + sales * r / (1 + r); S.ctaxIn = (S.ctaxIn || 0) + purch * r / (1 + r); S.ctaxSales = (S.ctaxSales || 0) + sales;
+  }
+  // 免税事業者：開業から2年間と、2年前の売上が基準以下の年（1989〜2003年は3,000万円、2004年からは1,000万円）
+  function ctaxYear() {
+    var y = yearOf(), due = Math.max(0, Math.round(((S.ctaxOut || 0) - (S.ctaxIn || 0)) / 1000) * 1000), lim = eraY() < 2004 ? 3e7 : 1e7;
+    S.salesHist = S.salesHist || {}; S.salesHist[y] = Math.round(S.ctaxSales || 0);
+    var past = S.salesHist[y - 2], exempt = y <= 2 || (past !== undefined && past <= lim);
+    S.ctaxOut = 0; S.ctaxIn = 0; S.ctaxSales = 0;
+    if (!due) return;
+    if (exempt) { S.wk.ctaxNote = { t: '消費税：' + (y <= 2 ? '開業から2年間は' : '2年前の売上が' + yen(lim) + '以下なので、') + '免税事業者。お客様から預かった消費税' + yen(due) + 'は納めなくてよかった。' }; return; }
+    pay(due); S.wk.ctaxNote = { bad: true, t: '消費税 ' + yen(due) + 'を納めた（1年間に売上で預かった消費税から、仕入れや家賃などで払った消費税を引いた額）。' };
+  }
+  function ctaxRate() { var y = eraY(), m = monthOf(); if (!S || !S.startYear) return 0.1; var v = y * 100 + m; return v < 198904 ? 0 : v < 199704 ? 0.03 : v < 201404 ? 0.05 : v < 201910 ? 0.08 : 0.1; }
   function roomAny() { return S.staff.length < maxOf(null) || S.shops.some(function (b) { return b.staff.length < maxOf(b); }); }
   // keep が true のときは、続けて押せるように画面の位置を保つ
   function stockView(keep) {
@@ -8976,7 +9017,7 @@
       [{ main: true, label: 'もどる', go: investView }]);
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-buy]'), function (bt) {
       bt.addEventListener('click', function () { var a = bt.getAttribute('data-buy').split(':'), p = list[+a[0]], n = +a[1], c = costOf(p) * n;
-        if (S.cash < c) return; pay(c); S.stock[p.k] = (S.stock[p.k] || 0) + n; SFX.coin(); stockView(true); });
+        if (S.cash < c) return; payExp(c, 'buy'); S.stock[p.k] = (S.stock[p.k] || 0) + n; SFX.coin(); stockView(true); });
     });
     Array.prototype.forEach.call(document.querySelectorAll('#app [data-all]'), function (bt) {
       bt.addEventListener('click', function () { var v = +bt.getAttribute('data-all'); S.autoAll = v; list.forEach(function (p) { S.autoStock[p.k] = v; }); SFX.click(); stockView(true); });
@@ -9645,14 +9686,14 @@
       tGroups().filter(function (g2) { return g2.mem.length && !tDone(g2.key); }).forEach(function (g2) {
         var m = tBest(g2), pl = tPlan(g2, m);
         if (S.cash - pl.cost < trainReserve()) { out.push(g2.name + 'は資金をとっておくため、見送った'); return; }
-        pay(pl.cost); var lines = tRun(g2, m), ups = lines.filter(function (l) { return /→/.test(l); }).map(function (l) { return l.replace(/（[^）]*）経験値\+\d+　→ /, '：').replace(/<[^>]+>/g, ''); });
+        payExp(pl.cost, 'edu'); var lines = tRun(g2, m), ups = lines.filter(function (l) { return /→/.test(l); }).map(function (l) { return l.replace(/（[^）]*）経験値\+\d+　→ /, '：').replace(/<[^>]+>/g, ''); });
         out.push(g2.name + '（' + TMETH[m].n + '・' + yen(pl.cost) + '）' + (ups.length ? '：' + ups.join('、') : ''));
       });
     }
     var hs = hqOn() ? hqStaff() : [];
     if (S.autoHqTrain && hs.length && S.hqTrainWk !== S.week) {
       var semi = 30000 * hs.length, useSemi = S.autoHqTrain === 'semi' && S.cash - semi >= trainReserve(), n = useSemi ? 30 : 12, ups2 = [];
-      if (useSemi) pay(semi);
+      if (useSemi) payExp(semi, 'edu');
       hs.forEach(function (st) { moodUp(st, useSemi ? 4 : 2, 0); ups2 = ups2.concat(hqExp(st, n)); }); S.hqTrainWk = S.week;
       out.push('本社（' + (useSemi ? '外部セミナー・' + yen(semi) : '社内勉強会') + '）' + (ups2.length ? '：' + ups2.join('、').replace(/<[^>]+>/g, '') : ''));
     }
@@ -9680,7 +9721,7 @@
           var R = snsPostCore(ks[0], pf); out.push(SNSPF[pf].n + 'に「' + snsName(ks[0], pf) + '」（フォロワー+' + fmtN(R.gain) + (R.buzz ? '・話題に！' : '') + '）');
         }
       } else {
-        if (left > 0 && S.cash - 10000 >= trainReserve()) { pay(10000); P.n = (P.n || 0) + 1; S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; out.push('駅前でチラシ配り（評判+2）'); left--; }
+        if (left > 0 && S.cash - 10000 >= trainReserve()) { payExp(10000, 'ad'); P.n = (P.n || 0) + 1; S.rep = clamp(S.rep + 2, 0, 100); S.buzz = { until: S.week + 1, n: 1 }; out.push('駅前でチラシ配り（評判+2）'); left--; }
         if (left > 0 && postOn() && P.post !== S.week) { P.n = (P.n || 0) + 1; P.post = S.week; var r = postSend('dm'); out.push(r.n + '人の常連さんにハガキ'); }
       }
       if (out.length) out = ['広報：' + out.join('、')];
@@ -9722,7 +9763,7 @@
       '6つの力がすべて5になったら、研修（経験値' + TGOD + 'で1）と自主練習で神技・神対応へ近づく（' + GODNEED + 'ポイント）。自主練習は、得意な系統か伸びしろ★4以上なら毎月、ほかは3か月に1回。</p></details>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       (gs.length > 1 ? [{ label: '全店舗で研修する（店ごとにいちばん合う教え方）　' + (allCost ? yen(allCost) : ''), sub: todo.length ? todo.length + '店舗。' + (S.cash < allCost ? 'お金が足りない' : '店舗ごとの教え方は、気質に合う人がいちばん多いもの') : '今月はすべての店舗で研修ずみ',
         off: !todo.length || S.cash < allCost, go: function () {
-          var lines = []; todo.forEach(function (g2) { var m = tBest(g2), pl = tPlan(g2, m); pay(pl.cost); lines.push('<b>' + g2.name + '</b>（' + TMETH[m].n + '）'); lines = lines.concat(tRun(g2, m)); });
+          var lines = []; todo.forEach(function (g2) { var m = tBest(g2), pl = tPlan(g2, m); payExp(pl.cost, 'edu'); lines.push('<b>' + g2.name + '</b>（' + TMETH[m].n + '）'); lines = lines.concat(tRun(g2, m)); });
           var ups = lines.filter(function (l) { return /に上がった|が進んだ/.test(l); }).map(function (l) { return l.replace(/（[^）]*）経験値\+\d+　→ /, '：'); });
           S.trainNote = todo.length + '店舗で研修した。' + (ups.length ? '<br>' + ups.join('<br>') : '');
           var back = function () { investView(); window.scrollTo(0, 0); };
@@ -9742,11 +9783,11 @@
     view('<h1>' + g2.name + 'の研修</h1><p class="lead">全員に同じ教え方で研修する。気質に合うほど経験値が多い。' + (d ? '<br><b>今月はもう研修した。</b>' : '') + '</p>' + (note ? '<div class="news good">' + note + '</div>' : ''),
       Object.keys(TMETH).map(function (m) { var pl = tPlan(g2, m);
         return { label: TMETH[m].n + '　' + yen(pl.cost), sub: '◎' + pl.cnt['◎'] + ' ○' + pl.cnt['○'] + ' △' + pl.cnt['△'] + ' ×' + pl.cnt['×'] + '　経験値 計' + pl.ex + (methD(m) ? '　' + methD(m) : ''), off: d || S.cash < pl.cost,
-          go: function () { pay(pl.cost); var lines = tRun(g2, m); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
+          go: function () { payExp(pl.cost, 'edu'); var lines = tRun(g2, m); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
             if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), fin); fin(); } };
       }).concat([(function () { var pl = tPlan(g2, 'fit');
         return { label: '一人ひとりに合わせて教える　' + yen(pl.cost), sub: '全員◎（経験値 計' + pl.ex + '）。手間がかかるぶん費用' + TFIT + '倍', off: d || S.cash < pl.cost,
-          go: function () { pay(pl.cost); var lines = tRun(g2, 'fit'); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
+          go: function () { payExp(pl.cost, 'edu'); var lines = tRun(g2, 'fit'); SFX.hire(); var fin = function () { shopTrain(key, lines.join('<br>')); };
             if (S.godQueue && S.godQueue.length) return showCuts(godCuts(), fin); fin(); } }; })(),
         { main: true, label: 'もどる', go: function () { trainView(); } }]));
     $('app').insertAdjacentHTML('beforeend', eraText(list));
