@@ -6421,6 +6421,15 @@
   }
   /* --- 地元の工房カフェ：自社商品をつくる工房を見学でき、精油づくり体験と、地元の食材のカフェもある --- */
   var KOBOCOST = 30000000, FARMCOST = 300000, FARMMON = 50000, FARMMAX = 12;
+  // 工房のアップデート：段階が上がるほど、契約できる生産者さんが増え（3軒ずつ）、来場者も増える
+  var KOBOLV = [
+    { n: '小さな工房カフェ', cap: 3 },
+    { n: '見学コースのある工房', cap: 6, cost: 15000000, d: 'ガラス張りの見学コースをつくる。来場者が増える' },
+    { n: '体験教室のある工房', cap: 9, cost: 30000000, d: '精油づくりや石けんづくりの教室をひらく。体験の売上が増える' },
+    { n: '庭と畑のある工房ヴィレッジ', cap: 12, cost: 50000000, d: 'ハーブの畑と庭をつくり、一日すごせる場所に。来場者がさらに増える' }
+  ];
+  function koboLv() { return S.kobo ? Math.min(KOBOLV.length, S.kobo.lv || 1) : 0; }
+  function farmCap() { return S.kobo ? KOBOLV[koboLv() - 1].cap : 0; }
   // 産地の素材（生産者さんとつながると、商品開発で使える）
   var SANCHI = [
     { k: 'birch', n: '白樺の樹液', pref: ['北海道'], area: '北海道の白樺林', cat: 'aging', cats: ['aging'], d: '春だけ採れる、みずみずしい樹液で、肌にうるおいを' },
@@ -6429,7 +6438,7 @@
     { k: 'apple', n: 'りんご', pref: ['青森県', '長野県'], area: '東北と信州の果樹園', cat: 'inner', cats: ['inner'], d: '果実のエキスで、すこやかな肌に' },
     { k: 'nuka', n: '米ぬか', pref: ['秋田県', '山形県', '新潟県', '宮城県'], area: '米どころの田んぼ', cat: 'skin', cats: ['skin'], d: '昔ながらの、しっとりやわらかな肌へ' },
     { k: 'sakekasu', n: '酒かす', pref: ['新潟県', '兵庫県', '広島県'], area: '酒蔵', cat: 'mask', cats: ['mask'], d: '透明感のある肌に' },
-    { k: 'tea', n: '緑茶', pref: ['静岡県', '京都府'], area: '茶畑', cat: 'uv', cats: ['uv'], d: 'さっぱりと、肌を引きしめる' },
+    { k: 'tea', n: 'アロエ', pref: ['静岡県', '沖縄県'], area: '伊豆と南の島のアロエ畑', cat: 'uv', cats: ['uv'], d: 'ほてった肌をしずめて、うるおいを守る' },
     { k: 'tsubaki', n: '椿油', pref: ['東京都', '長崎県', '静岡県'], area: '椿の島', cat: 'body', cats: ['body'], d: 'つややかな髪と肌に' },
     { k: 'hinoki', n: 'ひのき', pref: ['岐阜県', '奈良県', '長野県'], area: '山の森', cat: 'oil', cats: ['oil'], d: '森林浴のような、すがすがしい香り' },
     { k: 'yuzu', n: 'ゆず', pref: ['高知県', '徳島県'], area: '四国の山あい', cat: 'hand', cats: ['hand'], d: 'さわやかで、元気が出る香り' },
@@ -6445,7 +6454,7 @@
   function farmN() { return Object.keys(S.farms || {}).length; }
   function sanchiLocal(x) { return x.pref.indexOf(homePref()) >= 0; }
   function koboOpts() {
-    if (S.kobo) return [{ label: '地元の工房カフェ', sub: '見学・精油づくり体験・地元の食材のカフェ　産地の生産者さん ' + farmN() + '／' + FARMMAX, go: function () { koboView(); } }];
+    if (S.kobo) return [{ label: '地元の工房カフェ', sub: KOBOLV[koboLv() - 1].n + '　生産者さん ' + farmN() + '／' + farmCap(), go: function () { koboView(); } }];
     if (!S.shops.length) return [];
     return [{ label: '地元に工房カフェをつくる　' + yen(KOBOCOST), sub: koboOn() ? 'オリジナル商品をつくる工房。一般の人も見学でき、精油づくり体験と地元の食材のカフェも' : '支店を2つ出すとつくれる', off: !koboOn() || S.cash < KOBOCOST, go: function () {
       pay(KOBOCOST); S.kobo = { since: S.week, visitors: 0 }; S.farms = S.farms || {}; mxpAdd(80); hum(5); S.rep = clamp(S.rep + 5, 0, 100);
@@ -6456,9 +6465,9 @@
   function koboMonth() {
     var K = S.kobo; if (!K) return null;
     var mo = monthOf(), season = [5, 8, 10, 11].indexOf(mo) >= 0 ? 1.3 : [1, 2].indexOf(mo) >= 0 ? 0.7 : 1;
-    var v = Math.round((200 + S.rep * 6 + brandN() * 60 + farmN() * 80) * season * (0.85 + rnd() * 0.3));
+    var lvm = 1 + 0.25 * (koboLv() - 1), v = Math.round((200 + S.rep * 6 + brandN() * 60 + farmN() * 80) * lvm * season * (0.85 + rnd() * 0.3));
     var avg = S.myProds.reduce(function (a, x) { return a + x.price; }, 0) / Math.max(1, S.myProds.length);
-    var cafe = Math.round(v * 0.45 * 1300), work = Math.round(v * 0.08 * 3500), shop = Math.round(v * 0.06 * avg * 0.5);
+    var cafe = Math.round(v * 0.45 * 1300), work = Math.round(v * (koboLv() >= 3 ? 0.12 : 0.08) * 3500), shop = Math.round(v * 0.06 * avg * 0.5);
     var cost = 900000 + farmN() * FARMMON + v * 150, sales = cafe + work + shop;
     K.visitors = v; K.total = (K.total || 0) + v;
     if (v >= 600) S.rep = clamp(S.rep + 1, 0, 95);
@@ -6473,14 +6482,17 @@
   function koboView(note) {
     bar(); evScene(['v_kobo']);
     var K = S.kobo, r = S.wk && S.wk.kobo, hp = homePref();
-    view('<h1>' + (S.brand ? S.brand + 'の' : '') + '工房カフェ</h1><p class="lead">' + (hp || '地元') + 'の、みんなが安らげる場所。ガラス越しに商品づくりを見学でき、精油づくりの体験と、地元の野菜を使ったカフェがある。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
+    var nx = KOBOLV[koboLv()], wait = K.upWk ? Math.max(0, 6 - (S.week - K.upWk)) : 0;
+    view('<h1>' + (S.brand ? S.brand + 'の' : '') + '工房カフェ</h1><p class="lead"><b>' + KOBOLV[koboLv() - 1].n + '</b>（' + koboLv() + '／' + KOBOLV.length + '）。' + (hp || '地元') + 'の、みんなが安らげる場所。ガラス越しに商品づくりを見学でき、精油づくりの体験と、地元の野菜を使ったカフェがある。</p>' + (note ? '<div class="news good">' + note + '</div>' : '') +
       (r ? '<div class="box" style="padding:10px 12px"><dl class="hcond"><dt>先月の来場</dt><dd>' + fmtN(r.visitors) + '人</dd><dt>カフェ</dt><dd>' + yen(r.cafe) + '</dd><dt>精油づくり体験</dt><dd>' + yen(r.work) + '</dd><dt>商品の販売</dt><dd>' + yen(r.shop) + '</dd><dt>収支</dt><dd>' + yen(r.net) + '</dd></dl></div>' : '') +
       '<p class="lead">産地の生産者さんと契約すると、その素材で、オリジナル商品を1種類ずつ作れるようになる。自社の工房でつくるので、仕入れ値が15%安く、品質も上がりやすい。</p>',
-      SANCHI.filter(function (x) { return x.cat || (S.farms && S.farms[x.k]); }).map(function (x) {
+      (nx ? [{ label: '工房をアップデート：' + nx.n + '　' + yen(nx.cost), sub: wait ? '前のアップデートの工事中。あと' + wait + 'か月' : nx.d + '。契約できる生産者さんが' + nx.cap + '軒までに', off: !!wait || S.cash < nx.cost,
+        go: function () { pay(nx.cost); K.lv = koboLv() + 1; K.upWk = S.week; mxpAdd(40); hum(2); S.rep = clamp(S.rep + 2, 0, 100); SFX.fanfare(true); koboView('工房が「' + nx.n + '」になった。契約できる生産者さんが' + nx.cap + '軒までに増えた。'); } }] : [])
+      .concat(SANCHI.filter(function (x) { return x.cat || (S.farms && S.farms[x.k]); }).map(function (x) {
         var has = S.farms && S.farms[x.k], loc = sanchiLocal(x), c = loc ? FARMCOST / 2 : FARMCOST;
-        return { sec: '産地の生産者さん（' + farmN() + '／' + FARMMAX + '）', label: x.n + (loc ? '（地元）' : '') + (x.cat ? ' → ' + DEVCAT[x.cat].n : '') + (has ? '' : '　' + yen(c)), picked: !!has, sub: x.area + '。' + x.d + (has ? '　つながって' + Math.max(1, Math.floor((S.week - has.since) / 12) + 1) + '年目' : '　毎月の仕入れ ' + yen(FARMMON)),
-          off: !!has || farmN() >= FARMMAX || S.cash < c, go: function () { pay(c); S.farms[x.k] = { since: S.week }; hum(loc ? 3 : 2); SFX.good(); koboView(x.area + 'の生産者さんを訪ね、' + x.n + 'を分けてもらえることになった。' + (x.cat ? '「' + DEVCAT[x.cat].n + '」のオリジナル商品を作れるようになった。' : '')); } };
-      }).concat([{ main: true, label: 'もどる', go: investView }]));
+        return { sec: '産地の生産者さん（' + farmN() + '／' + farmCap() + '軒まで）', label: x.n + (loc ? '（地元）' : '') + (x.cat ? ' → ' + DEVCAT[x.cat].n : '') + (has ? '' : '　' + yen(c)), picked: !!has, sub: x.area + '。' + x.d + (has ? '　つながって' + Math.max(1, Math.floor((S.week - has.since) / 12) + 1) + '年目' : '　毎月の仕入れ ' + yen(FARMMON)),
+          off: !!has || farmN() >= farmCap() || S.cash < c, go: function () { pay(c); S.farms[x.k] = { since: S.week }; hum(loc ? 3 : 2); SFX.good(); koboView(x.area + 'の生産者さんを訪ね、' + x.n + 'を分けてもらえることになった。' + (x.cat ? '「' + DEVCAT[x.cat].n + '」のオリジナル商品を作れるようになった。' : '')); } };
+      })).concat([{ main: true, label: 'もどる', go: investView }]));
   }
   function phOpts() {
     if (!S.ph) {
